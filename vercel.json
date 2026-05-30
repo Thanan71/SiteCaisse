@@ -16,8 +16,11 @@
       "dest": "api/index.cjs"
     },
     {
+      "handle": "filesystem"
+    },
+    {
       "src": "/(.*)",
-      "dest": "dist/$1"
+      "dest": "/index.html"
     }
   ]
 }
