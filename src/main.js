@@ -6,7 +6,7 @@ import router from './router'
 import './style.css'
 
 // Configuration axios
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || '/api'
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || ''
 
 // Intercepteur : ajouter le token JWT à chaque requête
 axios.interceptors.request.use(config => {
