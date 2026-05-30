@@ -1,5 +1,6 @@
 <template>
   <div id="app">
+    <SpeedInsights />
     <Navbar v-if="authStore.isAuthenticated" />
     <main :class="{ 'with-navbar': authStore.isAuthenticated }">
       <router-view />
@@ -10,6 +11,7 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useAuthStore } from './store/auth'
+import { SpeedInsights } from '@vercel/speed-insights/vue'
 import Navbar from './components/Navbar.vue'
 
 const authStore = useAuthStore()
