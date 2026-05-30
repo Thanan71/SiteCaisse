@@ -47,8 +47,8 @@
             <td class="article-name">{{ vente.article }}</td>
             <td>{{ vente.artisan_nom }}</td>
             <td class="text-center">{{ vente.quantite }}</td>
-            <td class="text-right">{{ formatPrice(vente.prix) }}</td>
-            <td class="text-right total-price">{{ formatPrice(vente.prix * vente.quantite) }}</td>
+            <td class="text-center">{{ formatPrice(vente.prix) }}</td>
+            <td class="text-center total-price">{{ formatPrice(vente.prix * vente.quantite) }}</td>
             <td>
               <span class="payment-badge" :class="'payment-' + vente.type_paiement.toLowerCase()">
                 {{ getPaymentLabel(vente.type_paiement) }}
