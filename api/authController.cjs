@@ -24,7 +24,7 @@ function authMiddleware(req, res, next) {
 }
 
 // POST /api/auth/login
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -32,7 +32,7 @@ router.post('/login', (req, res) => {
       return res.status(400).json({ error: 'Email et mot de passe requis' });
     }
 
-    const user = findUserByEmail(email);
+    const user = await findUserByEmail(email);
     if (!user) {
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
@@ -68,9 +68,9 @@ router.post('/login', (req, res) => {
 });
 
 // GET /api/auth/me
-router.get('/me', authMiddleware, (req, res) => {
+router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const user = findUserById(req.user.id);
+    const user = await findUserById(req.user.id);
     if (!user) {
       return res.status(404).json({ error: 'Utilisateur non trouvé' });
     }

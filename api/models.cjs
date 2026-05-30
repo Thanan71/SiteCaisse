@@ -1,142 +1,170 @@
-const { getDb } = require('./db.cjs');
 const bcrypt = require('bcryptjs');
+const { getSupabase } = require('./db.cjs');
 
-function initTables() {
-  const db = getDb();
+// Fonction de seed : à exécuter une seule fois via `node api/models.cjs`
+async function seedIfEmpty() {
+  const supabase = getSupabase();
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nom TEXT NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      role TEXT DEFAULT 'permanent' CHECK(role IN ('permanent', 'temporaire')),
-      est_actif INTEGER DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
+  // Vérifier si des utilisateurs existent déjà
+  const { data: existingUsers, error: checkError } = await supabase.from('users').select('id').limit(1);
 
-    CREATE TABLE IF NOT EXISTS ventes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      article TEXT NOT NULL,
-      quantite INTEGER DEFAULT 1,
-      prix REAL NOT NULL,
-      type_paiement TEXT NOT NULL CHECK(type_paiement IN ('CB', 'Espece', 'Cheque')),
-      artisan_id INTEGER REFERENCES users(id),
-      vendeur_id INTEGER REFERENCES users(id),
-      date_vente TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-  `);
-
-  // Seed data – only insert if no users exist yet
-  const count = db.prepare('SELECT COUNT(*) as cnt FROM users').get();
-  if (count.cnt === 0) {
-    const hash = bcrypt.hashSync('password123', 10);
-
-    const insertUser = db.prepare(
-      'INSERT INTO users (nom, email, password_hash, role) VALUES (?, ?, ?, ?)'
-    );
-
-    insertUser.run('Marcel', 'marcel@artisan.fr', hash, 'permanent');
-    insertUser.run('Sophie', 'sophie@artisan.fr', hash, 'permanent');
-    insertUser.run('Jean', 'jean@artisan.fr', hash, 'permanent');
-    insertUser.run('Lucas', 'lucas@artisan.fr', hash, 'temporaire');
-    insertUser.run('Emma', 'emma@artisan.fr', hash, 'temporaire');
-
-    console.log('✅ Seed data inserted (5 artisans)');
+  if (checkError) {
+    console.error('❌ Erreur vérification users:', checkError.message);
+    console.log('⚠️  Assurez-vous d\'avoir exécuté supabase-schema.sql sur le dashboard Supabase');
+    return;
   }
-}
 
-function findUserByEmail(email) {
-  const db = getDb();
-  return db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-}
+  if (existingUsers && existingUsers.length > 0) {
+    console.log('📦 Users déjà présents, seed ignoré');
+    return;
+  }
 
-function findUserById(id) {
-  const db = getDb();
-  return db.prepare('SELECT id, nom, email, role, est_actif FROM users WHERE id = ?').get(id);
-}
+  const hash = bcrypt.hashSync('password123', 10);
 
-function getAllArtisans() {
-  const db = getDb();
-  return db
-    .prepare("SELECT id, nom, email, role FROM users WHERE est_actif = 1 AND role IN ('permanent', 'temporaire')")
-    .all();
-}
+  const users = [
+    { nom: 'Marcel', email: 'marcel@artisan.fr', password_hash: hash, role: 'permanent' },
+    { nom: 'Sophie', email: 'sophie@artisan.fr', password_hash: hash, role: 'permanent' },
+    { nom: 'Jean', email: 'jean@artisan.fr', password_hash: hash, role: 'permanent' },
+    { nom: 'Lucas', email: 'lucas@artisan.fr', password_hash: hash, role: 'temporaire' },
+    { nom: 'Emma', email: 'emma@artisan.fr', password_hash: hash, role: 'temporaire' }
+  ];
 
-function createVente(article, quantite, prix, type_paiement, artisan_id, vendeur_id, date_vente) {
-  const db = getDb();
-  const stmt = db.prepare(
-    'INSERT INTO ventes (article, quantite, prix, type_paiement, artisan_id, vendeur_id, date_vente) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  );
-  const result = stmt.run(article, quantite, prix, type_paiement, artisan_id, vendeur_id, date_vente);
-  return result.lastInsertRowid;
-}
-
-function getAllVentes() {
-  const db = getDb();
-  return db
-    .prepare(
-      `SELECT v.*, a.nom AS artisan_nom, ve.nom AS vendeur_nom
-       FROM ventes v
-       LEFT JOIN users a ON v.artisan_id = a.id
-       LEFT JOIN users ve ON v.vendeur_id = ve.id
-       ORDER BY v.date_vente DESC, v.id DESC`
-    )
-    .all();
-}
-
-function getVentesByArtisan(artisan_id) {
-  const db = getDb();
-  const ventes = db
-    .prepare(
-      `SELECT v.*, a.nom AS artisan_nom, ve.nom AS vendeur_nom
-       FROM ventes v
-       LEFT JOIN users a ON v.artisan_id = a.id
-       LEFT JOIN users ve ON v.vendeur_id = ve.id
-       WHERE v.artisan_id = ?
-       ORDER BY v.date_vente DESC, v.id DESC`
-    )
-    .all(artisan_id);
-
-  const summary = db
-    .prepare(
-      `SELECT COUNT(*) as total_articles, COALESCE(SUM(prix * quantite), 0) as total_montant
-       FROM ventes WHERE artisan_id = ?`
-    )
-    .get(artisan_id);
-
-  return { ventes, summary };
-}
-
-function updateVente(id, fields) {
-  const db = getDb();
-  const allowed = ['article', 'quantite', 'prix', 'type_paiement', 'artisan_id', 'date_vente'];
-  const setClauses = [];
-  const params = [];
-
-  for (const key of allowed) {
-    if (fields[key] !== undefined) {
-      setClauses.push(`${key} = ?`);
-      params.push(fields[key]);
+  for (const user of users) {
+    const { error } = await supabase.from('users').insert(user);
+    if (error) {
+      console.error(`❌ Erreur insertion ${user.nom}:`, error.message);
+    } else {
+      console.log(`✅ Utilisateur ${user.nom} créé`);
     }
   }
 
-  if (setClauses.length === 0) return false;
-
-  params.push(id);
-  const result = db.prepare(`UPDATE ventes SET ${setClauses.join(', ')} WHERE id = ?`).run(...params);
-  return result.changes > 0;
+  console.log('✅ Seed terminé !');
 }
 
-function deleteVente(id) {
-  const db = getDb();
-  const result = db.prepare('DELETE FROM ventes WHERE id = ?').run(id);
-  return result.changes > 0;
+// Exécuter le seed si lancé directement
+if (require.main === module) {
+  require('dotenv').config();
+  seedIfEmpty()
+    .then(() => process.exit(0))
+    .catch(err => {
+      console.error('❌ Erreur seed:', err);
+      process.exit(1);
+    });
+}
+
+async function findUserByEmail(email) {
+  const supabase = getSupabase();
+  const { data, error } = await supabase.from('users').select('*').eq('email', email).single();
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+async function findUserById(id) {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, nom, email, role, est_actif')
+    .eq('id', id)
+    .single();
+  if (error && error.code !== 'PGRST116') throw error;
+  return data || null;
+}
+
+async function getAllArtisans() {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, nom, email, role')
+    .eq('est_actif', 1)
+    .in('role', ['permanent', 'temporaire']);
+  if (error) throw error;
+  return data || [];
+}
+
+async function createVente(article, quantite, prix, type_paiement, artisan_id, vendeur_id, date_vente) {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('ventes')
+    .insert({ article, quantite, prix, type_paiement, artisan_id, vendeur_id, date_vente })
+    .select('id')
+    .single();
+  if (error) throw error;
+  return data.id;
+}
+
+async function getAllVentes() {
+  const supabase = getSupabase();
+  const { data, error } = await supabase
+    .from('ventes')
+    .select(`
+      *,
+      artisan:artisan_id (nom),
+      vendeur:vendeur_id (nom)
+    `)
+    .order('date_vente', { ascending: false })
+    .order('id', { ascending: false });
+  if (error) throw error;
+
+  return (data || []).map(v => ({
+    ...v,
+    artisan_nom: v.artisan?.nom || null,
+    vendeur_nom: v.vendeur?.nom || null,
+    artisan: undefined,
+    vendeur: undefined
+  }));
+}
+
+async function getVentesByArtisan(artisan_id) {
+  const supabase = getSupabase();
+  const { data: ventes, error: ventesError } = await supabase
+    .from('ventes')
+    .select(`
+      *,
+      artisan:artisan_id (nom),
+      vendeur:vendeur_id (nom)
+    `)
+    .eq('artisan_id', artisan_id)
+    .order('date_vente', { ascending: false })
+    .order('id', { ascending: false });
+  if (ventesError) throw ventesError;
+
+  const formattedVentes = (ventes || []).map(v => ({
+    ...v,
+    artisan_nom: v.artisan?.nom || null,
+    vendeur_nom: v.vendeur?.nom || null,
+    artisan: undefined,
+    vendeur: undefined
+  }));
+
+  const total_articles = formattedVentes.reduce((sum, v) => sum + (v.quantite || 0), 0);
+  const total_montant = formattedVentes.reduce((sum, v) => sum + ((v.prix || 0) * (v.quantite || 0)), 0);
+
+  return { ventes: formattedVentes, summary: { total_articles, total_montant } };
+}
+
+async function updateVente(id, fields) {
+  const allowed = ['article', 'quantite', 'prix', 'type_paiement', 'artisan_id', 'date_vente'];
+  const updateData = {};
+  for (const key of allowed) {
+    if (fields[key] !== undefined) updateData[key] = fields[key];
+  }
+  if (Object.keys(updateData).length === 0) return false;
+
+  const supabase = getSupabase();
+  const { error } = await supabase.from('ventes').update(updateData).eq('id', id);
+  if (error) throw error;
+  return true;
+}
+
+async function deleteVente(id) {
+  const supabase = getSupabase();
+  const { error } = await supabase.from('ventes').delete().eq('id', id);
+  if (error) throw error;
+  return true;
 }
 
 module.exports = {
-  initTables,
+  seedIfEmpty,
   findUserByEmail,
   findUserById,
   getAllArtisans,
