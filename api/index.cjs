@@ -1,3 +1,9 @@
+/**
+ * @file Point d'entrée de l'application Express.
+ * Configure les middlewares et monte les routeurs API.
+ * @module index
+ */
+
 const express = require('express');
 const cors = require('cors');
 
@@ -17,7 +23,10 @@ app.use('/api/auth', authRouter);
 app.use('/api/ventes', ventesRouter);
 app.use('/api/rapports', rapportsRouter);
 
-// Pour Vercel : exporter l'app directement en Serverless Function
+/**
+ * Exporte l'application Express pour Vercel (Serverless Functions).
+ * @returns {import('express').Application} L'application Express configurée.
+ */
 module.exports = app;
 
 // Pour le développement local

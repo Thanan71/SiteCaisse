@@ -1,3 +1,9 @@
+/**
+ * @module ventesController
+ * @description Contrôleur de gestion des ventes.
+ * Fournit les opérations CRUD (Create, Read, Update, Delete) pour les ventes.
+ * Toutes les routes sont protégées par le middleware d'authentification JWT.
+ */
 const express = require('express');
 const { getAllVentes, createVente, updateVente, deleteVente } = require('./models.cjs');
 const { authMiddleware } = require('./authController.cjs');
@@ -7,7 +13,11 @@ const router = express.Router();
 // Toutes les routes nécessitent une authentification
 router.use(authMiddleware);
 
-// GET /api/ventes - Liste toutes les ventes
+/**
+ * Récupère la liste complète de toutes les ventes enregistrées.
+ * @route GET /api/ventes
+ * @returns {Array<Object>} Tableau de toutes les ventes avec les noms des artisans et vendeurs.
+ */
 router.get('/', async (req, res) => {
   try {
     const ventes = await getAllVentes();
@@ -18,7 +28,18 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/ventes - Créer une vente
+/**
+ * Crée une nouvelle vente.
+ * @route POST /api/ventes
+ * @param {string} req.body.article - Nom de l'article vendu (requis).
+ * @param {number} [req.body.quantite=1] - Quantité vendue.
+ * @param {number} req.body.prix - Prix unitaire de l'article (requis).
+ * @param {string} req.body.type_paiement - Type de paiement, doit être 'CB', 'Espece' ou 'Cheque' (requis).
+ * @param {number} req.body.artisan_id - ID de l'artisan concerné (requis).
+ * @param {string} req.body.date_vente - Date de la vente au format ISO (requis).
+ * @returns {Object} ID de la vente créée et message de confirmation.
+ * @throws {400} Si un champ requis est manquant ou si le type de paiement est invalide.
+ */
 router.post('/', async (req, res) => {
   try {
     const { article, quantite, prix, type_paiement, artisan_id, date_vente } = req.body;
@@ -46,7 +67,14 @@ router.post('/', async (req, res) => {
   }
 });
 
-// PUT /api/ventes/:id - Modifier une vente
+/**
+ * Modifie une vente existante.
+ * @route PUT /api/ventes/:id
+ * @param {number} req.params.id - ID de la vente à modifier.
+ * @param {Object} req.body - Champs à modifier (article, quantite, prix, type_paiement, artisan_id, date_vente).
+ * @returns {Object} Message de confirmation de la modification.
+ * @throws {404} Si la vente n'est pas trouvée ou si aucun champ valide fourni.
+ */
 router.put('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
@@ -63,7 +91,13 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/ventes/:id - Supprimer une vente
+/**
+ * Supprime une vente existante.
+ * @route DELETE /api/ventes/:id
+ * @param {number} req.params.id - ID de la vente à supprimer.
+ * @returns {Object} Message de confirmation de la suppression.
+ * @throws {404} Si la vente n'est pas trouvée.
+ */
 router.delete('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);

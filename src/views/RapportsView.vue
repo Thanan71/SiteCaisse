@@ -96,7 +96,7 @@
       </div>
 
       <div class="export-section">
-        <button class="btn btn-success" @click="rapportsStore.exportToExcel()">
+        <button class="btn btn-success" @click="rapportsStore.exportToExcel(artisansStore.artisans)">
           📥 Télécharger en Excel
         </button>
       </div>
@@ -107,20 +107,17 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRapportsStore } from '../store/rapports'
+import { useArtisansStore } from '../store/artisans'
 
 const rapportsStore = useRapportsStore()
+const artisansStore = useArtisansStore()
 const selectedArtisanId = ref('')
 
-const permanents = computed(() =>
-  rapportsStore.artisans.filter(a => a.role === 'permanent')
-)
-
-const temporaires = computed(() =>
-  rapportsStore.artisans.filter(a => a.role === 'temporaire')
-)
+const permanents = computed(() => artisansStore.permanents)
+const temporaires = computed(() => artisansStore.temporaires)
 
 onMounted(() => {
-  rapportsStore.fetchArtisans()
+  artisansStore.fetchArtisans()
 })
 
 function loadVentes() {

@@ -1,3 +1,9 @@
+/**
+ * @module authController
+ * @description Contrôleur d'authentification.
+ * Gère la connexion des utilisateurs, la vérification des tokens JWT
+ * et la récupération du profil de l'utilisateur connecté.
+ */
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -6,7 +12,14 @@ const { findUserByEmail, findUserById } = require('./models.cjs');
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'sitecaisse-secret-key-2024';
 
-// Middleware: vérifier le JWT
+/**
+ * Middleware de vérification du token JWT.
+ * Extrait et vérifie le token depuis l'en-tête Authorization (Bearer).
+ * @param {import('express').Request} req - Requête Express.
+ * @param {import('express').Response} res - Réponse Express.
+ * @param {import('express').NextFunction} next - Fonction suivante dans la chaîne de middleware.
+ * @returns {void}
+ */
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -23,7 +36,16 @@ function authMiddleware(req, res, next) {
   }
 }
 
-// POST /api/auth/login
+/**
+ * Route de connexion : authentifie un utilisateur avec email et mot de passe.
+ * @route POST /api/auth/login
+ * @param {string} req.body.email - Adresse email de l'utilisateur.
+ * @param {string} req.body.password - Mot de passe de l'utilisateur.
+ * @returns {Object} Token JWT et informations utilisateur (id, nom, email, role).
+ * @throws {400} Si email ou mot de passe manquant.
+ * @throws {401} Si email ou mot de passe incorrect.
+ * @throws {403} Si le compte est désactivé.
+ */
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -67,7 +89,13 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// GET /api/auth/me
+/**
+ * Route de vérification du profil utilisateur connecté.
+ * @route GET /api/auth/me
+ * @returns {Object} Informations de l'utilisateur connecté (id, nom, email, role, est_actif).
+ * @throws {401} Si le token est manquant ou invalide (via authMiddleware).
+ * @throws {404} Si l'utilisateur n'est pas trouvé en base de données.
+ */
 router.get('/me', authMiddleware, async (req, res) => {
   try {
     const user = await findUserById(req.user.id);

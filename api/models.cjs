@@ -1,7 +1,16 @@
+/**
+ * @file Modèles de données pour l'application SiteCaisse.
+ * Contient les fonctions de CRUD pour les utilisateurs et les ventes.
+ * @module models
+ */
 const bcrypt = require('bcryptjs');
 const { getSupabase } = require('./db.cjs');
 
-// Fonction de seed : à exécuter une seule fois via `node api/models.cjs`
+/**
+ * Vérifie si des utilisateurs existent dans la table users.
+ * Si la table est vide, insère 5 utilisateurs de démonstration avec le mot de passe "password123".
+ * @returns {Promise<void>}
+ */
 async function seedIfEmpty() {
   const supabase = getSupabase();
 
@@ -52,6 +61,11 @@ if (require.main === module) {
     });
 }
 
+/**
+ * Recherche un utilisateur par son adresse email.
+ * @param {string} email - L'adresse email de l'utilisateur à rechercher.
+ * @returns {Promise<Object|null>} L'objet utilisateur complet, ou null si non trouvé.
+ */
 async function findUserByEmail(email) {
   const supabase = getSupabase();
   const { data, error } = await supabase.from('users').select('*').eq('email', email).single();
@@ -59,6 +73,11 @@ async function findUserByEmail(email) {
   return data || null;
 }
 
+/**
+ * Recherche un utilisateur par son ID.
+ * @param {number} id - L'ID de l'utilisateur à rechercher.
+ * @returns {Promise<Object|null>} L'objet utilisateur (id, nom, email, role, est_actif), ou null si non trouvé.
+ */
 async function findUserById(id) {
   const supabase = getSupabase();
   const { data, error } = await supabase
@@ -70,6 +89,10 @@ async function findUserById(id) {
   return data || null;
 }
 
+/**
+ * Récupère tous les artisans actifs ayant un rôle permanent ou temporaire.
+ * @returns {Promise<Array>} Tableau des artisans (id, nom, email, role).
+ */
 async function getAllArtisans() {
   const supabase = getSupabase();
   const { data, error } = await supabase
@@ -81,6 +104,17 @@ async function getAllArtisans() {
   return data || [];
 }
 
+/**
+ * Crée une nouvelle vente dans la base de données.
+ * @param {string} article - Nom de l'article vendu.
+ * @param {number} quantite - Quantité vendue.
+ * @param {number} prix - Prix unitaire de l'article.
+ * @param {string} type_paiement - Type de paiement (CB, Espece, Cheque).
+ * @param {number} artisan_id - ID de l'artisan concerné.
+ * @param {number} vendeur_id - ID de l'utilisateur qui a effectué la vente.
+ * @param {string} date_vente - Date de la vente au format ISO.
+ * @returns {Promise<number>} L'ID de la vente créée.
+ */
 async function createVente(article, quantite, prix, type_paiement, artisan_id, vendeur_id, date_vente) {
   const supabase = getSupabase();
   const { data, error } = await supabase
@@ -92,6 +126,10 @@ async function createVente(article, quantite, prix, type_paiement, artisan_id, v
   return data.id;
 }
 
+/**
+ * Récupère toutes les ventes avec les noms des artisans et vendeurs associés.
+ * @returns {Promise<Array>} Tableau des ventes formatées avec artisan_nom et vendeur_nom.
+ */
 async function getAllVentes() {
   const supabase = getSupabase();
   const { data, error } = await supabase
@@ -114,6 +152,12 @@ async function getAllVentes() {
   }));
 }
 
+/**
+ * Récupère les ventes d'un artisan spécifique avec un résumé.
+ * @param {number} artisan_id - ID de l'artisan.
+ * @returns {Promise<{ventes: Array, summary: {total_articles: number, total_montant: number}}>}
+ * Un objet contenant les ventes formatées et un résumé (nombre total d'articles et montant total).
+ */
 async function getVentesByArtisan(artisan_id) {
   const supabase = getSupabase();
   const { data: ventes, error: ventesError } = await supabase
@@ -142,6 +186,19 @@ async function getVentesByArtisan(artisan_id) {
   return { ventes: formattedVentes, summary: { total_articles, total_montant } };
 }
 
+/**
+ * Met à jour une vente existante avec les champs fournis.
+ * Seuls les champs autorisés sont appliqués.
+ * @param {number} id - ID de la vente à modifier.
+ * @param {Object} fields - Objet contenant les champs à mettre à jour.
+ * @param {string} [fields.article] - Nouveau nom de l'article.
+ * @param {number} [fields.quantite] - Nouvelle quantité.
+ * @param {number} [fields.prix] - Nouveau prix unitaire.
+ * @param {string} [fields.type_paiement] - Nouveau type de paiement.
+ * @param {number} [fields.artisan_id] - Nouvel ID de l'artisan.
+ * @param {string} [fields.date_vente] - Nouvelle date de vente.
+ * @returns {Promise<boolean>} true si la mise à jour a réussi, false si aucun champ valide fourni.
+ */
 async function updateVente(id, fields) {
   const allowed = ['article', 'quantite', 'prix', 'type_paiement', 'artisan_id', 'date_vente'];
   const updateData = {};
@@ -156,6 +213,11 @@ async function updateVente(id, fields) {
   return true;
 }
 
+/**
+ * Supprime une vente par son ID.
+ * @param {number} id - ID de la vente à supprimer.
+ * @returns {Promise<boolean>} true si la suppression a réussi.
+ */
 async function deleteVente(id) {
   const supabase = getSupabase();
   const { error } = await supabase.from('ventes').delete().eq('id', id);

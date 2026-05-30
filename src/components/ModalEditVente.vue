@@ -62,9 +62,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, onMounted } from 'vue'
-import axios from 'axios'
+import { ref, reactive, watch, computed } from 'vue'
 import { useVentesStore } from '../store/ventes'
+import { useArtisansStore } from '../store/artisans'
 
 const props = defineProps({
   show: Boolean,
@@ -74,7 +74,8 @@ const props = defineProps({
 const emit = defineEmits(['close', 'saved'])
 
 const ventesStore = useVentesStore()
-const artisans = ref([])
+const artisansStore = useArtisansStore()
+const artisans = computed(() => artisansStore.artisans)
 const loading = ref(false)
 const error = ref(null)
 
@@ -98,14 +99,10 @@ watch(() => props.vente, (newVente) => {
   }
 }, { immediate: true })
 
-onMounted(async () => {
-  try {
-    const response = await axios.get('/api/rapports/artisans')
-    artisans.value = response.data
-  } catch (err) {
-    error.value = 'Erreur lors du chargement des artisans'
-  }
-})
+// Charger les artisans au montage si pas déjà chargés
+if (artisansStore.artisans.length === 0) {
+  artisansStore.fetchArtisans()
+}
 
 async function handleSubmit() {
   loading.value = true

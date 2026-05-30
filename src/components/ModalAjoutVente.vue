@@ -98,9 +98,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch } from 'vue'
-import axios from 'axios'
+import { ref, reactive, watch, computed } from 'vue'
 import { useVentesStore } from '../store/ventes'
+import { useArtisansStore } from '../store/artisans'
 
 const props = defineProps({
   show: Boolean
@@ -109,7 +109,8 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const ventesStore = useVentesStore()
-const artisans = ref([])
+const artisansStore = useArtisansStore()
+const artisans = computed(() => artisansStore.artisans)
 const loading = ref(false)
 const error = ref(null)
 
@@ -125,11 +126,12 @@ const form = reactive({
 // Charger les artisans quand le modal s'ouvre
 watch(() => props.show, async (newVal) => {
   if (newVal) {
-    try {
-      const response = await axios.get('/api/rapports/artisans')
-      artisans.value = response.data
-    } catch (err) {
-      error.value = 'Erreur lors du chargement des artisans'
+    if (artisansStore.artisans.length === 0) {
+      try {
+        await artisansStore.fetchArtisans()
+      } catch (err) {
+        error.value = 'Erreur lors du chargement des artisans'
+      }
     }
   } else {
     // Réinitialiser le formulaire
