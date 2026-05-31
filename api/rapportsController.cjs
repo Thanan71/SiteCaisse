@@ -5,16 +5,19 @@
  * et les ventes détaillées d'un artisan spécifique.
  * Toutes les routes sont protégées par le middleware d'authentification JWT.
  */
-const express = require('express');
-const { getAllArtisans, getVentesByArtisan, getAllVentesGroupedByArtisan } = require('./models.cjs');
-const { authMiddleware } = require('./authController.cjs');
-const { ajouterCommissionsAuxGroupes, ajouterCommissionAUnArtisan } = require('./services/commissionService.cjs');
-const { getAllParametres } = require('./services/parametresService.cjs');
-const { logError } = require('./services/loggerService.cjs');
+const express = require('express')
+const { getAllArtisans, getVentesByArtisan, getAllVentesGroupedByArtisan } = require('./models.cjs')
+const { authMiddleware } = require('./authController.cjs')
+const {
+  ajouterCommissionsAuxGroupes,
+  ajouterCommissionAUnArtisan,
+} = require('./services/commissionService.cjs')
+const { getAllParametres } = require('./services/parametresService.cjs')
+const { logError } = require('./services/loggerService.cjs')
 
-const router = express.Router();
+const router = express.Router()
 
-router.use(authMiddleware);
+router.use(authMiddleware)
 
 /**
  * Récupère les ventes de tous les artisans groupées par artisan.
@@ -25,40 +28,40 @@ router.get('/', async (req, res) => {
   try {
     const [data, parametres] = await Promise.all([
       getAllVentesGroupedByArtisan(),
-      getAllParametres()
-    ]);
+      getAllParametres(),
+    ])
 
-    const tauxPermanent = parseFloat(parametres.commission_cb_permanent) || 0;
-    const tauxTemporaire = parseFloat(parametres.commission_cb_temporaire) || 0;
+    const tauxPermanent = parseFloat(parametres.commission_cb_permanent) || 0
+    const tauxTemporaire = parseFloat(parametres.commission_cb_temporaire) || 0
 
     // Déléguer le calcul des commissions au service dédié (SRP)
-    const { groupesAvecCommissions, totalGlobalCB, totalGlobalCommission } = 
-      ajouterCommissionsAuxGroupes(data.groupes, tauxPermanent, tauxTemporaire);
+    const { groupesAvecCommissions, totalGlobalCB, totalGlobalCommission } =
+      ajouterCommissionsAuxGroupes(data.groupes, tauxPermanent, tauxTemporaire)
 
     res.json({
       groupes: groupesAvecCommissions,
       total: {
         ...data.total,
         total_cb: totalGlobalCB,
-        total_commission: totalGlobalCommission
+        total_commission: totalGlobalCommission,
       },
       parametres: {
         commission_cb_permanent: tauxPermanent,
-        commission_cb_temporaire: tauxTemporaire
-      }
-    });
+        commission_cb_temporaire: tauxTemporaire,
+      },
+    })
   } catch (err) {
-    console.error('GET all rapports error:', err);
+    console.error('GET all rapports error:', err)
     await logError({
       user: req.user,
       err,
       context: 'rapports.list',
       cible_type: 'rapport',
-      req
-    });
-    res.status(500).json({ error: 'Erreur serveur' });
+      req,
+    })
+    res.status(500).json({ error: 'Erreur serveur' })
   }
-});
+})
 
 /**
  * Récupère la liste de tous les artisans actifs pour le menu déroulant.
@@ -67,20 +70,20 @@ router.get('/', async (req, res) => {
  */
 router.get('/artisans', async (req, res) => {
   try {
-    const artisans = await getAllArtisans();
-    res.json(artisans);
+    const artisans = await getAllArtisans()
+    res.json(artisans)
   } catch (err) {
-    console.error('GET artisans error:', err);
+    console.error('GET artisans error:', err)
     await logError({
       user: req.user,
       err,
       context: 'rapports.artisans',
       cible_type: 'rapport',
-      req
-    });
-    res.status(500).json({ error: 'Erreur serveur' });
+      req,
+    })
+    res.status(500).json({ error: 'Erreur serveur' })
   }
-});
+})
 
 /**
  * Récupère les ventes d'un artisan spécifique avec un résumé et les commissions CB.
@@ -91,39 +94,39 @@ router.get('/artisans', async (req, res) => {
  */
 router.get('/:artisan_id', async (req, res) => {
   try {
-    const artisan_id = parseInt(req.params.artisan_id, 10);
+    const artisan_id = parseInt(req.params.artisan_id, 10)
 
-    if (isNaN(artisan_id)) {
-      return res.status(400).json({ error: 'ID artisan invalide' });
+    if (Number.isNaN(artisan_id)) {
+      return res.status(400).json({ error: 'ID artisan invalide' })
     }
 
     const [data, parametres] = await Promise.all([
       getVentesByArtisan(artisan_id),
-      getAllParametres()
-    ]);
+      getAllParametres(),
+    ])
 
-    const tauxPermanent = parseFloat(parametres.commission_cb_permanent) || 0;
-    const tauxTemporaire = parseFloat(parametres.commission_cb_temporaire) || 0;
+    const tauxPermanent = parseFloat(parametres.commission_cb_permanent) || 0
+    const tauxTemporaire = parseFloat(parametres.commission_cb_temporaire) || 0
 
     // Déterminer le rôle de l'artisan depuis les ventes
-    const role = data.ventes[0]?.artisan_role || 'permanent';
+    const role = data.ventes[0]?.artisan_role || 'permanent'
 
     // Déléguer le calcul des commissions au service dédié (SRP)
-    const resultat = ajouterCommissionAUnArtisan(data, role, tauxPermanent, tauxTemporaire);
+    const resultat = ajouterCommissionAUnArtisan(data, role, tauxPermanent, tauxTemporaire)
 
-    res.json(resultat);
+    res.json(resultat)
   } catch (err) {
-    console.error('GET rapport artisan error:', err);
+    console.error('GET rapport artisan error:', err)
     await logError({
       user: req.user,
       err,
       context: 'rapports.artisan',
       cible_type: 'rapport',
       cible_id: req.params.artisan_id,
-      req
-    });
-    res.status(500).json({ error: 'Erreur serveur' });
+      req,
+    })
+    res.status(500).json({ error: 'Erreur serveur' })
   }
-});
+})
 
-module.exports = router;
+module.exports = router

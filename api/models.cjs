@@ -3,8 +3,8 @@
  * Contient les fonctions de CRUD pour les utilisateurs et les ventes.
  * @module models
  */
-const bcrypt = require('bcryptjs');
-const { getSupabase } = require('./db.cjs');
+const bcrypt = require('bcryptjs')
+const { getSupabase } = require('./db.cjs')
 
 /**
  * Vérifie si des utilisateurs existent dans la table users.
@@ -12,23 +12,26 @@ const { getSupabase } = require('./db.cjs');
  * @returns {Promise<void>}
  */
 async function seedIfEmpty() {
-  const supabase = getSupabase();
+  const supabase = getSupabase()
 
   // Vérifier si des utilisateurs existent déjà
-  const { data: existingUsers, error: checkError } = await supabase.from('users').select('id').limit(1);
+  const { data: existingUsers, error: checkError } = await supabase
+    .from('users')
+    .select('id')
+    .limit(1)
 
   if (checkError) {
-    console.error('❌ Erreur vérification users:', checkError.message);
-    console.log('⚠️  Assurez-vous d\'avoir exécuté supabase-schema.sql sur le dashboard Supabase');
-    return;
+    console.error('❌ Erreur vérification users:', checkError.message)
+    console.log("⚠️  Assurez-vous d'avoir exécuté supabase-schema.sql sur le dashboard Supabase")
+    return
   }
 
   if (existingUsers && existingUsers.length > 0) {
-    console.log('📦 Users déjà présents, seed ignoré');
-    return;
+    console.log('📦 Users déjà présents, seed ignoré')
+    return
   }
 
-  const hash = bcrypt.hashSync('password123', 10);
+  const hash = bcrypt.hashSync('password123', 10)
 
   const users = [
     { nom: 'Admin', email: 'admin@sitecaisse.fr', password_hash: hash, role: 'admin' },
@@ -36,30 +39,30 @@ async function seedIfEmpty() {
     { nom: 'Sophie', email: 'sophie@artisan.fr', password_hash: hash, role: 'permanent' },
     { nom: 'Jean', email: 'jean@artisan.fr', password_hash: hash, role: 'permanent' },
     { nom: 'Lucas', email: 'lucas@artisan.fr', password_hash: hash, role: 'temporaire' },
-    { nom: 'Emma', email: 'emma@artisan.fr', password_hash: hash, role: 'temporaire' }
-  ];
+    { nom: 'Emma', email: 'emma@artisan.fr', password_hash: hash, role: 'temporaire' },
+  ]
 
   for (const user of users) {
-    const { error } = await supabase.from('users').insert(user);
+    const { error } = await supabase.from('users').insert(user)
     if (error) {
-      console.error(`❌ Erreur insertion ${user.nom}:`, error.message);
+      console.error(`❌ Erreur insertion ${user.nom}:`, error.message)
     } else {
-      console.log(`✅ Utilisateur ${user.nom} créé`);
+      console.log(`✅ Utilisateur ${user.nom} créé`)
     }
   }
 
-  console.log('✅ Seed terminé !');
+  console.log('✅ Seed terminé !')
 }
 
 // Exécuter le seed si lancé directement
 if (require.main === module) {
-  require('dotenv').config();
+  require('dotenv').config()
   seedIfEmpty()
     .then(() => process.exit(0))
-    .catch(err => {
-      console.error('❌ Erreur seed:', err);
-      process.exit(1);
-    });
+    .catch((err) => {
+      console.error('❌ Erreur seed:', err)
+      process.exit(1)
+    })
 }
 
 /**
@@ -68,10 +71,10 @@ if (require.main === module) {
  * @returns {Promise<Object|null>} L'objet utilisateur complet, ou null si non trouvé.
  */
 async function findUserByEmail(email) {
-  const supabase = getSupabase();
-  const { data, error } = await supabase.from('users').select('*').eq('email', email).single();
-  if (error && error.code !== 'PGRST116') throw error;
-  return data || null;
+  const supabase = getSupabase()
+  const { data, error } = await supabase.from('users').select('*').eq('email', email).single()
+  if (error && error.code !== 'PGRST116') throw error
+  return data || null
 }
 
 /**
@@ -80,14 +83,14 @@ async function findUserByEmail(email) {
  * @returns {Promise<Object|null>} L'objet utilisateur (id, nom, email, role, est_actif), ou null si non trouvé.
  */
 async function findUserById(id) {
-  const supabase = getSupabase();
+  const supabase = getSupabase()
   const { data, error } = await supabase
     .from('users')
     .select('id, nom, email, role, est_actif, date_fin')
     .eq('id', id)
-    .single();
-  if (error && error.code !== 'PGRST116') throw error;
-  return data || null;
+    .single()
+  if (error && error.code !== 'PGRST116') throw error
+  return data || null
 }
 
 /**
@@ -95,19 +98,19 @@ async function findUserById(id) {
  * @returns {Promise<Array>} Tableau des artisans (id, nom, email, role).
  */
 async function getAllArtisans() {
-  const supabase = getSupabase();
+  const supabase = getSupabase()
   const { data, error } = await supabase
     .from('users')
     .select('id, nom, email, role')
     .eq('est_actif', 1)
-    .in('role', ['permanent', 'temporaire']);
-  if (error) throw error;
-  return data || [];
+    .in('role', ['permanent', 'temporaire'])
+  if (error) throw error
+  return data || []
 }
 
 function parsePositiveInt(value, fallback) {
-  const parsed = parseInt(value, 10);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+  const parsed = parseInt(value, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
 }
 
 function buildPagination(page, limit, total = 0) {
@@ -115,58 +118,64 @@ function buildPagination(page, limit, total = 0) {
     page,
     limit,
     total,
-    totalPages: Math.ceil(total / limit)
-  };
+    totalPages: Math.ceil(total / limit),
+  }
 }
 
 function applyVenteFilters(query, { date_debut, date_fin, type_paiement } = {}) {
-  let filteredQuery = query;
+  let filteredQuery = query
   if (date_debut) {
-    filteredQuery = filteredQuery.gte('date_vente', date_debut);
+    filteredQuery = filteredQuery.gte('date_vente', date_debut)
   }
   if (date_fin) {
-    filteredQuery = filteredQuery.lte('date_vente', date_fin);
+    filteredQuery = filteredQuery.lte('date_vente', date_fin)
   }
   if (type_paiement) {
-    filteredQuery = filteredQuery.eq('type_paiement', type_paiement);
+    filteredQuery = filteredQuery.eq('type_paiement', type_paiement)
   }
-  return filteredQuery;
+  return filteredQuery
 }
 
 async function fetchArticlesByVenteIds(supabase, venteIds) {
-  if (!venteIds.length) return [];
+  if (!venteIds.length) return []
 
   const { data, error } = await supabase
     .from('vente_articles')
     .select('*')
     .in('vente_id', venteIds)
-    .order('id', { ascending: true });
+    .order('id', { ascending: true })
 
-  if (error) throw error;
-  return data || [];
+  if (error) throw error
+  return data || []
 }
 
 function groupArticlesByVenteId(articles) {
   return articles.reduce((groups, article) => {
     if (!groups[article.vente_id]) {
-      groups[article.vente_id] = [];
+      groups[article.vente_id] = []
     }
-    groups[article.vente_id].push(article);
-    return groups;
-  }, {});
+    groups[article.vente_id].push(article)
+    return groups
+  }, {})
 }
 
 function summarizeVentes(ventes) {
-  return ventes.reduce((summary, vente) => ({
-    total_articles: summary.total_articles + vente.total_articles,
-    total_montant: summary.total_montant + vente.total_montant
-  }), { total_articles: 0, total_montant: 0 });
+  return ventes.reduce(
+    (summary, vente) => ({
+      total_articles: summary.total_articles + vente.total_articles,
+      total_montant: summary.total_montant + vente.total_montant,
+    }),
+    { total_articles: 0, total_montant: 0 },
+  )
 }
 
 function formatVente(vente, articlesByVente) {
-  const venteArticles = articlesByVente[vente.id] || [];
-  const total_articles = venteArticles.reduce((sum, article) => sum + (article.quantite || 0), 0);
-  const total_montant = venteArticles.reduce((sum, article) => sum + (article.prix * article.quantite), 0);
+  const venteArticles = articlesByVente[vente.id] || []
+  const total_articles = venteArticles.reduce((sum, article) => sum + (article.quantite || 0), 0)
+  const total_montant = venteArticles.reduce(
+    (sum, article) => sum + article.prix * article.quantite,
+    0,
+  )
 
   return {
     id: vente.id,
@@ -180,15 +189,15 @@ function formatVente(vente, articlesByVente) {
     vendeur_nom: vente.vendeur?.nom || null,
     articles: venteArticles,
     total_articles,
-    total_montant
-  };
+    total_montant,
+  }
 }
 
 async function formatVentesWithArticles(supabase, ventes) {
-  const venteIds = ventes.map(vente => vente.id);
-  const articles = await fetchArticlesByVenteIds(supabase, venteIds);
-  const articlesByVente = groupArticlesByVenteId(articles);
-  return ventes.map(vente => formatVente(vente, articlesByVente));
+  const venteIds = ventes.map((vente) => vente.id)
+  const articles = await fetchArticlesByVenteIds(supabase, venteIds)
+  const articlesByVente = groupArticlesByVenteId(articles)
+  return ventes.map((vente) => formatVente(vente, articlesByVente))
 }
 
 /**
@@ -201,33 +210,31 @@ async function formatVentesWithArticles(supabase, ventes) {
  * @returns {Promise<number>} L'ID de la vente créée.
  */
 async function createVente(articles, type_paiement, artisan_id, vendeur_id, date_vente) {
-  const supabase = getSupabase();
+  const supabase = getSupabase()
 
   // 1. Créer l'en-tête de la vente
   const { data: venteData, error: venteError } = await supabase
     .from('ventes')
     .insert({ type_paiement, artisan_id, vendeur_id, date_vente })
     .select('id')
-    .single();
+    .single()
 
-  if (venteError) throw venteError;
-  const venteId = venteData.id;
+  if (venteError) throw venteError
+  const venteId = venteData.id
 
   // 2. Insérer les lignes d'articles
-  const articlesData = articles.map(a => ({
+  const articlesData = articles.map((a) => ({
     vente_id: venteId,
     article: a.article,
     quantite: a.quantite || 1,
-    prix: a.prix
-  }));
+    prix: a.prix,
+  }))
 
-  const { error: articlesError } = await supabase
-    .from('vente_articles')
-    .insert(articlesData);
+  const { error: articlesError } = await supabase.from('vente_articles').insert(articlesData)
 
-  if (articlesError) throw articlesError;
+  if (articlesError) throw articlesError
 
-  return venteId;
+  return venteId
 }
 
 /**
@@ -242,19 +249,19 @@ async function createVente(articles, type_paiement, artisan_id, vendeur_id, date
  * @returns {Promise<{ventes: Array, pagination: {page: number, limit: number, total: number, totalPages: number}}>}
  */
 async function getAllVentes(options = {}) {
-  const supabase = getSupabase();
-  const page = parsePositiveInt(options.page, 1);
-  const limit = parsePositiveInt(options.limit, 10);
-  const { date_debut, date_fin, type_paiement } = options;
-  const offset = (page - 1) * limit;
+  const supabase = getSupabase()
+  const page = parsePositiveInt(options.page, 1)
+  const limit = parsePositiveInt(options.limit, 10)
+  const { date_debut, date_fin, type_paiement } = options
+  const offset = (page - 1) * limit
 
-  const filters = { date_debut, date_fin, type_paiement };
+  const filters = { date_debut, date_fin, type_paiement }
   const countQuery = applyVenteFilters(
     supabase.from('ventes').select('*', { count: 'exact', head: true }),
-    filters
-  );
-  const { count: total, error: countError } = await countQuery;
-  if (countError) throw countError;
+    filters,
+  )
+  const { count: total, error: countError } = await countQuery
+  if (countError) throw countError
 
   const query = applyVenteFilters(
     supabase
@@ -267,24 +274,24 @@ async function getAllVentes(options = {}) {
       .order('date_vente', { ascending: false })
       .order('id', { ascending: false })
       .range(offset, offset + limit - 1),
-    filters
-  );
-  const { data: ventes, error: ventesError } = await query;
-  if (ventesError) throw ventesError;
+    filters,
+  )
+  const { data: ventes, error: ventesError } = await query
+  if (ventesError) throw ventesError
 
   if (!ventes || ventes.length === 0) {
     return {
       ventes: [],
-      pagination: buildPagination(page, limit, total || 0)
-    };
+      pagination: buildPagination(page, limit, total || 0),
+    }
   }
 
-  const formattedVentes = await formatVentesWithArticles(supabase, ventes);
+  const formattedVentes = await formatVentesWithArticles(supabase, ventes)
 
   return {
     ventes: formattedVentes,
-    pagination: buildPagination(page, limit, total || 0)
-  };
+    pagination: buildPagination(page, limit, total || 0),
+  }
 }
 
 /**
@@ -293,7 +300,7 @@ async function getAllVentes(options = {}) {
  * @returns {Promise<{ventes: Array, summary: {total_articles: number, total_montant: number}}>}
  */
 async function getVentesByArtisan(artisan_id) {
-  const supabase = getSupabase();
+  const supabase = getSupabase()
   const { data: ventes, error: ventesError } = await supabase
     .from('ventes')
     .select(`
@@ -303,14 +310,15 @@ async function getVentesByArtisan(artisan_id) {
     `)
     .eq('artisan_id', artisan_id)
     .order('date_vente', { ascending: false })
-    .order('id', { ascending: false });
+    .order('id', { ascending: false })
 
-  if (ventesError) throw ventesError;
+  if (ventesError) throw ventesError
 
-  if (!ventes || ventes.length === 0) return { ventes: [], summary: { total_articles: 0, total_montant: 0 } };
+  if (!ventes || ventes.length === 0)
+    return { ventes: [], summary: { total_articles: 0, total_montant: 0 } }
 
-  const formattedVentes = await formatVentesWithArticles(supabase, ventes);
-  return { ventes: formattedVentes, summary: summarizeVentes(formattedVentes) };
+  const formattedVentes = await formatVentesWithArticles(supabase, ventes)
+  return { ventes: formattedVentes, summary: summarizeVentes(formattedVentes) }
 }
 
 /**
@@ -318,47 +326,50 @@ async function getVentesByArtisan(artisan_id) {
  * @returns {Promise<{groupes: Array, total: {total_articles: number, total_montant: number}}>}
  */
 async function getAllVentesGroupedByArtisan(options = {}) {
-  const result = await getAllVentes(options);
-  const allVentes = result.ventes;
+  const result = await getAllVentes(options)
+  const allVentes = result.ventes
 
   // Grouper par artisan_id
-  const grouped = {};
+  const grouped = {}
   for (const vente of allVentes) {
-    const key = vente.artisan_id;
+    const key = vente.artisan_id
     if (!grouped[key]) {
       grouped[key] = {
         artisan_id: vente.artisan_id,
         artisan_nom: vente.artisan_nom,
-        ventes: []
-      };
+        ventes: [],
+      }
     }
-    grouped[key].ventes.push(vente);
+    grouped[key].ventes.push(vente)
   }
 
   // Construire le tableau de groupes avec le résumé par artisan
-  const groupes = Object.values(grouped).map(g => {
+  const groupes = Object.values(grouped).map((g) => {
     return {
       artisan_id: g.artisan_id,
       artisan_nom: g.artisan_nom,
       ventes: g.ventes,
-      summary: summarizeVentes(g.ventes)
-    };
-  });
+      summary: summarizeVentes(g.ventes),
+    }
+  })
 
   // Trier les groupes par nom d'artisan
-  groupes.sort((a, b) => (a.artisan_nom || '').localeCompare(b.artisan_nom || ''));
+  groupes.sort((a, b) => (a.artisan_nom || '').localeCompare(b.artisan_nom || ''))
 
   // Résumé global
-  const total = groupes.reduce((summary, groupe) => ({
-    total_articles: summary.total_articles + groupe.summary.total_articles,
-    total_montant: summary.total_montant + groupe.summary.total_montant
-  }), { total_articles: 0, total_montant: 0 });
+  const total = groupes.reduce(
+    (summary, groupe) => ({
+      total_articles: summary.total_articles + groupe.summary.total_articles,
+      total_montant: summary.total_montant + groupe.summary.total_montant,
+    }),
+    { total_articles: 0, total_montant: 0 },
+  )
 
   return {
     groupes,
     total,
-    pagination: result.pagination
-  };
+    pagination: result.pagination,
+  }
 }
 
 /**
@@ -372,46 +383,41 @@ async function getAllVentesGroupedByArtisan(options = {}) {
  * @returns {Promise<boolean>} true si la mise à jour a réussi.
  */
 async function updateVente(id, fields) {
-  const supabase = getSupabase();
+  const supabase = getSupabase()
 
   // Mettre à jour l'en-tête de la vente
-  const allowed = ['type_paiement', 'artisan_id', 'date_vente'];
-  const updateData = {};
+  const allowed = ['type_paiement', 'artisan_id', 'date_vente']
+  const updateData = {}
   for (const key of allowed) {
-    if (fields[key] !== undefined) updateData[key] = fields[key];
+    if (fields[key] !== undefined) updateData[key] = fields[key]
   }
 
   if (Object.keys(updateData).length > 0) {
-    const { error } = await supabase.from('ventes').update(updateData).eq('id', id);
-    if (error) throw error;
+    const { error } = await supabase.from('ventes').update(updateData).eq('id', id)
+    if (error) throw error
   }
 
   // Mettre à jour les articles si fournis
   if (fields.articles && Array.isArray(fields.articles)) {
     // Supprimer tous les anciens articles
-    const { error: deleteError } = await supabase
-      .from('vente_articles')
-      .delete()
-      .eq('vente_id', id);
+    const { error: deleteError } = await supabase.from('vente_articles').delete().eq('vente_id', id)
 
-    if (deleteError) throw deleteError;
+    if (deleteError) throw deleteError
 
     // Insérer les nouveaux articles
-    const articlesData = fields.articles.map(a => ({
+    const articlesData = fields.articles.map((a) => ({
       vente_id: id,
       article: a.article,
       quantite: a.quantite || 1,
-      prix: a.prix
-    }));
+      prix: a.prix,
+    }))
 
-    const { error: insertError } = await supabase
-      .from('vente_articles')
-      .insert(articlesData);
+    const { error: insertError } = await supabase.from('vente_articles').insert(articlesData)
 
-    if (insertError) throw insertError;
+    if (insertError) throw insertError
   }
 
-  return true;
+  return true
 }
 
 /**
@@ -420,11 +426,11 @@ async function updateVente(id, fields) {
  * @returns {Promise<boolean>} true si la suppression a réussi.
  */
 async function deleteVente(id) {
-  const supabase = getSupabase();
+  const supabase = getSupabase()
   // La suppression en cascade via la clé étrangère sur vente_articles s'occupe des articles
-  const { error } = await supabase.from('ventes').delete().eq('id', id);
-  if (error) throw error;
-  return true;
+  const { error } = await supabase.from('ventes').delete().eq('id', id)
+  if (error) throw error
+  return true
 }
 
 /**
@@ -433,39 +439,39 @@ async function deleteVente(id) {
  * @returns {Promise<void>}
  */
 async function seedAdminIfMissing() {
-  const supabase = getSupabase();
+  const supabase = getSupabase()
 
-  const hash = bcrypt.hashSync('password123', 10);
+  const hash = bcrypt.hashSync('password123', 10)
 
   const { data: existingAdmin } = await supabase
     .from('users')
     .select('id')
     .eq('email', 'admin@sitecaisse.fr')
-    .maybeSingle();
+    .maybeSingle()
 
   if (existingAdmin) {
     // Mettre à jour le mot de passe pour garantir qu'il soit valide
     const { error: updateError } = await supabase
       .from('users')
       .update({ password_hash: hash })
-      .eq('id', existingAdmin.id);
+      .eq('id', existingAdmin.id)
 
     if (updateError) {
-      console.error('❌ Erreur mise à jour mot de passe admin:', updateError.message);
+      console.error('❌ Erreur mise à jour mot de passe admin:', updateError.message)
     } else {
-      console.log('✅ Mot de passe admin vérifié et mis à jour');
+      console.log('✅ Mot de passe admin vérifié et mis à jour')
     }
-    return;
+    return
   }
 
   const { error } = await supabase
     .from('users')
-    .insert({ nom: 'Admin', email: 'admin@sitecaisse.fr', password_hash: hash, role: 'admin' });
+    .insert({ nom: 'Admin', email: 'admin@sitecaisse.fr', password_hash: hash, role: 'admin' })
 
   if (error) {
-    console.error('❌ Erreur création compte admin:', error.message);
+    console.error('❌ Erreur création compte admin:', error.message)
   } else {
-    console.log('✅ Compte admin créé (admin@sitecaisse.fr / password123)');
+    console.log('✅ Compte admin créé (admin@sitecaisse.fr / password123)')
   }
 }
 
@@ -480,5 +486,5 @@ module.exports = {
   getVentesByArtisan,
   getAllVentesGroupedByArtisan,
   updateVente,
-  deleteVente
-};
+  deleteVente,
+}

@@ -21,6 +21,6 @@ export function useExpandableRows() {
     expandedRows,
     getVisibleItems,
     isExpanded,
-    toggleExpanded
+    toggleExpanded,
   }
 }

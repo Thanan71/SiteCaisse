@@ -3,8 +3,9 @@
  * @description Service utilitaire d'export Excel.
  * Responsabilité unique : générer et télécharger des fichiers Excel.
  */
-import * as XLSX from 'xlsx'
+
 import { saveAs } from 'file-saver'
+import * as XLSX from 'xlsx'
 
 /**
  * Exporte un tableau de ventes au format Excel (pour un artisan spécifique).
@@ -17,7 +18,7 @@ import { saveAs } from 'file-saver'
 export function exportVentesToExcel(ventes, artisans, artisanId, summary) {
   if (!ventes || ventes.length === 0) return
 
-  const artisanName = artisans.find(a => a.id === artisanId)?.nom || 'Artisan'
+  const artisanName = artisans.find((a) => a.id === artisanId)?.nom || 'Artisan'
 
   const worksheet = buildWorksheet(ventes, summary)
 
@@ -55,50 +56,50 @@ export function exportAllRapportsToExcel(groupes, total, parametres) {
   }
 
   // Onglet récapitulatif global
-  const globalRows = groupes.map(g => ({
-    'Artisan': g.artisan_nom || `Artisan #${g.artisan_id}`,
+  const globalRows = groupes.map((g) => ({
+    Artisan: g.artisan_nom || `Artisan #${g.artisan_id}`,
     'Total articles': g.summary.total_articles,
     'Total montant (€)': g.summary.total_montant.toFixed(2),
     'Total CB (€)': (g.summary.total_cb || 0).toFixed(2),
     'Taux commission (%)': g.summary.taux_commission || 0,
-    'Commission CB (€)': (g.summary.commission_cb || 0).toFixed(2)
+    'Commission CB (€)': (g.summary.commission_cb || 0).toFixed(2),
   }))
 
   // Ligne des totaux globaux
   globalRows.push({
-    'Artisan': 'TOTAL GLOBAL',
+    Artisan: 'TOTAL GLOBAL',
     'Total articles': total.total_articles,
     'Total montant (€)': total.total_montant.toFixed(2),
     'Total CB (€)': (total.total_cb || 0).toFixed(2),
     'Taux commission (%)': '',
-    'Commission CB (€)': (total.total_commission || 0).toFixed(2)
+    'Commission CB (€)': (total.total_commission || 0).toFixed(2),
   })
 
   // Ligne d'information sur les taux
   if (parametres) {
     globalRows.push({
-      'Artisan': 'Taux appliqués',
+      Artisan: 'Taux appliqués',
       'Total articles': '',
       'Total montant (€)': '',
       'Total CB (€)': '',
       'Taux commission (%)': '',
-      'Commission CB (€)': ''
+      'Commission CB (€)': '',
     })
     globalRows.push({
-      'Artisan': 'Permanent',
+      Artisan: 'Permanent',
       'Total articles': '',
       'Total montant (€)': '',
       'Total CB (€)': '',
       'Taux commission (%)': parametres.commission_cb_permanent || '',
-      'Commission CB (€)': ''
+      'Commission CB (€)': '',
     })
     globalRows.push({
-      'Artisan': 'Temporaire',
+      Artisan: 'Temporaire',
       'Total articles': '',
       'Total montant (€)': '',
       'Total CB (€)': '',
       'Taux commission (%)': parametres.commission_cb_temporaire || '',
-      'Commission CB (€)': ''
+      'Commission CB (€)': '',
     })
   }
 
@@ -109,7 +110,7 @@ export function exportAllRapportsToExcel(groupes, total, parametres) {
     { wch: 18 }, // Total montant
     { wch: 15 }, // Total CB
     { wch: 18 }, // Taux commission
-    { wch: 18 }  // Commission CB
+    { wch: 18 }, // Commission CB
   ]
   globalSheet['!cols'] = globalColWidths
   XLSX.utils.book_append_sheet(workbook, globalSheet, 'Résumé global')
@@ -135,38 +136,38 @@ function buildWorksheet(ventes, summary) {
     const articles = v.articles || [{ article: v.article, quantite: v.quantite, prix: v.prix }]
     for (const art of articles) {
       data.push({
-        'Date': v.date_vente,
-        'Article': art.article,
-        'Quantité': art.quantite,
+        Date: v.date_vente,
+        Article: art.article,
+        Quantité: art.quantite,
         'Prix unitaire (€)': art.prix,
         'Total (€)': (art.prix * art.quantite).toFixed(2),
         'Type de paiement': formatPaymentForExcel(v.type_paiement),
-        'Vendu par': v.vendeur_nom
+        'Vendu par': v.vendeur_nom,
       })
     }
   }
 
   // Ajouter la ligne de résumé
   data.push({
-    'Date': '',
-    'Article': 'TOTAL',
-    'Quantité': summary.total_articles,
+    Date: '',
+    Article: 'TOTAL',
+    Quantité: summary.total_articles,
     'Prix unitaire (€)': '',
     'Total (€)': summary.total_montant.toFixed(2),
     'Type de paiement': '',
-    'Vendu par': ''
+    'Vendu par': '',
   })
 
   // Ajouter la ligne de commission CB si elle existe
   if (summary.commission_cb && summary.commission_cb > 0) {
     data.push({
-      'Date': '',
-      'Article': `Commission CB (${summary.taux_commission || 0}%)`,
-      'Quantité': '',
+      Date: '',
+      Article: `Commission CB (${summary.taux_commission || 0}%)`,
+      Quantité: '',
       'Prix unitaire (€)': '',
       'Total (€)': `-${summary.commission_cb.toFixed(2)}`,
       'Type de paiement': `sur ${(summary.total_cb || 0).toFixed(2)}€ de CB`,
-      'Vendu par': ''
+      'Vendu par': '',
     })
   }
 
@@ -180,7 +181,7 @@ function buildWorksheet(ventes, summary) {
     { wch: 15 }, // Prix unitaire
     { wch: 12 }, // Total
     { wch: 25 }, // Paiement
-    { wch: 15 }  // Vendeur
+    { wch: 15 }, // Vendeur
   ]
   worksheet['!cols'] = colWidths
 
@@ -195,9 +196,9 @@ function buildWorksheet(ventes, summary) {
  */
 function formatPaymentForExcel(type) {
   const labels = {
-    'CB': 'Carte Bancaire',
-    'Espece': 'Espèce',
-    'Cheque': 'Chèque'
+    CB: 'Carte Bancaire',
+    Espece: 'Espèce',
+    Cheque: 'Chèque',
   }
   return labels[type] || type
 }

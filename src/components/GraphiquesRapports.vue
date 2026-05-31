@@ -38,21 +38,21 @@
 </template>
 
 <script setup>
-import { computed, watch } from 'vue'
-import { Doughnut, Bar, Line, Pie } from 'vue-chartjs'
 import {
-  Chart as ChartJS,
   ArcElement,
-  Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale,
   BarElement,
-  PointElement,
+  CategoryScale,
+  Chart as ChartJS,
+  Filler,
+  Legend,
+  LinearScale,
   LineElement,
+  PointElement,
   Title,
-  Filler
+  Tooltip,
 } from 'chart.js'
+import { computed, watch } from 'vue'
+import { Bar, Doughnut, Line, Pie } from 'vue-chartjs'
 
 // Enregistrer les composants Chart.js
 ChartJS.register(
@@ -65,25 +65,25 @@ ChartJS.register(
   PointElement,
   LineElement,
   Title,
-  Filler
+  Filler,
 )
 
 const props = defineProps({
   /** Liste des ventes groupées par artisan (mode global) ou ventes d'un artisan */
   ventesData: {
     type: Array,
-    required: true
+    required: true,
   },
   /** Si true, affiche les graphiques pour tous les artisans. Sinon pour un seul artisan */
   isGlobal: {
     type: Boolean,
-    default: true
+    default: true,
   },
   /** Données des groupes (nécessaire pour le graphique par artisan) */
   groupesData: {
     type: Array,
-    default: () => []
-  }
+    default: () => [],
+  },
 })
 
 /**
@@ -98,7 +98,7 @@ const allArticles = computed(() => {
           ...art,
           date_vente: vente.date_vente,
           type_paiement: vente.type_paiement,
-          artisan_nom: vente.artisan_nom
+          artisan_nom: vente.artisan_nom,
         })
       }
     }
@@ -118,12 +118,14 @@ const paymentChartData = computed(() => {
   }
   return {
     labels: ['Carte Bancaire', 'Espèce', 'Chèque'],
-    datasets: [{
-      data: [counts.CB, counts.Espece, counts.Cheque],
-      backgroundColor: ['#2563eb', '#059669', '#d97706'],
-      borderWidth: 2,
-      borderColor: '#ffffff'
-    }]
+    datasets: [
+      {
+        data: [counts.CB, counts.Espece, counts.Cheque],
+        backgroundColor: ['#2563eb', '#059669', '#d97706'],
+        borderWidth: 2,
+        borderColor: '#ffffff',
+      },
+    ],
   }
 })
 
@@ -136,8 +138,8 @@ const paymentChartOptions = {
       labels: {
         padding: 16,
         usePointStyle: true,
-        font: { size: 12 }
-      }
+        font: { size: 12 },
+      },
     },
     tooltip: {
       callbacks: {
@@ -146,10 +148,10 @@ const paymentChartOptions = {
           const value = ctx.raw
           const pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0
           return `${ctx.label}: ${value.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} (${pct}%)`
-        }
-      }
-    }
-  }
+        },
+      },
+    },
+  },
 }
 
 /**
@@ -172,13 +174,15 @@ const topArticlesChartData = computed(() => {
     .slice(0, 10)
 
   return {
-    labels: top.map(([name]) => name.length > 18 ? name.substring(0, 16) + '…' : name),
-    datasets: [{
-      label: 'Quantité vendue',
-      data: top.map(([, data]) => data.quantite),
-      backgroundColor: '#4f46e5',
-      borderRadius: 4
-    }]
+    labels: top.map(([name]) => (name.length > 18 ? `${name.substring(0, 16)}…` : name)),
+    datasets: [
+      {
+        label: 'Quantité vendue',
+        data: top.map(([, data]) => data.quantite),
+        backgroundColor: '#4f46e5',
+        borderRadius: 4,
+      },
+    ],
   }
 })
 
@@ -196,40 +200,44 @@ const topArticlesChartOptions = {
             return `Montant: ${entry[1].montant.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`
           }
           return ''
-        }
-      }
-    }
+        },
+      },
+    },
   },
   scales: {
     x: {
       beginAtZero: true,
       ticks: {
         precision: 0,
-        font: { size: 11 }
-      }
+        font: { size: 11 },
+      },
     },
     y: {
       ticks: {
-        font: { size: 10 }
-      }
-    }
-  }
+        font: { size: 10 },
+      },
+    },
+  },
 }
 
 // Stockage temporaire pour le tooltip
 const articleCounts = {}
 
 // Mettre à jour articleCounts pour le tooltip
-watch(allArticles, (articles) => {
-  for (const art of articles) {
-    const name = art.article
-    if (!articleCounts[name]) {
-      articleCounts[name] = { quantite: 0, montant: 0 }
+watch(
+  allArticles,
+  (articles) => {
+    for (const art of articles) {
+      const name = art.article
+      if (!articleCounts[name]) {
+        articleCounts[name] = { quantite: 0, montant: 0 }
+      }
+      articleCounts[name].quantite += art.quantite || 0
+      articleCounts[name].montant += (art.prix || 0) * (art.quantite || 0)
     }
-    articleCounts[name].quantite += art.quantite || 0
-    articleCounts[name].montant += (art.prix || 0) * (art.quantite || 0)
-  }
-}, { immediate: true })
+  },
+  { immediate: true },
+)
 
 /**
  * Calculs pour l'évolution mensuelle des ventes.
@@ -252,12 +260,25 @@ const monthlyChartData = computed(() => {
   const sorted = Object.entries(monthData).sort(([a], [b]) => a.localeCompare(b))
 
   // Formater les labels en français
-  const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc']
+  const months = [
+    'Jan',
+    'Fév',
+    'Mar',
+    'Avr',
+    'Mai',
+    'Juin',
+    'Juil',
+    'Août',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Déc',
+  ]
 
   return {
     labels: sorted.map(([key]) => {
       const [, m] = key.split('-')
-      return months[parseInt(m) - 1]
+      return months[parseInt(m, 10) - 1]
     }),
     datasets: [
       {
@@ -267,7 +288,7 @@ const monthlyChartData = computed(() => {
         backgroundColor: 'rgba(5, 150, 105, 0.1)',
         fill: true,
         tension: 0.3,
-        yAxisID: 'y'
+        yAxisID: 'y',
       },
       {
         label: 'Nombre de ventes',
@@ -276,9 +297,9 @@ const monthlyChartData = computed(() => {
         backgroundColor: 'rgba(79, 70, 229, 0.1)',
         fill: true,
         tension: 0.3,
-        yAxisID: 'y1'
-      }
-    ]
+        yAxisID: 'y1',
+      },
+    ],
   }
 })
 
@@ -287,7 +308,7 @@ const monthlyChartOptions = {
   maintainAspectRatio: true,
   interaction: {
     mode: 'index',
-    intersect: false
+    intersect: false,
   },
   plugins: {
     legend: {
@@ -295,8 +316,8 @@ const monthlyChartOptions = {
       labels: {
         usePointStyle: true,
         padding: 16,
-        font: { size: 12 }
-      }
+        font: { size: 12 },
+      },
     },
     tooltip: {
       callbacks: {
@@ -305,9 +326,9 @@ const monthlyChartOptions = {
             return `Montant: ${ctx.raw.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`
           }
           return `Ventes: ${ctx.raw}`
-        }
-      }
-    }
+        },
+      },
+    },
   },
   scales: {
     y: {
@@ -316,28 +337,28 @@ const monthlyChartOptions = {
       title: {
         display: true,
         text: 'Montant (€)',
-        font: { size: 11 }
+        font: { size: 11 },
       },
       ticks: {
-        callback: (value) => value.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })
-      }
+        callback: (value) => value.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }),
+      },
     },
     y1: {
       beginAtZero: true,
       position: 'right',
       grid: {
-        drawOnChartArea: false
+        drawOnChartArea: false,
       },
       title: {
         display: true,
         text: 'Nombre de ventes',
-        font: { size: 11 }
+        font: { size: 11 },
       },
       ticks: {
-        precision: 0
-      }
-    }
-  }
+        precision: 0,
+      },
+    },
+  },
 }
 
 /**
@@ -349,18 +370,28 @@ const artisanChartData = computed(() => {
   }
 
   const colors = [
-    '#4f46e5', '#059669', '#d97706', '#dc2626', '#7c3aed',
-    '#0891b2', '#be185d', '#65a30d', '#ea580c', '#2563eb'
+    '#4f46e5',
+    '#059669',
+    '#d97706',
+    '#dc2626',
+    '#7c3aed',
+    '#0891b2',
+    '#be185d',
+    '#65a30d',
+    '#ea580c',
+    '#2563eb',
   ]
 
   return {
-    labels: props.groupesData.map(g => g.artisan_nom || 'Inconnu'),
-    datasets: [{
-      data: props.groupesData.map(g => g.summary.total_montant),
-      backgroundColor: props.groupesData.map((_, i) => colors[i % colors.length]),
-      borderWidth: 2,
-      borderColor: '#ffffff'
-    }]
+    labels: props.groupesData.map((g) => g.artisan_nom || 'Inconnu'),
+    datasets: [
+      {
+        data: props.groupesData.map((g) => g.summary.total_montant),
+        backgroundColor: props.groupesData.map((_, i) => colors[i % colors.length]),
+        borderWidth: 2,
+        borderColor: '#ffffff',
+      },
+    ],
   }
 })
 
@@ -373,8 +404,8 @@ const artisanChartOptions = {
       labels: {
         padding: 12,
         usePointStyle: true,
-        font: { size: 11 }
-      }
+        font: { size: 11 },
+      },
     },
     tooltip: {
       callbacks: {
@@ -383,10 +414,10 @@ const artisanChartOptions = {
           const value = ctx.raw
           const pct = total > 0 ? ((value / total) * 100).toFixed(1) : 0
           return `${ctx.label}: ${value.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })} (${pct}%)`
-        }
-      }
-    }
-  }
+        },
+      },
+    },
+  },
 }
 </script>
 

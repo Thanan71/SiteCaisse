@@ -317,7 +317,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
 import { formatDateTime as formatDate, formatDateSimple } from '../utils/formatters'
 
@@ -329,7 +329,7 @@ const newUser = ref({
   email: '',
   password: '',
   role: '',
-  date_fin: ''
+  date_fin: '',
 })
 const creating = ref(false)
 const createError = ref('')
@@ -357,13 +357,13 @@ const logsLoading = ref(false)
 const logsError = ref('')
 const logFilters = ref({
   action: '',
-  cible_type: ''
+  cible_type: '',
 })
 const logsPagination = ref({
   page: 1,
   limit: 25,
   total: 0,
-  totalPages: 0
+  totalPages: 0,
 })
 
 // Date minimum pour le champ date (aujourd'hui)
@@ -396,15 +396,17 @@ async function handleSaveCommissions() {
 
   try {
     await api.put(`/api/admin/parametres/commission_cb_permanent`, {
-      valeur: commissionPermanent.value
+      valeur: commissionPermanent.value,
     })
     await api.put(`/api/admin/parametres/commission_cb_temporaire`, {
-      valeur: commissionTemporaire.value
+      valeur: commissionTemporaire.value,
     })
     commissionsSuccess.value = 'Commissions CB mises à jour avec succès !'
-    setTimeout(() => { commissionsSuccess.value = '' }, 3000)
+    setTimeout(() => {
+      commissionsSuccess.value = ''
+    }, 3000)
   } catch (err) {
-    commissionsError.value = err.response?.data?.error || 'Erreur lors de l\'enregistrement'
+    commissionsError.value = err.response?.data?.error || "Erreur lors de l'enregistrement"
   } finally {
     savingCommissions.value = false
   }
@@ -447,7 +449,7 @@ async function fetchLogs(page = logsPagination.value.page) {
 
     const params = {
       page,
-      limit: logsPagination.value.limit
+      limit: logsPagination.value.limit,
     }
 
     if (logFilters.value.action) params.action = logFilters.value.action
@@ -493,7 +495,7 @@ async function handleCreateUser() {
       nom: newUser.value.nom,
       email: newUser.value.email,
       password: newUser.value.password,
-      role: newUser.value.role
+      role: newUser.value.role,
     }
 
     // Ajouter date_fin uniquement si c'est un temporaire
@@ -508,7 +510,9 @@ async function handleCreateUser() {
     await fetchUsers()
 
     // Effacer le message de succès après 3 secondes
-    setTimeout(() => { createSuccess.value = '' }, 3000)
+    setTimeout(() => {
+      createSuccess.value = ''
+    }, 3000)
   } catch (err) {
     createError.value = err.response?.data?.error || 'Erreur lors de la création'
   } finally {
@@ -585,7 +589,7 @@ function isDateFinExpired(dateFin) {
   if (!dateFin) return false
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const fin = new Date(dateFin + 'T00:00:00')
+  const fin = new Date(`${dateFin}T00:00:00`)
   return fin < today
 }
 
@@ -604,7 +608,7 @@ function getActionLabel(action) {
     'vente.delete': 'Vente supprimée',
     'user.create': 'Utilisateur créé',
     'user.delete': 'Utilisateur supprimé',
-    'parametre.update': 'Paramètre modifié'
+    'parametre.update': 'Paramètre modifié',
   }
   return labels[action] || action
 }
@@ -622,7 +626,7 @@ function getCibleLabel(cibleType) {
     parametre: 'Paramètre',
     rapport: 'Rapport',
     log: 'Log',
-    error: 'Erreur'
+    error: 'Erreur',
   }
   return labels[cibleType] || cibleType || '—'
 }

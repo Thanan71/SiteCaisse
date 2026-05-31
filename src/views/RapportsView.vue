@@ -166,12 +166,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRapportsStore } from '../store/rapports'
-import { useArtisansStore } from '../store/artisans'
-import { exportAllRapportsToExcel } from '../services/excelService'
+import { computed, onMounted, ref } from 'vue'
 import GraphiquesRapports from '../components/GraphiquesRapports.vue'
 import RapportVentesTable from '../components/RapportVentesTable.vue'
+import { exportAllRapportsToExcel } from '../services/excelService'
+import { useArtisansStore } from '../store/artisans'
+import { useRapportsStore } from '../store/rapports'
 import { formatPrice } from '../utils/formatters'
 
 const rapportsStore = useRapportsStore()
@@ -208,7 +208,11 @@ function onArtisanChange() {
 }
 
 function exportAllToExcel() {
-  exportAllRapportsToExcel(rapportsStore.allRapports, rapportsStore.totalGlobal, rapportsStore.totalAllParams)
+  exportAllRapportsToExcel(
+    rapportsStore.allRapports,
+    rapportsStore.totalGlobal,
+    rapportsStore.totalAllParams,
+  )
 }
 </script>
 

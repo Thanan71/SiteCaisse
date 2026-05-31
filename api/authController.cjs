@@ -4,14 +4,14 @@
  * Gère la connexion des utilisateurs, la vérification des tokens JWT
  * et la récupération du profil de l'utilisateur connecté.
  */
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { findUserByEmail, findUserById } = require('./models.cjs');
-const { logAction, logError } = require('./services/loggerService.cjs');
+const express = require('express')
+const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
+const { findUserByEmail, findUserById } = require('./models.cjs')
+const { logAction, logError } = require('./services/loggerService.cjs')
 
-const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'sitecaisse-secret-key-2024';
+const router = express.Router()
+const JWT_SECRET = process.env.JWT_SECRET || 'sitecaisse-secret-key-2024'
 
 /**
  * Middleware de vérification du token JWT.
@@ -22,25 +22,25 @@ const JWT_SECRET = process.env.JWT_SECRET || 'sitecaisse-secret-key-2024';
  * @returns {void}
  */
 function authMiddleware(req, res, next) {
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Token manquant' });
+  const authHeader = req.headers.authorization
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token manquant' })
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(' ')[1]
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
+    const decoded = jwt.verify(token, JWT_SECRET)
+    req.user = decoded
+    next()
   } catch (err) {
     void logError({
       err,
       context: 'auth.middleware',
       cible_type: 'auth',
       details: { reason: 'invalid_or_expired_token' },
-      req
-    });
-    return res.status(401).json({ error: 'Token invalide ou expiré' });
+      req,
+    })
+    return res.status(401).json({ error: 'Token invalide ou expiré' })
   }
 }
 
@@ -56,21 +56,21 @@ function authMiddleware(req, res, next) {
  */
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email et mot de passe requis' });
+      return res.status(400).json({ error: 'Email et mot de passe requis' })
     }
 
-    const user = await findUserByEmail(email);
+    const user = await findUserByEmail(email)
     if (!user) {
       await logAction({
         action: 'auth.login_failed',
         cible_type: 'auth',
         details: { email, reason: 'unknown_email' },
-        req
-      });
-      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+        req,
+      })
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' })
     }
 
     if (!user.est_actif) {
@@ -80,16 +80,16 @@ router.post('/login', async (req, res) => {
         cible_type: 'auth',
         cible_id: user.id,
         details: { reason: 'inactive_account' },
-        req
-      });
-      return res.status(403).json({ error: 'Compte désactivé' });
+        req,
+      })
+      return res.status(403).json({ error: 'Compte désactivé' })
     }
 
     // Vérifier si l'utilisateur temporaire a une date de fin dépassée
     if (user.role === 'temporaire' && user.date_fin) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const dateFin = new Date(user.date_fin + 'T00:00:00');
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const dateFin = new Date(`${user.date_fin}T00:00:00`)
       if (dateFin < today) {
         await logAction({
           user,
@@ -97,36 +97,36 @@ router.post('/login', async (req, res) => {
           cible_type: 'auth',
           cible_id: user.id,
           details: { reason: 'expired_access', date_fin: user.date_fin },
-          req
-        });
-        return res.status(403).json({ error: 'Votre accès a expiré. Contactez un administrateur.' });
+          req,
+        })
+        return res.status(403).json({ error: 'Votre accès a expiré. Contactez un administrateur.' })
       }
     }
 
-    const validPassword = bcrypt.compareSync(password, user.password_hash);
+    const validPassword = bcrypt.compareSync(password, user.password_hash)
     if (!validPassword) {
       await logAction({
         action: 'auth.login_failed',
         cible_type: 'auth',
         details: { email, reason: 'invalid_password' },
-        req
-      });
-      return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
+        req,
+      })
+      return res.status(401).json({ error: 'Email ou mot de passe incorrect' })
     }
 
     const token = jwt.sign(
       { id: user.id, nom: user.nom, email: user.email, role: user.role },
       JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+      { expiresIn: '24h' },
+    )
 
     await logAction({
       user,
       action: 'auth.login_success',
       cible_type: 'auth',
       cible_id: user.id,
-      req
-    });
+      req,
+    })
 
     res.json({
       token,
@@ -134,21 +134,21 @@ router.post('/login', async (req, res) => {
         id: user.id,
         nom: user.nom,
         email: user.email,
-        role: user.role
-      }
-    });
+        role: user.role,
+      },
+    })
   } catch (err) {
-    console.error('Login error:', err);
+    console.error('Login error:', err)
     await logError({
       err,
       context: 'auth.login',
       cible_type: 'auth',
       details: { email: req.body?.email || null },
-      req
-    });
-    res.status(500).json({ error: 'Erreur serveur' });
+      req,
+    })
+    res.status(500).json({ error: 'Erreur serveur' })
   }
-});
+})
 
 /**
  * Route de vérification du profil utilisateur connecté.
@@ -159,23 +159,23 @@ router.post('/login', async (req, res) => {
  */
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const user = await findUserById(req.user.id);
+    const user = await findUserById(req.user.id)
     if (!user) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+      return res.status(404).json({ error: 'Utilisateur non trouvé' })
     }
-    res.json(user);
+    res.json(user)
   } catch (err) {
-    console.error('Me error:', err);
+    console.error('Me error:', err)
     await logError({
       user: req.user,
       err,
       context: 'auth.me',
       cible_type: 'auth',
       cible_id: req.user?.id || null,
-      req
-    });
-    res.status(500).json({ error: 'Erreur serveur' });
+      req,
+    })
+    res.status(500).json({ error: 'Erreur serveur' })
   }
-});
+})
 
-module.exports = { router, authMiddleware };
+module.exports = { router, authMiddleware }

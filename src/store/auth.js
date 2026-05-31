@@ -11,7 +11,7 @@ export const useAuthStore = defineStore('auth', {
     /** @property {Object|null} user - Données de l'utilisateur connecté (null si déconnecté). */
     user: JSON.parse(localStorage.getItem('user') || 'null'),
     /** @property {string} token - Jeton d'authentification JWT. */
-    token: localStorage.getItem('token') || ''
+    token: localStorage.getItem('token') || '',
   }),
 
   getters: {
@@ -37,7 +37,7 @@ export const useAuthStore = defineStore('auth', {
      * Retourne le nom de l'utilisateur connecté.
      * @returns {string} Nom de l'utilisateur ou chaîne vide si non connecté.
      */
-    userName: (state) => state.user?.nom || ''
+    userName: (state) => state.user?.nom || '',
   },
 
   actions: {
@@ -87,6 +87,6 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       localStorage.removeItem('token')
       localStorage.removeItem('user')
-    }
-  }
+    },
+  },
 })

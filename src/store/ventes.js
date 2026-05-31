@@ -21,14 +21,14 @@ export const useVentesStore = defineStore('ventes', {
       page: 1,
       limit: 10,
       total: 0,
-      totalPages: 0
+      totalPages: 0,
     },
     /** @property {Object} filters - Filtres actifs. */
     filters: {
       date_debut: '',
       date_fin: '',
-      type_paiement: ''
-    }
+      type_paiement: '',
+    },
   }),
 
   getters: {
@@ -51,7 +51,8 @@ export const useVentesStore = defineStore('ventes', {
      * Vérifie si des filtres sont actifs.
      * @returns {boolean}
      */
-    hasActiveFilters: (state) => !!state.filters.date_debut || !!state.filters.date_fin || !!state.filters.type_paiement
+    hasActiveFilters: (state) =>
+      !!state.filters.date_debut || !!state.filters.date_fin || !!state.filters.type_paiement,
   },
 
   actions: {
@@ -75,7 +76,7 @@ export const useVentesStore = defineStore('ventes', {
         // Appliquer les options fournies ou les valeurs par défaut
         params.page = options.page || this.pagination.page
         params.limit = options.limit || this.pagination.limit
-        
+
         // Fusionner les filtres
         const filters = { ...this.filters, ...options }
         if (filters.date_debut) params.date_debut = filters.date_debut
@@ -198,6 +199,6 @@ export const useVentesStore = defineStore('ventes', {
       } finally {
         this.loading = false
       }
-    }
-  }
+    },
+  },
 })

@@ -5,10 +5,10 @@
  * pour protéger l'accès aux pages nécessitant une authentification.
  */
 import { createRouter, createWebHistory } from 'vue-router'
-import LoginView from '../views/LoginView.vue'
-import VentesView from '../views/VentesView.vue'
-import RapportsView from '../views/RapportsView.vue'
 import AdminView from '../views/AdminView.vue'
+import LoginView from '../views/LoginView.vue'
+import RapportsView from '../views/RapportsView.vue'
+import VentesView from '../views/VentesView.vue'
 
 const routes = [
   {
@@ -16,21 +16,21 @@ const routes = [
     name: 'Login',
     component: LoginView,
     /** @property {boolean} meta.requiresAuth - false = page publique. */
-    meta: { requiresAuth: false }
+    meta: { requiresAuth: false },
   },
   {
     path: '/',
     name: 'Ventes',
     component: VentesView,
     /** @property {boolean} meta.requiresAuth - true = page protégée. */
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true },
   },
   {
     path: '/rapports',
     name: 'Rapports',
     component: RapportsView,
     /** @property {boolean} meta.requiresAuth - true = page protégée. */
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true },
   },
   {
     path: '/admin',
@@ -38,17 +38,17 @@ const routes = [
     component: AdminView,
     /** @property {boolean} meta.requiresAuth - true = page protégée. */
     /** @property {boolean} meta.requiresAdmin - true = page réservée aux admins. */
-    meta: { requiresAuth: true, requiresAdmin: true }
+    meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/'
-  }
+    redirect: '/',
+  },
 ]
 
 const router = createRouter({
   history: createWebHistory(),
-  routes
+  routes,
 })
 
 /**
@@ -60,7 +60,7 @@ const router = createRouter({
  * @param {import('vue-router').NavigationGuardNext} next - Fonction pour résoudre la navigation.
  * @returns {void}
  */
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('token')
 
   if (to.meta.requiresAuth && !token) {
@@ -71,7 +71,7 @@ router.beforeEach((to, from, next) => {
     // Vérifier le rôle admin depuis le localStorage
     try {
       const user = JSON.parse(localStorage.getItem('user') || 'null')
-      if (!user || user.role !== 'admin') {
+      if (user?.role !== 'admin') {
         next({ name: 'Ventes' })
       } else {
         next()

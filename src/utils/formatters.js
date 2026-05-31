@@ -1,7 +1,7 @@
 const paymentLabels = {
   CB: 'Carte Bancaire',
   Espece: 'Espèce',
-  Cheque: 'Chèque'
+  Cheque: 'Chèque',
 }
 
 export function formatDate(dateStr, fallback = '-') {
@@ -10,7 +10,7 @@ export function formatDate(dateStr, fallback = '-') {
   return date.toLocaleDateString('fr-FR', {
     day: '2-digit',
     month: '2-digit',
-    year: 'numeric'
+    year: 'numeric',
   })
 }
 
@@ -22,7 +22,7 @@ export function formatDateTime(dateStr, fallback = '—') {
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   })
 }
 
@@ -35,7 +35,7 @@ export function formatDateSimple(dateStr, fallback = '—') {
 export function formatPrice(price) {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',
-    currency: 'EUR'
+    currency: 'EUR',
   }).format(price || 0)
 }
 

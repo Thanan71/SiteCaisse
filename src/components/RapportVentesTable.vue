@@ -70,20 +70,20 @@ import PaymentBadge from './PaymentBadge.vue'
 defineProps({
   ventes: {
     type: Array,
-    default: () => []
+    default: () => [],
   },
   summary: {
     type: Object,
-    required: true
+    required: true,
   },
   title: {
     type: String,
-    default: ''
+    default: '',
   },
   totalLabel: {
     type: String,
-    default: 'TOTAL'
-  }
+    default: 'TOTAL',
+  },
 })
 
 const { getVisibleItems, isExpanded, toggleExpanded } = useExpandableRows()

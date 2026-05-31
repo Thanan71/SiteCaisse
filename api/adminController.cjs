@@ -5,14 +5,14 @@
  * ainsi que les paramètres système (commissions CB).
  * Protégé par le middleware d'authentification + vérification du rôle admin.
  */
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const { authMiddleware } = require('./authController.cjs');
-const { getSupabase } = require('./db.cjs');
-const { getAllParametres, updateParametre } = require('./services/parametresService.cjs');
-const { logAction, logError, getActionLogs } = require('./services/loggerService.cjs');
+const express = require('express')
+const bcrypt = require('bcryptjs')
+const { authMiddleware } = require('./authController.cjs')
+const { getSupabase } = require('./db.cjs')
+const { getAllParametres, updateParametre } = require('./services/parametresService.cjs')
+const { logAction, logError, getActionLogs } = require('./services/loggerService.cjs')
 
-const router = express.Router();
+const router = express.Router()
 
 /**
  * Middleware de vérification du rôle admin.
@@ -24,9 +24,9 @@ const router = express.Router();
  */
 function adminMiddleware(req, res, next) {
   if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Accès réservé aux administrateurs' });
+    return res.status(403).json({ error: 'Accès réservé aux administrateurs' })
   }
-  next();
+  next()
 }
 
 /**
@@ -36,26 +36,26 @@ function adminMiddleware(req, res, next) {
  */
 router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const supabase = getSupabase();
+    const supabase = getSupabase()
     const { data, error } = await supabase
       .from('users')
       .select('id, nom, email, role, est_actif, date_fin, created_at')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
 
-    if (error) throw error;
-    res.json(data || []);
+    if (error) throw error
+    res.json(data || [])
   } catch (err) {
-    console.error('Admin list users error:', err);
+    console.error('Admin list users error:', err)
     await logError({
       user: req.user,
       err,
       context: 'admin.users.list',
       cible_type: 'user',
-      req
-    });
-    res.status(500).json({ error: 'Erreur lors de la récupération des utilisateurs' });
+      req,
+    })
+    res.status(500).json({ error: 'Erreur lors de la récupération des utilisateurs' })
   }
-});
+})
 
 /**
  * POST /api/admin/users
@@ -69,64 +69,68 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
  */
 router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { nom, email, password, role, date_fin } = req.body;
+    const { nom, email, password, role, date_fin } = req.body
 
     if (!nom || !email || !password || !role) {
-      return res.status(400).json({ error: 'Nom, email, mot de passe et rôle requis' });
+      return res.status(400).json({ error: 'Nom, email, mot de passe et rôle requis' })
     }
 
     if (!['permanent', 'temporaire'].includes(role)) {
-      return res.status(400).json({ error: 'Le rôle doit être "permanent" ou "temporaire"' });
+      return res.status(400).json({ error: 'Le rôle doit être "permanent" ou "temporaire"' })
     }
 
     // Si le rôle est temporaire, une date de fin est obligatoire
     if (role === 'temporaire' && !date_fin) {
-      return res.status(400).json({ error: 'Une date de fin est requise pour les utilisateurs temporaires' });
+      return res
+        .status(400)
+        .json({ error: 'Une date de fin est requise pour les utilisateurs temporaires' })
     }
 
     // Si le rôle est permanent, pas de date de fin
     if (role === 'permanent' && date_fin) {
-      return res.status(400).json({ error: 'Un utilisateur permanent ne peut pas avoir de date de fin' });
+      return res
+        .status(400)
+        .json({ error: 'Un utilisateur permanent ne peut pas avoir de date de fin' })
     }
 
-    const supabase = getSupabase();
+    const supabase = getSupabase()
 
     // Vérifier si l'email existe déjà
     const { data: existing } = await supabase
       .from('users')
       .select('id')
       .eq('email', email)
-      .maybeSingle();
+      .maybeSingle()
 
     if (existing) {
-      return res.status(409).json({ error: 'Un utilisateur avec cet email existe déjà' });
+      return res.status(409).json({ error: 'Un utilisateur avec cet email existe déjà' })
     }
 
-    const password_hash = bcrypt.hashSync(password, 10);
+    const password_hash = bcrypt.hashSync(password, 10)
 
-    const userData = { nom, email, password_hash, role };
+    const userData = { nom, email, password_hash, role }
     if (date_fin) {
-      userData.date_fin = date_fin;
+      userData.date_fin = date_fin
     }
 
     const { data, error } = await supabase
       .from('users')
       .insert(userData)
       .select('id, nom, email, role, est_actif, date_fin, created_at')
-      .single();
+      .single()
 
-    if (error) throw error;
+    if (error) throw error
     await logAction({
       user: req.user,
       action: 'user.create',
       cible_type: 'user',
       cible_id: data.id,
       details: { nom: data.nom, email: data.email, role: data.role, date_fin: data.date_fin },
-      req
-    });
-    res.status(201).json(data);
+      req,
+    })
+    res.status(201).json(data)
   } catch (err) {
-    console.error('Admin create user error:', err);
+    console.error('Admin create user error:', err)
     await logError({
       user: req.user,
       err,
@@ -136,13 +140,13 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
         nom: req.body?.nom || null,
         email: req.body?.email || null,
         role: req.body?.role || null,
-        date_fin: req.body?.date_fin || null
+        date_fin: req.body?.date_fin || null,
       },
-      req
-    });
-    res.status(500).json({ error: 'Erreur lors de la création de l\'utilisateur' });
+      req,
+    })
+    res.status(500).json({ error: "Erreur lors de la création de l'utilisateur" })
   }
-});
+})
 
 /**
  * DELETE /api/admin/users/:id
@@ -152,37 +156,37 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
  */
 router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const userId = parseInt(req.params.id, 10);
+    const userId = parseInt(req.params.id, 10)
 
-    if (isNaN(userId)) {
-      return res.status(400).json({ error: 'ID utilisateur invalide' });
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'ID utilisateur invalide' })
     }
 
     // Empêcher l'admin de se supprimer lui-même
     if (userId === req.user.id) {
-      return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' });
+      return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' })
     }
 
-    const supabase = getSupabase();
+    const supabase = getSupabase()
 
     // Vérifier que l'utilisateur existe
     const { data: userToDelete } = await supabase
       .from('users')
       .select('id, nom, email, role')
       .eq('id', userId)
-      .maybeSingle();
+      .maybeSingle()
 
     if (!userToDelete) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' });
+      return res.status(404).json({ error: 'Utilisateur non trouvé' })
     }
 
     // Supprimer les ventes liées à cet utilisateur (artisan ou vendeur)
-    await supabase.from('ventes').delete().eq('artisan_id', userId);
-    await supabase.from('ventes').delete().eq('vendeur_id', userId);
+    await supabase.from('ventes').delete().eq('artisan_id', userId)
+    await supabase.from('ventes').delete().eq('vendeur_id', userId)
 
     // Supprimer l'utilisateur
-    const { error } = await supabase.from('users').delete().eq('id', userId);
-    if (error) throw error;
+    const { error } = await supabase.from('users').delete().eq('id', userId)
+    if (error) throw error
 
     await logAction({
       user: req.user,
@@ -190,23 +194,23 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
       cible_type: 'user',
       cible_id: userId,
       details: { nom: userToDelete.nom, email: userToDelete.email, role: userToDelete.role },
-      req
-    });
+      req,
+    })
 
-    res.json({ message: 'Utilisateur supprimé avec succès' });
+    res.json({ message: 'Utilisateur supprimé avec succès' })
   } catch (err) {
-    console.error('Admin delete user error:', err);
+    console.error('Admin delete user error:', err)
     await logError({
       user: req.user,
       err,
       context: 'admin.users.delete',
       cible_type: 'user',
       cible_id: req.params.id,
-      req
-    });
-    res.status(500).json({ error: 'Erreur lors de la suppression de l\'utilisateur' });
+      req,
+    })
+    res.status(500).json({ error: "Erreur lors de la suppression de l'utilisateur" })
   }
-});
+})
 
 /**
  * GET /api/admin/parametres
@@ -215,20 +219,20 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
  */
 router.get('/parametres', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const params = await getAllParametres();
-    res.json(params);
+    const params = await getAllParametres()
+    res.json(params)
   } catch (err) {
-    console.error('Admin get parametres error:', err);
+    console.error('Admin get parametres error:', err)
     await logError({
       user: req.user,
       err,
       context: 'admin.parametres.list',
       cible_type: 'parametre',
-      req
-    });
-    res.status(500).json({ error: 'Erreur lors de la récupération des paramètres' });
+      req,
+    })
+    res.status(500).json({ error: 'Erreur lors de la récupération des paramètres' })
   }
-});
+})
 
 /**
  * PUT /api/admin/parametres/:cle
@@ -239,42 +243,42 @@ router.get('/parametres', authMiddleware, adminMiddleware, async (req, res) => {
  */
 router.put('/parametres/:cle', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { cle } = req.params;
-    const { valeur } = req.body;
+    const { cle } = req.params
+    const { valeur } = req.body
 
     if (valeur === undefined || valeur === '') {
-      return res.status(400).json({ error: 'La valeur est requise' });
+      return res.status(400).json({ error: 'La valeur est requise' })
     }
 
     // Valider que la valeur est un nombre positif
-    const numVal = parseFloat(valeur);
-    if (isNaN(numVal) || numVal < 0) {
-      return res.status(400).json({ error: 'La valeur doit être un nombre positif' });
+    const numVal = parseFloat(valeur)
+    if (Number.isNaN(numVal) || numVal < 0) {
+      return res.status(400).json({ error: 'La valeur doit être un nombre positif' })
     }
 
-    await updateParametre(cle, valeur);
+    await updateParametre(cle, valeur)
     await logAction({
       user: req.user,
       action: 'parametre.update',
       cible_type: 'parametre',
       cible_id: cle,
       details: { cle, valeur },
-      req
-    });
-    res.json({ message: 'Paramètre mis à jour avec succès' });
+      req,
+    })
+    res.json({ message: 'Paramètre mis à jour avec succès' })
   } catch (err) {
-    console.error('Admin update parametre error:', err);
+    console.error('Admin update parametre error:', err)
     await logError({
       user: req.user,
       err,
       context: 'admin.parametres.update',
       cible_type: 'parametre',
       cible_id: req.params.cle,
-      req
-    });
-    res.status(500).json({ error: 'Erreur lors de la mise à jour du paramètre' });
+      req,
+    })
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du paramètre' })
   }
-});
+})
 
 /**
  * GET /api/admin/logs
@@ -287,20 +291,20 @@ router.get('/logs', authMiddleware, adminMiddleware, async (req, res) => {
       page: req.query.page,
       limit: req.query.limit,
       action: req.query.action || undefined,
-      cible_type: req.query.cible_type || undefined
-    });
-    res.json(result);
+      cible_type: req.query.cible_type || undefined,
+    })
+    res.json(result)
   } catch (err) {
-    console.error('Admin get logs error:', err);
+    console.error('Admin get logs error:', err)
     await logError({
       user: req.user,
       err,
       context: 'admin.logs.list',
       cible_type: 'log',
-      req
-    });
-    res.status(500).json({ error: 'Erreur lors de la récupération des logs' });
+      req,
+    })
+    res.status(500).json({ error: 'Erreur lors de la récupération des logs' })
   }
-});
+})
 
-module.exports = router;
+module.exports = router

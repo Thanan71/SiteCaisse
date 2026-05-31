@@ -117,12 +117,12 @@ const props = defineProps({
   mode: {
     type: String,
     default: 'create',
-    validator: value => ['create', 'edit'].includes(value)
+    validator: (value) => ['create', 'edit'].includes(value),
   },
   vente: {
     type: Object,
-    default: null
-  }
+    default: null,
+  },
 })
 
 const emit = defineEmits(['close', 'saved'])
@@ -133,38 +133,47 @@ const artisans = computed(() => artisansStore.artisans)
 const loading = ref(false)
 const error = ref(null)
 
-const title = computed(() => props.mode === 'edit' ? 'Modifier la vente' : 'Ajouter une vente')
-const submitLabel = computed(() => props.mode === 'edit' ? 'Enregistrer' : 'Ajouter la vente')
-const loadingLabel = computed(() => props.mode === 'edit' ? 'Modification...' : 'Ajout en cours...')
+const title = computed(() => (props.mode === 'edit' ? 'Modifier la vente' : 'Ajouter une vente'))
+const submitLabel = computed(() => (props.mode === 'edit' ? 'Enregistrer' : 'Ajouter la vente'))
+const loadingLabel = computed(() =>
+  props.mode === 'edit' ? 'Modification...' : 'Ajout en cours...',
+)
 
 const emptyArticle = () => ({
   article: '',
   quantite: 1,
-  prix: ''
+  prix: '',
 })
 
 const defaultForm = () => ({
   date_vente: new Date().toISOString().split('T')[0],
   artisan_id: '',
   type_paiement: '',
-  articles: [{ ...emptyArticle() }]
+  articles: [{ ...emptyArticle() }],
 })
 
 const form = reactive(defaultForm())
 
-watch(() => props.show, async (isOpen) => {
-  if (!isOpen) {
-    resetForm()
-    return
-  }
+watch(
+  () => props.show,
+  async (isOpen) => {
+    if (!isOpen) {
+      resetForm()
+      return
+    }
 
-  hydrateForm()
-  await fetchArtisansIfNeeded()
-})
+    hydrateForm()
+    await fetchArtisansIfNeeded()
+  },
+)
 
-watch(() => props.vente, () => {
-  if (props.show) hydrateForm()
-}, { immediate: true })
+watch(
+  () => props.vente,
+  () => {
+    if (props.show) hydrateForm()
+  },
+  { immediate: true },
+)
 
 function fieldId(name) {
   return `${props.mode}-vente-${name}`
@@ -176,10 +185,10 @@ function hydrateForm() {
     form.artisan_id = props.vente.artisan_id || ''
     form.type_paiement = props.vente.type_paiement || ''
     form.articles = props.vente.articles?.length
-      ? props.vente.articles.map(article => ({
+      ? props.vente.articles.map((article) => ({
           article: article.article || '',
           quantite: article.quantite || 1,
-          prix: article.prix || ''
+          prix: article.prix || '',
         }))
       : [{ ...emptyArticle() }]
     return
@@ -219,14 +228,14 @@ function shouldHighlightArticle(index) {
 
 function buildPayload() {
   return {
-    articles: form.articles.map(article => ({
+    articles: form.articles.map((article) => ({
       article: article.article,
       quantite: article.quantite || 1,
-      prix: parseFloat(article.prix)
+      prix: parseFloat(article.prix),
     })),
     type_paiement: form.type_paiement,
     artisan_id: form.artisan_id,
-    date_vente: form.date_vente
+    date_vente: form.date_vente,
   }
 }
 
@@ -243,11 +252,11 @@ async function handleSubmit() {
       emit('close')
     }
   } catch (err) {
-    error.value = err.response?.data?.error || (
-      props.mode === 'edit'
+    error.value =
+      err.response?.data?.error ||
+      (props.mode === 'edit'
         ? 'Erreur lors de la modification'
-        : "Erreur lors de l'ajout de la vente"
-    )
+        : "Erreur lors de l'ajout de la vente")
   } finally {
     loading.value = false
   }

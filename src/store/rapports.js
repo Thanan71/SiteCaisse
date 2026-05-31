@@ -27,7 +27,7 @@ export const useRapportsStore = defineStore('rapports', {
     /** @property {boolean} loadingAll - Indicateur de chargement pour tous les rapports. */
     loadingAll: false,
     /** @property {Object|null} totalAllParams - Paramètres des commissions. */
-    totalAllParams: null
+    totalAllParams: null,
   }),
 
   actions: {
@@ -79,12 +79,7 @@ export const useRapportsStore = defineStore('rapports', {
      * @returns {void}
      */
     exportToExcel(artisans) {
-      exportVentesToExcel(
-        this.ventesArtisan,
-        artisans || [],
-        this.selectedArtisanId,
-        this.summary
-      )
-    }
-  }
+      exportVentesToExcel(this.ventesArtisan, artisans || [], this.selectedArtisanId, this.summary)
+    },
+  },
 })

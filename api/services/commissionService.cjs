@@ -3,7 +3,7 @@
  * @description Service de calcul des commissions CB.
  * Responsabilité unique : calculer les commissions sur les paiements par carte bancaire.
  */
-'use strict';
+'use strict'
 
 /**
  * Calcule les commissions CB pour un ensemble de ventes.
@@ -13,19 +13,19 @@
  * Un objet contenant le total des paiements CB et la commission calculée.
  */
 function calculerCommissionsCB(ventes, tauxCommission) {
-  const ventesCB = ventes.filter(v => v.type_paiement === 'CB');
-  
-  let totalCB = 0;
+  const ventesCB = ventes.filter((v) => v.type_paiement === 'CB')
+
+  let totalCB = 0
   for (const v of ventesCB) {
-    const articles = v.articles || [{ prix: v.prix, quantite: v.quantite }];
+    const articles = v.articles || [{ prix: v.prix, quantite: v.quantite }]
     for (const art of articles) {
-      totalCB += (art.prix || 0) * (art.quantite || 0);
+      totalCB += (art.prix || 0) * (art.quantite || 0)
     }
   }
-  
-  const commission = totalCB * (tauxCommission / 100);
-  
-  return { total_cb: totalCB, commission_cb: Math.round(commission * 100) / 100 };
+
+  const commission = totalCB * (tauxCommission / 100)
+
+  return { total_cb: totalCB, commission_cb: Math.round(commission * 100) / 100 }
 }
 
 /**
@@ -36,16 +36,16 @@ function calculerCommissionsCB(ventes, tauxCommission) {
  * @returns {{groupesAvecCommissions: Array, totalGlobalCB: number, totalGlobalCommission: number}}
  */
 function ajouterCommissionsAuxGroupes(groupes, tauxPermanent, tauxTemporaire) {
-  let totalGlobalCB = 0;
-  let totalGlobalCommission = 0;
+  let totalGlobalCB = 0
+  let totalGlobalCommission = 0
 
-  const groupesAvecCommissions = groupes.map(g => {
-    const role = g.ventes[0]?.artisan_role || 'permanent';
-    const taux = role === 'temporaire' ? tauxTemporaire : tauxPermanent;
+  const groupesAvecCommissions = groupes.map((g) => {
+    const role = g.ventes[0]?.artisan_role || 'permanent'
+    const taux = role === 'temporaire' ? tauxTemporaire : tauxPermanent
 
-    const cb = calculerCommissionsCB(g.ventes, taux);
-    totalGlobalCB += cb.total_cb;
-    totalGlobalCommission += cb.commission_cb;
+    const cb = calculerCommissionsCB(g.ventes, taux)
+    totalGlobalCB += cb.total_cb
+    totalGlobalCommission += cb.commission_cb
 
     return {
       ...g,
@@ -53,16 +53,16 @@ function ajouterCommissionsAuxGroupes(groupes, tauxPermanent, tauxTemporaire) {
         ...g.summary,
         total_cb: cb.total_cb,
         commission_cb: cb.commission_cb,
-        taux_commission: taux
-      }
-    };
-  });
+        taux_commission: taux,
+      },
+    }
+  })
 
   return {
     groupesAvecCommissions,
     totalGlobalCB,
-    totalGlobalCommission: Math.round(totalGlobalCommission * 100) / 100
-  };
+    totalGlobalCommission: Math.round(totalGlobalCommission * 100) / 100,
+  }
 }
 
 /**
@@ -76,8 +76,8 @@ function ajouterCommissionsAuxGroupes(groupes, tauxPermanent, tauxTemporaire) {
  * @returns {Object} Données enrichies avec les informations de commission.
  */
 function ajouterCommissionAUnArtisan(data, role, tauxPermanent, tauxTemporaire) {
-  const taux = role === 'temporaire' ? tauxTemporaire : tauxPermanent;
-  const cb = calculerCommissionsCB(data.ventes, taux || 0);
+  const taux = role === 'temporaire' ? tauxTemporaire : tauxPermanent
+  const cb = calculerCommissionsCB(data.ventes, taux || 0)
 
   return {
     ...data,
@@ -85,13 +85,13 @@ function ajouterCommissionAUnArtisan(data, role, tauxPermanent, tauxTemporaire) 
       ...data.summary,
       total_cb: cb.total_cb,
       commission_cb: cb.commission_cb,
-      taux_commission: taux || 0
-    }
-  };
+      taux_commission: taux || 0,
+    },
+  }
 }
 
 module.exports = {
   calculerCommissionsCB,
   ajouterCommissionsAuxGroupes,
-  ajouterCommissionAUnArtisan
-};
+  ajouterCommissionAUnArtisan,
+}

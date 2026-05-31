@@ -4,15 +4,15 @@
  * Fournit les opérations CRUD (Create, Read, Update, Delete) pour les ventes.
  * Toutes les routes sont protégées par le middleware d'authentification JWT.
  */
-const express = require('express');
-const { getAllVentes, createVente, updateVente, deleteVente } = require('./models.cjs');
-const { authMiddleware } = require('./authController.cjs');
-const { logAction, logError } = require('./services/loggerService.cjs');
+const express = require('express')
+const { getAllVentes, createVente, updateVente, deleteVente } = require('./models.cjs')
+const { authMiddleware } = require('./authController.cjs')
+const { logAction, logError } = require('./services/loggerService.cjs')
 
-const router = express.Router();
+const router = express.Router()
 
 // Toutes les routes nécessitent une authentification
-router.use(authMiddleware);
+router.use(authMiddleware)
 
 /**
  * Récupère la liste des ventes avec pagination et filtres optionnels.
@@ -26,30 +26,30 @@ router.use(authMiddleware);
  */
 router.get('/', async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const { date_debut, date_fin, type_paiement } = req.query;
+    const page = parseInt(req.query.page, 10) || 1
+    const limit = parseInt(req.query.limit, 10) || 10
+    const { date_debut, date_fin, type_paiement } = req.query
 
     const result = await getAllVentes({
       page,
       limit,
       date_debut: date_debut || undefined,
       date_fin: date_fin || undefined,
-      type_paiement: type_paiement || undefined
-    });
-    res.json(result);
+      type_paiement: type_paiement || undefined,
+    })
+    res.json(result)
   } catch (err) {
-    console.error('GET ventes error:', err);
+    console.error('GET ventes error:', err)
     await logError({
       user: req.user,
       err,
       context: 'ventes.list',
       cible_type: 'vente',
-      req
-    });
-    res.status(500).json({ error: 'Erreur serveur' });
+      req,
+    })
+    res.status(500).json({ error: 'Erreur serveur' })
   }
-});
+})
 
 /**
  * Crée une nouvelle vente avec un ou plusieurs articles.
@@ -63,42 +63,42 @@ router.get('/', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { articles, type_paiement, artisan_id, date_vente } = req.body;
+    const { articles, type_paiement, artisan_id, date_vente } = req.body
 
     if (!articles || !Array.isArray(articles) || articles.length === 0) {
       return res.status(400).json({
-        error: 'Au moins un article est requis'
-      });
+        error: 'Au moins un article est requis',
+      })
     }
 
     if (!type_paiement || !artisan_id || !date_vente) {
       return res.status(400).json({
-        error: 'Champs requis : articles, type_paiement, artisan_id, date_vente'
-      });
+        error: 'Champs requis : articles, type_paiement, artisan_id, date_vente',
+      })
     }
 
-    const validPayments = ['CB', 'Espece', 'Cheque'];
+    const validPayments = ['CB', 'Espece', 'Cheque']
     if (!validPayments.includes(type_paiement)) {
-      return res.status(400).json({ error: 'Type de paiement invalide (CB, Espece, Cheque)' });
+      return res.status(400).json({ error: 'Type de paiement invalide (CB, Espece, Cheque)' })
     }
 
     // Valider chaque article
     for (const [index, article] of articles.entries()) {
       if (!article.article || !article.prix) {
         return res.status(400).json({
-          error: `Article ${index + 1} : le nom et le prix sont requis`
-        });
+          error: `Article ${index + 1} : le nom et le prix sont requis`,
+        })
       }
       if (article.prix <= 0) {
         return res.status(400).json({
-          error: `Article ${index + 1} : le prix doit être supérieur à 0`
-        });
+          error: `Article ${index + 1} : le prix doit être supérieur à 0`,
+        })
       }
     }
 
-    const vendeur_id = req.user.id;
+    const vendeur_id = req.user.id
 
-    const id = await createVente(articles, type_paiement, artisan_id, vendeur_id, date_vente);
+    const id = await createVente(articles, type_paiement, artisan_id, vendeur_id, date_vente)
 
     await logAction({
       user: req.user,
@@ -106,12 +106,12 @@ router.post('/', async (req, res) => {
       cible_type: 'vente',
       cible_id: id,
       details: { articles, type_paiement, artisan_id, date_vente },
-      req
-    });
+      req,
+    })
 
-    res.status(201).json({ id, message: 'Vente créée avec succès' });
+    res.status(201).json({ id, message: 'Vente créée avec succès' })
   } catch (err) {
-    console.error('POST vente error:', err);
+    console.error('POST vente error:', err)
     await logError({
       user: req.user,
       err,
@@ -120,13 +120,13 @@ router.post('/', async (req, res) => {
       details: {
         type_paiement: req.body?.type_paiement || null,
         artisan_id: req.body?.artisan_id || null,
-        date_vente: req.body?.date_vente || null
+        date_vente: req.body?.date_vente || null,
       },
-      req
-    });
-    res.status(500).json({ error: 'Erreur serveur' });
+      req,
+    })
+    res.status(500).json({ error: 'Erreur serveur' })
   }
-});
+})
 
 /**
  * Modifie une vente existante.
@@ -139,26 +139,26 @@ router.post('/', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id, 10)
 
     // Si des articles sont fournis, valider
     if (req.body.articles) {
       if (!Array.isArray(req.body.articles) || req.body.articles.length === 0) {
-        return res.status(400).json({ error: 'La liste des articles est invalide' });
+        return res.status(400).json({ error: 'La liste des articles est invalide' })
       }
       for (const [index, article] of req.body.articles.entries()) {
         if (!article.article || !article.prix) {
           return res.status(400).json({
-            error: `Article ${index + 1} : le nom et le prix sont requis`
-          });
+            error: `Article ${index + 1} : le nom et le prix sont requis`,
+          })
         }
       }
     }
 
-    const updated = await updateVente(id, req.body);
+    const updated = await updateVente(id, req.body)
 
     if (!updated) {
-      return res.status(404).json({ error: 'Vente non trouvée ou aucune modification' });
+      return res.status(404).json({ error: 'Vente non trouvée ou aucune modification' })
     }
 
     await logAction({
@@ -167,23 +167,23 @@ router.put('/:id', async (req, res) => {
       cible_type: 'vente',
       cible_id: id,
       details: { modifications: req.body },
-      req
-    });
+      req,
+    })
 
-    res.json({ message: 'Vente modifiée avec succès' });
+    res.json({ message: 'Vente modifiée avec succès' })
   } catch (err) {
-    console.error('PUT vente error:', err);
+    console.error('PUT vente error:', err)
     await logError({
       user: req.user,
       err,
       context: 'ventes.update',
       cible_type: 'vente',
       cible_id: req.params.id,
-      req
-    });
-    res.status(500).json({ error: 'Erreur serveur' });
+      req,
+    })
+    res.status(500).json({ error: 'Erreur serveur' })
   }
-});
+})
 
 /**
  * Supprime une vente existante.
@@ -194,11 +194,11 @@ router.put('/:id', async (req, res) => {
  */
 router.delete('/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    const deleted = await deleteVente(id);
+    const id = parseInt(req.params.id, 10)
+    const deleted = await deleteVente(id)
 
     if (!deleted) {
-      return res.status(404).json({ error: 'Vente non trouvée' });
+      return res.status(404).json({ error: 'Vente non trouvée' })
     }
 
     await logAction({
@@ -206,22 +206,22 @@ router.delete('/:id', async (req, res) => {
       action: 'vente.delete',
       cible_type: 'vente',
       cible_id: id,
-      req
-    });
+      req,
+    })
 
-    res.json({ message: 'Vente supprimée avec succès' });
+    res.json({ message: 'Vente supprimée avec succès' })
   } catch (err) {
-    console.error('DELETE vente error:', err);
+    console.error('DELETE vente error:', err)
     await logError({
       user: req.user,
       err,
       context: 'ventes.delete',
       cible_type: 'vente',
       cible_id: req.params.id,
-      req
-    });
-    res.status(500).json({ error: 'Erreur serveur' });
+      req,
+    })
+    res.status(500).json({ error: 'Erreur serveur' })
   }
-});
+})
 
-module.exports = router;
+module.exports = router

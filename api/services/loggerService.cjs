@@ -2,9 +2,9 @@
  * @module loggerService
  * @description Journalisation des actions utilisateur en base de données.
  */
-'use strict';
+'use strict'
 
-const { getSupabase } = require('../db.cjs');
+const { getSupabase } = require('../db.cjs')
 
 /**
  * Journalise une action sans bloquer le flux métier si l'insertion échoue.
@@ -17,11 +17,18 @@ const { getSupabase } = require('../db.cjs');
  * @param {import('express').Request} [params.req] - Requête Express.
  * @returns {Promise<void>}
  */
-async function logAction({ user = null, action, cible_type = null, cible_id = null, details = {}, req = null }) {
-  if (!action) return;
+async function logAction({
+  user = null,
+  action,
+  cible_type = null,
+  cible_id = null,
+  details = {},
+  req = null,
+}) {
+  if (!action) return
 
   try {
-    const supabase = getSupabase();
+    const supabase = getSupabase()
     const payload = {
       user_id: user?.id || null,
       user_nom: user?.nom || null,
@@ -31,15 +38,15 @@ async function logAction({ user = null, action, cible_type = null, cible_id = nu
       cible_id: cible_id === undefined || cible_id === null ? null : String(cible_id),
       details,
       ip_address: getRequestIp(req),
-      user_agent: req?.headers?.['user-agent'] || null
-    };
+      user_agent: req?.headers?.['user-agent'] || null,
+    }
 
-    const { error } = await supabase.from('action_logs').insert(payload);
+    const { error } = await supabase.from('action_logs').insert(payload)
     if (error) {
-      console.error('Logger insert error:', error.message);
+      console.error('Logger insert error:', error.message)
     }
   } catch (err) {
-    console.error('Logger service error:', err);
+    console.error('Logger service error:', err)
   }
 }
 
@@ -55,8 +62,16 @@ async function logAction({ user = null, action, cible_type = null, cible_id = nu
  * @param {import('express').Request} [params.req] - Requête Express.
  * @returns {Promise<void>}
  */
-async function logError({ user = null, err, context, cible_type = 'error', cible_id = null, details = {}, req = null }) {
-  const safeError = formatError(err);
+async function logError({
+  user = null,
+  err,
+  context,
+  cible_type = 'error',
+  cible_id = null,
+  details = {},
+  req = null,
+}) {
+  const safeError = formatError(err)
 
   await logAction({
     user,
@@ -68,10 +83,10 @@ async function logError({ user = null, err, context, cible_type = 'error', cible
       method: req?.method || null,
       path: req?.originalUrl || req?.url || null,
       ...safeError,
-      ...details
+      ...details,
     },
-    req
-  });
+    req,
+  })
 }
 
 /**
@@ -84,36 +99,36 @@ async function logError({ user = null, err, context, cible_type = 'error', cible
  * @returns {Promise<{logs: Array, pagination: Object}>}
  */
 async function getActionLogs(options = {}) {
-  const supabase = getSupabase();
-  const rawPage = parseInt(options.page, 10);
-  const rawLimit = parseInt(options.limit, 10);
-  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
-  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 25;
-  const offset = (page - 1) * limit;
+  const supabase = getSupabase()
+  const rawPage = parseInt(options.page, 10)
+  const rawLimit = parseInt(options.limit, 10)
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 25
+  const offset = (page - 1) * limit
 
-  let countQuery = supabase.from('action_logs').select('*', { count: 'exact', head: true });
+  let countQuery = supabase.from('action_logs').select('*', { count: 'exact', head: true })
   let logsQuery = supabase
     .from('action_logs')
     .select('*')
     .order('created_at', { ascending: false })
     .order('id', { ascending: false })
-    .range(offset, offset + limit - 1);
+    .range(offset, offset + limit - 1)
 
   if (options.action) {
-    countQuery = countQuery.eq('action', options.action);
-    logsQuery = logsQuery.eq('action', options.action);
+    countQuery = countQuery.eq('action', options.action)
+    logsQuery = logsQuery.eq('action', options.action)
   }
 
   if (options.cible_type) {
-    countQuery = countQuery.eq('cible_type', options.cible_type);
-    logsQuery = logsQuery.eq('cible_type', options.cible_type);
+    countQuery = countQuery.eq('cible_type', options.cible_type)
+    logsQuery = logsQuery.eq('cible_type', options.cible_type)
   }
 
-  const { count, error: countError } = await countQuery;
-  if (countError) throw countError;
+  const { count, error: countError } = await countQuery
+  if (countError) throw countError
 
-  const { data, error } = await logsQuery;
-  if (error) throw error;
+  const { data, error } = await logsQuery
+  if (error) throw error
 
   return {
     logs: data || [],
@@ -121,39 +136,39 @@ async function getActionLogs(options = {}) {
       page,
       limit,
       total: count || 0,
-      totalPages: Math.ceil((count || 0) / limit)
-    }
-  };
+      totalPages: Math.ceil((count || 0) / limit),
+    },
+  }
 }
 
 function getRequestIp(req) {
-  if (!req) return null;
-  const forwarded = req.headers?.['x-forwarded-for'];
+  if (!req) return null
+  const forwarded = req.headers?.['x-forwarded-for']
   if (typeof forwarded === 'string' && forwarded.length > 0) {
-    return forwarded.split(',')[0].trim();
+    return forwarded.split(',')[0].trim()
   }
-  return req.ip || req.socket?.remoteAddress || null;
+  return req.ip || req.socket?.remoteAddress || null
 }
 
 function formatError(err) {
   if (!err) {
-    return { message: 'Erreur inconnue' };
+    return { message: 'Erreur inconnue' }
   }
 
   if (typeof err === 'string') {
-    return { message: err };
+    return { message: err }
   }
 
   return {
     name: err.name || null,
     message: err.message || 'Erreur inconnue',
     code: err.code || null,
-    status: err.status || err.statusCode || null
-  };
+    status: err.status || err.statusCode || null,
+  }
 }
 
 module.exports = {
   logAction,
   logError,
-  getActionLogs
-};
+  getActionLogs,
+}

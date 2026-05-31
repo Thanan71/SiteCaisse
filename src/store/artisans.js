@@ -14,7 +14,7 @@ export const useArtisansStore = defineStore('artisans', {
     /** @property {boolean} loading - Indicateur de chargement. */
     loading: false,
     /** @property {string|null} error - Message d'erreur éventuel. */
-    error: null
+    error: null,
   }),
 
   getters: {
@@ -22,13 +22,13 @@ export const useArtisansStore = defineStore('artisans', {
      * Filtre et retourne uniquement les artisans avec le rôle 'permanent'.
      * @returns {Array} Tableau des artisans permanents.
      */
-    permanents: (state) => state.artisans.filter(a => a.role === 'permanent'),
+    permanents: (state) => state.artisans.filter((a) => a.role === 'permanent'),
 
     /**
      * Filtre et retourne uniquement les artisans avec le rôle 'temporaire'.
      * @returns {Array} Tableau des artisans temporaires.
      */
-    temporaires: (state) => state.artisans.filter(a => a.role === 'temporaire'),
+    temporaires: (state) => state.artisans.filter((a) => a.role === 'temporaire'),
 
     /**
      * Retourne le nom d'un artisan à partir de son ID.
@@ -37,9 +37,9 @@ export const useArtisansStore = defineStore('artisans', {
      * @returns {string} Nom de l'artisan ou 'Artisan inconnu'.
      */
     getArtisanName: (state) => (id) => {
-      const artisan = state.artisans.find(a => a.id === id)
+      const artisan = state.artisans.find((a) => a.id === id)
       return artisan ? artisan.nom : 'Artisan inconnu'
-    }
+    },
   },
 
   actions: {
@@ -60,6 +60,6 @@ export const useArtisansStore = defineStore('artisans', {
       } finally {
         this.loading = false
       }
-    }
-  }
+    },
+  },
 })

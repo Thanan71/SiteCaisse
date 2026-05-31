@@ -10,8 +10,8 @@ import { getPaymentLabel } from '../utils/formatters'
 defineProps({
   type: {
     type: String,
-    required: true
-  }
+    required: true,
+  },
 })
 </script>
 

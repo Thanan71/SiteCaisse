@@ -9,10 +9,10 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
-import { useAuthStore } from './store/auth'
 import { SpeedInsights } from '@vercel/speed-insights/vue'
+import { onMounted } from 'vue'
 import Navbar from './components/Navbar.vue'
+import { useAuthStore } from './store/auth'
 
 const authStore = useAuthStore()
 

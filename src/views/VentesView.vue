@@ -191,11 +191,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useVentesStore } from '../store/ventes'
-import VenteFormModal from '../components/VenteFormModal.vue'
+import { computed, onMounted, ref } from 'vue'
 import PaymentBadge from '../components/PaymentBadge.vue'
+import VenteFormModal from '../components/VenteFormModal.vue'
 import { useExpandableRows } from '../composables/useExpandableRows'
+import { useVentesStore } from '../store/ventes'
 import { formatDate, formatPrice, getPaymentLabel } from '../utils/formatters'
 
 const ventesStore = useVentesStore()
@@ -207,7 +207,7 @@ const { getVisibleItems, isExpanded, toggleExpanded } = useExpandableRows()
 const localFilters = ref({
   date_debut: '',
   date_fin: '',
-  type_paiement: ''
+  type_paiement: '',
 })
 
 onMounted(() => {
