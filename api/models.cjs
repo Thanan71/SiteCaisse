@@ -137,7 +137,7 @@ async function getAllVentes() {
     .from('ventes')
     .select(`
       *,
-      artisan:artisan_id (nom),
+      artisan:artisan_id (nom, role),
       vendeur:vendeur_id (nom)
     `)
     .order('date_vente', { ascending: false })
@@ -147,6 +147,7 @@ async function getAllVentes() {
   return (data || []).map(v => ({
     ...v,
     artisan_nom: v.artisan?.nom || null,
+    artisan_role: v.artisan?.role || null,
     vendeur_nom: v.vendeur?.nom || null,
     artisan: undefined,
     vendeur: undefined
@@ -165,7 +166,7 @@ async function getVentesByArtisan(artisan_id) {
     .from('ventes')
     .select(`
       *,
-      artisan:artisan_id (nom),
+      artisan:artisan_id (nom, role),
       vendeur:vendeur_id (nom)
     `)
     .eq('artisan_id', artisan_id)
@@ -176,6 +177,7 @@ async function getVentesByArtisan(artisan_id) {
   const formattedVentes = (ventes || []).map(v => ({
     ...v,
     artisan_nom: v.artisan?.nom || null,
+    artisan_role: v.artisan?.role || null,
     vendeur_nom: v.vendeur?.nom || null,
     artisan: undefined,
     vendeur: undefined
@@ -198,7 +200,7 @@ async function getAllVentesGroupedByArtisan() {
     .from('ventes')
     .select(`
       *,
-      artisan:artisan_id (nom),
+      artisan:artisan_id (nom, role),
       vendeur:vendeur_id (nom)
     `)
     .order('date_vente', { ascending: false })
@@ -208,6 +210,7 @@ async function getAllVentesGroupedByArtisan() {
   const formattedVentes = (ventes || []).map(v => ({
     ...v,
     artisan_nom: v.artisan?.nom || null,
+    artisan_role: v.artisan?.role || null,
     vendeur_nom: v.vendeur?.nom || null,
     artisan: undefined,
     vendeur: undefined
@@ -333,6 +336,37 @@ async function seedAdminIfMissing() {
   }
 }
 
+/**
+ * Récupère tous les paramètres système.
+ * @returns {Promise<Object>} Objet avec les clés/valeurs des paramètres.
+ */
+async function getAllParametres() {
+  const supabase = getSupabase();
+  const { data, error } = await supabase.from('parametres').select('cle, valeur, description');
+  if (error) throw error;
+  const result = {};
+  for (const p of (data || [])) {
+    result[p.cle] = p.valeur;
+  }
+  return result;
+}
+
+/**
+ * Met à jour la valeur d'un paramètre système.
+ * @param {string} cle - La clé du paramètre.
+ * @param {string} valeur - La nouvelle valeur.
+ * @returns {Promise<boolean>} true si la mise à jour a réussi.
+ */
+async function updateParametre(cle, valeur) {
+  const supabase = getSupabase();
+  const { error } = await supabase
+    .from('parametres')
+    .update({ valeur, updated_at: new Date().toISOString() })
+    .eq('cle', cle);
+  if (error) throw error;
+  return true;
+}
+
 module.exports = {
   seedIfEmpty,
   seedAdminIfMissing,
@@ -344,5 +378,7 @@ module.exports = {
   getVentesByArtisan,
   getAllVentesGroupedByArtisan,
   updateVente,
-  deleteVente
+  deleteVente,
+  getAllParametres,
+  updateParametre
 };

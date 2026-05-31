@@ -1,13 +1,15 @@
 /**
  * @module adminController
  * @description Contrôleur d'administration.
- * Permet aux administrateurs de gérer les utilisateurs (liste, création, suppression).
+ * Permet aux administrateurs de gérer les utilisateurs (liste, création, suppression)
+ * ainsi que les paramètres système (commissions CB).
  * Protégé par le middleware d'authentification + vérification du rôle admin.
  */
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { authMiddleware } = require('./authController.cjs');
 const { getSupabase } = require('./db.cjs');
+const { getAllParametres, updateParametre } = require('./models.cjs');
 
 const router = express.Router();
 
@@ -157,6 +159,51 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
   } catch (err) {
     console.error('Admin delete user error:', err);
     res.status(500).json({ error: 'Erreur lors de la suppression de l\'utilisateur' });
+  }
+});
+
+/**
+ * GET /api/admin/parametres
+ * Récupère tous les paramètres système.
+ * @returns {Object} Objet des paramètres (clé -> valeur).
+ */
+router.get('/parametres', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const params = await getAllParametres();
+    res.json(params);
+  } catch (err) {
+    console.error('Admin get parametres error:', err);
+    res.status(500).json({ error: 'Erreur lors de la récupération des paramètres' });
+  }
+});
+
+/**
+ * PUT /api/admin/parametres/:cle
+ * Met à jour la valeur d'un paramètre système.
+ * @param {string} req.params.cle - La clé du paramètre.
+ * @param {string} req.body.valeur - La nouvelle valeur.
+ * @returns {Object} Message de confirmation.
+ */
+router.put('/parametres/:cle', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { cle } = req.params;
+    const { valeur } = req.body;
+
+    if (valeur === undefined || valeur === '') {
+      return res.status(400).json({ error: 'La valeur est requise' });
+    }
+
+    // Valider que la valeur est un nombre positif
+    const numVal = parseFloat(valeur);
+    if (isNaN(numVal) || numVal < 0) {
+      return res.status(400).json({ error: 'La valeur doit être un nombre positif' });
+    }
+
+    await updateParametre(cle, valeur);
+    res.json({ message: 'Paramètre mis à jour avec succès' });
+  } catch (err) {
+    console.error('Admin update parametre error:', err);
+    res.status(500).json({ error: 'Erreur lors de la mise à jour du paramètre' });
   }
 });
 

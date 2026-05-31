@@ -2,7 +2,56 @@
   <div class="admin-container">
     <div class="admin-header">
       <h1>Administration</h1>
-      <p class="admin-subtitle">Gestion des utilisateurs</p>
+      <p class="admin-subtitle">Gestion des utilisateurs et paramètres</p>
+    </div>
+
+    <!-- Section Paramètres : Commissions CB -->
+    <div class="card parametres-card">
+      <h2>Paramètres des commissions CB</h2>
+      <p class="parametres-info">
+        Les commissions CB sont calculées en pourcentage du montant total des ventes par carte bancaire.
+      </p>
+      <form @submit.prevent="handleSaveCommissions" class="parametres-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="commission-permanent">Commission CB - Artisans permanents (%)</label>
+            <div class="input-with-suffix">
+              <input
+                id="commission-permanent"
+                v-model="commissionPermanent"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                placeholder="1.70"
+                required
+              />
+              <span class="input-suffix">%</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="commission-temporaire">Commission CB - Artisans temporaires (%)</label>
+            <div class="input-with-suffix">
+              <input
+                id="commission-temporaire"
+                v-model="commissionTemporaire"
+                type="number"
+                step="0.01"
+                min="0"
+                max="100"
+                placeholder="1.70"
+                required
+              />
+              <span class="input-suffix">%</span>
+            </div>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" :disabled="savingCommissions">
+          {{ savingCommissions ? 'Enregistrement...' : 'Enregistrer les commissions' }}
+        </button>
+        <p v-if="commissionsError" class="error-message">{{ commissionsError }}</p>
+        <p v-if="commissionsSuccess" class="success-message">{{ commissionsSuccess }}</p>
+      </form>
     </div>
 
     <!-- Section Ajouter un utilisateur -->
@@ -177,11 +226,56 @@ const showDeleteModal = ref(false)
 const userToDelete = ref(null)
 const deletingId = ref(null)
 
+// État des commissions CB
+const commissionPermanent = ref('')
+const commissionTemporaire = ref('')
+const savingCommissions = ref(false)
+const commissionsError = ref('')
+const commissionsSuccess = ref('')
+
 // Date minimum pour le champ date (aujourd'hui)
 const minDate = computed(() => {
   const today = new Date()
   return today.toISOString().split('T')[0]
 })
+
+/**
+ * Charge les paramètres de commissions CB depuis l'API.
+ */
+async function fetchParametres() {
+  try {
+    const response = await axios.get('/api/admin/parametres')
+    const params = response.data
+    commissionPermanent.value = params.commission_cb_permanent || ''
+    commissionTemporaire.value = params.commission_cb_temporaire || ''
+  } catch (err) {
+    console.error('Erreur chargement paramètres:', err)
+  }
+}
+
+/**
+ * Enregistre les taux de commission CB.
+ */
+async function handleSaveCommissions() {
+  savingCommissions.value = true
+  commissionsError.value = ''
+  commissionsSuccess.value = ''
+
+  try {
+    await axios.put(`/api/admin/parametres/commission_cb_permanent`, {
+      valeur: commissionPermanent.value
+    })
+    await axios.put(`/api/admin/parametres/commission_cb_temporaire`, {
+      valeur: commissionTemporaire.value
+    })
+    commissionsSuccess.value = 'Commissions CB mises à jour avec succès !'
+    setTimeout(() => { commissionsSuccess.value = '' }, 3000)
+  } catch (err) {
+    commissionsError.value = err.response?.data?.error || 'Erreur lors de l\'enregistrement'
+  } finally {
+    savingCommissions.value = false
+  }
+}
 
 /**
  * Réinitialise la date de fin quand on change de rôle.
@@ -348,6 +442,7 @@ function formatDateSimple(dateStr) {
 
 onMounted(() => {
   fetchUsers()
+  fetchParametres()
 })
 </script>
 
@@ -390,6 +485,56 @@ onMounted(() => {
   font-weight: 600;
   color: #1e293b;
   margin: 0 0 20px 0;
+}
+
+/* Paramètres card */
+.parametres-card {
+  border: 2px solid #818cf8;
+  background: linear-gradient(135deg, #f5f3ff 0%, #ffffff 100%);
+}
+
+.parametres-info {
+  color: #64748b;
+  font-size: 0.85rem;
+  margin: -12px 0 16px 0;
+  line-height: 1.5;
+}
+
+.parametres-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.input-with-suffix {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-with-suffix input {
+  width: 100%;
+  padding: 10px 36px 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #1e293b;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.input-with-suffix input:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.input-suffix {
+  position: absolute;
+  right: 12px;
+  color: #64748b;
+  font-weight: 500;
+  pointer-events: none;
 }
 
 /* Form */

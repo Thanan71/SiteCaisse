@@ -93,6 +93,17 @@
                   <td class="text-right"><strong class="total-sum">{{ formatPrice(groupe.summary.total_montant) }}</strong></td>
                   <td></td>
                 </tr>
+                <!-- Ligne commission CB -->
+                <tr v-if="groupe.summary.commission_cb > 0" class="commission-row">
+                  <td colspan="5" class="text-right">
+                    <span class="commission-label">
+                      Commission CB ({{ groupe.summary.taux_commission }}% sur {{ formatPrice(groupe.summary.total_cb) }})
+                    </span>
+                  </td>
+                  <td class="text-right">
+                    <span class="commission-value">- {{ formatPrice(groupe.summary.commission_cb) }}</span>
+                  </td>
+                </tr>
               </tfoot>
             </table>
           </div>
@@ -110,6 +121,19 @@
               <span class="stat-label">Total montant</span>
               <span class="stat-value stat-value-amount">{{ formatPrice(rapportsStore.totalGlobal.total_montant) }}</span>
             </div>
+            <div v-if="rapportsStore.totalGlobal.total_cb > 0" class="stat">
+              <span class="stat-label">Total CB</span>
+              <span class="stat-value stat-value-cb">{{ formatPrice(rapportsStore.totalGlobal.total_cb) }}</span>
+            </div>
+            <div v-if="rapportsStore.totalGlobal.total_commission > 0" class="stat">
+              <span class="stat-label">Commission CB totale</span>
+              <span class="stat-value stat-value-commission">{{ formatPrice(rapportsStore.totalGlobal.total_commission) }}</span>
+            </div>
+          </div>
+          <div v-if="rapportsStore.totalGlobal.total_commission > 0" class="commission-detail">
+            <span v-if="rapportsStore.totalAllParams">
+              Taux : Permanent {{ rapportsStore.totalAllParams.commission_cb_permanent }}% / Temporaire {{ rapportsStore.totalAllParams.commission_cb_temporaire }}%
+            </span>
           </div>
         </div>
 
@@ -169,6 +193,17 @@
                 <td class="text-right"><strong class="total-sum">{{ formatPrice(rapportsStore.summary.total_montant) }}</strong></td>
                 <td></td>
               </tr>
+              <!-- Ligne commission CB -->
+              <tr v-if="rapportsStore.summary.commission_cb > 0" class="commission-row">
+                <td colspan="5" class="text-right">
+                  <span class="commission-label">
+                    Commission CB ({{ rapportsStore.summary.taux_commission }}% sur {{ formatPrice(rapportsStore.summary.total_cb) }})
+                  </span>
+                </td>
+                <td class="text-right">
+                  <span class="commission-value">- {{ formatPrice(rapportsStore.summary.commission_cb) }}</span>
+                </td>
+              </tr>
             </tfoot>
           </table>
         </div>
@@ -208,7 +243,7 @@ function onArtisanChange() {
 }
 
 function exportAllToExcel() {
-  exportAllRapportsToExcel(rapportsStore.allRapports, rapportsStore.totalGlobal)
+  exportAllRapportsToExcel(rapportsStore.allRapports, rapportsStore.totalGlobal, rapportsStore.totalAllParams)
 }
 
 function formatDate(dateStr) {
@@ -402,6 +437,24 @@ tfoot td {
   font-size: 1.1rem;
 }
 
+/* Commission row */
+.commission-row td {
+  padding: 10px 16px;
+  border-top: 1px dashed #e2e8f0;
+  font-size: 0.85rem;
+}
+
+.commission-label {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.commission-value {
+  color: #ef4444;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
 .article-name {
   font-weight: 600;
 }
@@ -467,6 +520,7 @@ tfoot td {
 .global-summary-stats {
   display: flex;
   gap: 40px;
+  flex-wrap: wrap;
 }
 
 .stat {
@@ -489,5 +543,21 @@ tfoot td {
 
 .stat-value-amount {
   color: #059669;
+}
+
+.stat-value-cb {
+  color: #2563eb;
+}
+
+.stat-value-commission {
+  color: #ef4444;
+}
+
+.commission-detail {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.8rem;
+  color: #64748b;
 }
 </style>
