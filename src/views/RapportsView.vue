@@ -74,10 +74,17 @@
                 <tr v-for="vente in groupe.ventes" :key="vente.id">
                   <td>{{ formatDate(vente.date_vente) }}</td>
                   <td class="articles-cell">
-                    <div v-for="art in vente.articles" :key="art.id" class="article-line">
+                    <div v-for="(art, artIdx) in getVisibleArticles(vente, expandedGroupes, getGroupKey(groupe.artisan_id, vente.id))" :key="art.id || artIdx" class="article-line">
                       <span class="article-name-sm">{{ art.article }} × {{ art.quantite }} &nbsp;</span>
                       <span class="article-subtotal-sm">{{ formatPrice(art.prix * art.quantite) }}</span>
                     </div>
+                    <button
+                      v-if="vente.articles && vente.articles.length > 1"
+                      class="btn-expand"
+                      @click="toggleExpand(expandedGroupes, getGroupKey(groupe.artisan_id, vente.id))"
+                    >
+                      {{ expandedGroupes[getGroupKey(groupe.artisan_id, vente.id)] ? '▲ Moins' : `▼ +${vente.articles.length - 1} autre(s)` }}
+                    </button>
                   </td>
                   <td class="text-center">{{ vente.total_articles }}</td>
                   <td class="text-right total-price">{{ formatPrice(vente.total_montant) }}</td>
@@ -176,10 +183,17 @@
               <tr v-for="vente in rapportsStore.ventesArtisan" :key="vente.id">
                 <td>{{ formatDate(vente.date_vente) }}</td>
                 <td class="articles-cell">
-                  <div v-for="art in vente.articles" :key="art.id" class="article-line">
+                  <div v-for="(art, artIdx) in getVisibleArticles(vente, expandedArtisan, 'a' + vente.id)" :key="art.id || artIdx" class="article-line">
                     <span class="article-name-sm">{{ art.article }} × {{ art.quantite }} &nbsp;</span>
                     <span class="article-subtotal-sm">{{ formatPrice(art.prix * art.quantite) }}</span>
                   </div>
+                  <button
+                    v-if="vente.articles && vente.articles.length > 1"
+                    class="btn-expand"
+                    @click="toggleExpand(expandedArtisan, 'a' + vente.id)"
+                  >
+                    {{ expandedArtisan['a' + vente.id] ? '▲ Moins' : `▼ +${vente.articles.length - 1} autre(s)` }}
+                  </button>
                 </td>
                 <td class="text-center">{{ vente.total_articles }}</td>
                 <td class="text-right total-price">{{ formatPrice(vente.total_montant) }}</td>
@@ -231,9 +245,27 @@ import { exportVentesToExcel, exportAllRapportsToExcel } from '../services/excel
 const rapportsStore = useRapportsStore()
 const artisansStore = useArtisansStore()
 const selectedArtisanId = ref('')
+const expandedGroupes = ref({})
+const expandedArtisan = ref({})
 
 const permanents = computed(() => artisansStore.permanents)
 const temporaires = computed(() => artisansStore.temporaires)
+
+function getVisibleArticles(vente, expandedMap, key) {
+  if (!vente.articles) return []
+  if (vente.articles.length <= 1 || expandedMap[key]) {
+    return vente.articles
+  }
+  return [vente.articles[0]]
+}
+
+function toggleExpand(expandedMap, key) {
+  expandedMap[key] = !expandedMap[key]
+}
+
+function getGroupKey(groupeId, venteId) {
+  return `g${groupeId}-v${venteId}`
+}
 
 onMounted(() => {
   artisansStore.fetchArtisans()
@@ -457,6 +489,23 @@ tfoot td {
   color: #ef4444;
   font-weight: 600;
   font-size: 0.95rem;
+}
+
+.btn-expand {
+  background: none;
+  border: 1px solid #e2e8f0;
+  color: #4f46e5;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border-radius: 6px;
+  margin-top: 6px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-expand:hover {
+  background: #f1f5f9;
+  border-color: #4f46e5;
 }
 
 .article-name {

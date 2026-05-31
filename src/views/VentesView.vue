@@ -44,13 +44,20 @@
           <tr v-for="vente in ventesStore.ventes" :key="vente.id">
             <td>{{ formatDate(vente.date_vente) }}</td>
             <td class="articles-cell">
-              <div v-for="art in vente.articles" :key="art.id" class="article-line">
+              <div class="article-line" v-for="(art, artIdx) in getVisibleArticles(vente)" :key="art.id || artIdx">
                 <span class="article-name">{{ art.article }}</span>
                 <span class="article-details">
                   {{ art.quantite }} &times; {{ formatPrice(art.prix) }}
                   <span class="article-subtotal">= {{ formatPrice(art.prix * art.quantite) }}</span>
                 </span>
               </div>
+              <button
+                v-if="vente.articles && vente.articles.length > 1"
+                class="btn-expand"
+                @click="toggleExpand(vente.id)"
+              >
+                {{ expandedVentes[vente.id] ? '▲ Moins' : `▼ +${vente.articles.length - 1} autre(s)` }}
+              </button>
             </td>
             <td>{{ vente.artisan_nom }}</td>
             <td class="text-center">{{ vente.total_articles }}</td>
@@ -97,10 +104,24 @@ import ModalEditVente from '../components/ModalEditVente.vue'
 const ventesStore = useVentesStore()
 const showModal = ref(false)
 const editingVente = ref(null)
+const expandedVentes = ref({})
 
 onMounted(() => {
   ventesStore.fetchVentes()
 })
+
+function getVisibleArticles(vente) {
+  if (!vente.articles) return []
+  if (vente.articles.length <= 1 || expandedVentes.value[vente.id]) {
+    return vente.articles
+  }
+  // Ne montrer que le premier article
+  return [vente.articles[0]]
+}
+
+function toggleExpand(venteId) {
+  expandedVentes.value[venteId] = !expandedVentes.value[venteId]
+}
 
 function formatDate(dateStr) {
   if (!dateStr) return '-'
@@ -315,6 +336,23 @@ tbody tr:last-child td {
 .payment-cheque {
   background: #fef3c7;
   color: #d97706;
+}
+
+.btn-expand {
+  background: none;
+  border: 1px solid #e2e8f0;
+  color: #4f46e5;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border-radius: 6px;
+  margin-top: 6px;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-expand:hover {
+  background: #f1f5f9;
+  border-color: #4f46e5;
 }
 
 .btn-icon {
