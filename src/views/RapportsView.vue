@@ -187,7 +187,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRapportsStore } from '../store/rapports'
 import { useArtisansStore } from '../store/artisans'
-import { exportVentesToExcel } from '../services/excelService'
+import { exportVentesToExcel, exportAllRapportsToExcel } from '../services/excelService'
 
 const rapportsStore = useRapportsStore()
 const artisansStore = useArtisansStore()
@@ -208,8 +208,7 @@ function onArtisanChange() {
 }
 
 function exportAllToExcel() {
-  const allVentes = rapportsStore.allRapports.flatMap(g => g.ventes)
-  exportVentesToExcel(allVentes, artisansStore.artisans || [], null, rapportsStore.totalGlobal)
+  exportAllRapportsToExcel(rapportsStore.allRapports, rapportsStore.totalGlobal)
 }
 
 function formatDate(dateStr) {
