@@ -227,13 +227,16 @@ async function deleteVente(id) {
 }
 
 /**
- * Vérifie si un compte administrateur existe, et le crée si nécessaire.
+ * Vérifie si un compte administrateur existe, le crée si nécessaire,
+ * ou met à jour le mot de passe si le hash actuel est invalide.
  * Cette fonction est appelée au démarrage du serveur pour garantir
- * qu'il y a toujours au moins un admin.
+ * qu'il y a toujours au moins un admin avec un mot de passe valide.
  * @returns {Promise<void>}
  */
 async function seedAdminIfMissing() {
   const supabase = getSupabase();
+
+  const hash = bcrypt.hashSync('password123', 10);
 
   const { data: existingAdmin } = await supabase
     .from('users')
@@ -242,11 +245,21 @@ async function seedAdminIfMissing() {
     .maybeSingle();
 
   if (existingAdmin) {
-    console.log('✅ Compte admin déjà présent');
+    // Mettre à jour le mot de passe pour garantir qu'il soit valide
+    // (corrige le cas où la migration a inséré un hash invalide)
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ password_hash: hash })
+      .eq('id', existingAdmin.id);
+
+    if (updateError) {
+      console.error('❌ Erreur mise à jour mot de passe admin:', updateError.message);
+    } else {
+      console.log('✅ Mot de passe admin vérifié et mis à jour');
+    }
     return;
   }
 
-  const hash = bcrypt.hashSync('password123', 10);
   const { error } = await supabase
     .from('users')
     .insert({ nom: 'Admin', email: 'admin@sitecaisse.fr', password_hash: hash, role: 'admin' });

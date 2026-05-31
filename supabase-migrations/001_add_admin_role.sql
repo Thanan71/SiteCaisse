@@ -6,8 +6,5 @@
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin', 'permanent', 'temporaire'));
 
--- Créer un compte administrateur par défaut (mot de passe: "password123")
--- Note: Le hash ci-dessous est généré par bcrypt avec le sel fixe "$2a$10$" pour "password123"
-INSERT INTO users (nom, email, password_hash, role)
-SELECT 'Admin', 'admin@sitecaisse.fr', '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'admin'
-WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = 'admin@sitecaisse.fr');
+-- Le compte administrateur (admin@sitecaisse.fr / password123) est créé automatiquement
+-- au démarrage du serveur par la fonction seedAdminIfMissing() dans api/models.cjs

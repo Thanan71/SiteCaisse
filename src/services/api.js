@@ -35,9 +35,13 @@ axios.interceptors.response.use(
   response => response,
   error => {
     if (error.response && error.response.status === 401) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      window.location.href = '/login'
+      // Ne pas rediriger si on est déjà sur la page de login
+      // (évite un rechargement qui efface le message d'erreur)
+      if (window.location.pathname !== '/login') {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }
