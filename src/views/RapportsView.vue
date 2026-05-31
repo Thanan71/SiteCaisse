@@ -39,6 +39,24 @@
       </div>
     </div>
 
+    <!-- Sous-navigation : Graphiques / Ventes -->
+    <div v-if="rapportsStore.allRapports.length || rapportsStore.ventesArtisan.length" class="sub-nav">
+      <button
+        class="sub-nav-btn"
+        :class="{ active: activeTab === 'graphiques' }"
+        @click="activeTab = 'graphiques'"
+      >
+        📊 Graphiques
+      </button>
+      <button
+        class="sub-nav-btn"
+        :class="{ active: activeTab === 'ventes' }"
+        @click="activeTab = 'ventes'"
+      >
+        📋 Liste des ventes
+      </button>
+    </div>
+
     <!-- Mode : Tous les artisans -->
     <div v-if="!selectedArtisanId">
       <div v-if="rapportsStore.loadingAll" class="loading-state">
@@ -52,14 +70,17 @@
         <p>Choisissez un artisan dans la liste ci-dessus pour voir son rapport</p>
       </div>
 
-      <div v-else>
-        <!-- Graphiques - Vue globale -->
+      <!-- Onglet : Graphiques (vue globale) -->
+      <div v-if="activeTab === 'graphiques' && rapportsStore.allRapports.length">
         <GraphiquesRapports
           :ventes-data="allVentesFlat"
           :is-global="true"
           :groupes-data="rapportsStore.allRapports"
         />
+      </div>
 
+      <!-- Onglet : Liste des ventes (vue globale) -->
+      <div v-if="activeTab === 'ventes' && rapportsStore.allRapports.length">
         <div
           v-for="groupe in rapportsStore.allRapports"
           :key="'groupe-' + groupe.artisan_id"
@@ -174,13 +195,16 @@
         <p>Cet artisan n'a pas encore de ventes enregistrées</p>
       </div>
 
-      <div v-else>
-        <!-- Graphiques - Vue artisan spécifique -->
+      <!-- Onglet : Graphiques (artisan spécifique) -->
+      <div v-if="activeTab === 'graphiques' && rapportsStore.ventesArtisan.length">
         <GraphiquesRapports
           :ventes-data="rapportsStore.ventesArtisan"
           :is-global="false"
         />
+      </div>
 
+      <!-- Onglet : Liste des ventes (artisan spécifique) -->
+      <div v-if="activeTab === 'ventes' && rapportsStore.ventesArtisan.length">
         <div class="table-container">
           <table>
             <thead>
@@ -259,6 +283,7 @@ import GraphiquesRapports from '../components/GraphiquesRapports.vue'
 const rapportsStore = useRapportsStore()
 const artisansStore = useArtisansStore()
 const selectedArtisanId = ref('')
+const activeTab = ref('graphiques')
 const expandedGroupes = ref({})
 const expandedArtisan = ref({})
 
@@ -300,6 +325,7 @@ onMounted(() => {
 })
 
 function onArtisanChange() {
+  activeTab.value = 'graphiques'
   if (selectedArtisanId.value) {
     rapportsStore.fetchVentesByArtisan(selectedArtisanId.value)
   }
@@ -573,6 +599,40 @@ tfoot td {
 .payment-cheque {
   background: #fef3c7;
   color: #d97706;
+}
+
+/* Sous-navigation */
+.sub-nav {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  background: white;
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.sub-nav-btn {
+  flex: 1;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: #64748b;
+  transition: all 0.2s;
+}
+
+.sub-nav-btn:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.sub-nav-btn.active {
+  background: #4f46e5;
+  color: white;
 }
 
 .export-section {
