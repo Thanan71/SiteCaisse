@@ -14,13 +14,16 @@
       <router-link to="/rapports" class="navbar-link" :class="{ active: $route.path === '/rapports' }">
         Rapports
       </router-link>
+      <router-link v-if="authStore.isAdmin" to="/admin" class="navbar-link" :class="{ active: $route.path === '/admin' }">
+        Admin
+      </router-link>
     </div>
 
     <div class="navbar-user" v-if="authStore.isAuthenticated">
       <span class="user-info">
         <span class="user-name">{{ authStore.userName }}</span>
-        <span class="user-role" :class="authStore.isPermanent ? 'badge-permanent' : 'badge-temporaire'">
-          {{ authStore.isPermanent ? 'Permanent' : 'Temporaire' }}
+        <span class="user-role" :class="authStore.isAdmin ? 'badge-admin' : authStore.isPermanent ? 'badge-permanent' : 'badge-temporaire'">
+          {{ authStore.isAdmin ? 'Admin' : authStore.isPermanent ? 'Permanent' : 'Temporaire' }}
         </span>
       </span>
       <button @click="handleLogout" class="btn-logout">
@@ -139,6 +142,11 @@ function handleLogout() {
 .badge-temporaire {
   background: #fef3c7;
   color: #d97706;
+}
+
+.badge-admin {
+  background: #f3e8ff;
+  color: #9333ea;
 }
 
 .btn-logout {

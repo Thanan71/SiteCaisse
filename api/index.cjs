@@ -11,6 +11,7 @@ const cors = require('cors');
 const { router: authRouter } = require('./authController.cjs');
 const ventesRouter = require('./ventesController.cjs');
 const rapportsRouter = require('./rapportsController.cjs');
+const adminRouter = require('./adminController.cjs');
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use(express.json());
 app.use('/api/auth', authRouter);
 app.use('/api/ventes', ventesRouter);
 app.use('/api/rapports', rapportsRouter);
+app.use('/api/admin', adminRouter);
 
 /**
  * Exporte l'application Express pour Vercel (Serverless Functions).

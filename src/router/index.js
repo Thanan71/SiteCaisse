@@ -8,6 +8,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from '../views/LoginView.vue'
 import VentesView from '../views/VentesView.vue'
 import RapportsView from '../views/RapportsView.vue'
+import AdminView from '../views/AdminView.vue'
 
 const routes = [
   {
@@ -30,6 +31,14 @@ const routes = [
     component: RapportsView,
     /** @property {boolean} meta.requiresAuth - true = page protégée. */
     meta: { requiresAuth: true }
+  },
+  {
+    path: '/admin',
+    name: 'Admin',
+    component: AdminView,
+    /** @property {boolean} meta.requiresAuth - true = page protégée. */
+    /** @property {boolean} meta.requiresAdmin - true = page réservée aux admins. */
+    meta: { requiresAuth: true, requiresAdmin: true }
   },
   {
     path: '/:pathMatch(.*)*',
@@ -58,6 +67,18 @@ router.beforeEach((to, from, next) => {
     next({ name: 'Login' })
   } else if (to.name === 'Login' && token) {
     next({ name: 'Ventes' })
+  } else if (to.meta.requiresAdmin) {
+    // Vérifier le rôle admin depuis le localStorage
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || 'null')
+      if (!user || user.role !== 'admin') {
+        next({ name: 'Ventes' })
+      } else {
+        next()
+      }
+    } catch {
+      next({ name: 'Ventes' })
+    }
   } else {
     next()
   }

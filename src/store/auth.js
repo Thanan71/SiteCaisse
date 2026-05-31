@@ -28,6 +28,12 @@ export const useAuthStore = defineStore('auth', {
     isPermanent: (state) => state.user?.role === 'permanent',
 
     /**
+     * Vérifie si l'utilisateur connecté est un administrateur.
+     * @returns {boolean} true si le rôle est 'admin', false sinon.
+     */
+    isAdmin: (state) => state.user?.role === 'admin',
+
+    /**
      * Retourne le nom de l'utilisateur connecté.
      * @returns {string} Nom de l'utilisateur ou chaîne vide si non connecté.
      */

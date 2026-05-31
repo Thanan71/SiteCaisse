@@ -31,6 +31,7 @@ async function seedIfEmpty() {
   const hash = bcrypt.hashSync('password123', 10);
 
   const users = [
+    { nom: 'Admin', email: 'admin@sitecaisse.fr', password_hash: hash, role: 'admin' },
     { nom: 'Marcel', email: 'marcel@artisan.fr', password_hash: hash, role: 'permanent' },
     { nom: 'Sophie', email: 'sophie@artisan.fr', password_hash: hash, role: 'permanent' },
     { nom: 'Jean', email: 'jean@artisan.fr', password_hash: hash, role: 'permanent' },
