@@ -53,6 +53,13 @@
       </div>
 
       <div v-else>
+        <!-- Graphiques - Vue globale -->
+        <GraphiquesRapports
+          :ventes-data="allVentesFlat"
+          :is-global="true"
+          :groupes-data="rapportsStore.allRapports"
+        />
+
         <div
           v-for="groupe in rapportsStore.allRapports"
           :key="'groupe-' + groupe.artisan_id"
@@ -168,6 +175,12 @@
       </div>
 
       <div v-else>
+        <!-- Graphiques - Vue artisan spécifique -->
+        <GraphiquesRapports
+          :ventes-data="rapportsStore.ventesArtisan"
+          :is-global="false"
+        />
+
         <div class="table-container">
           <table>
             <thead>
@@ -241,6 +254,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRapportsStore } from '../store/rapports'
 import { useArtisansStore } from '../store/artisans'
 import { exportVentesToExcel, exportAllRapportsToExcel } from '../services/excelService'
+import GraphiquesRapports from '../components/GraphiquesRapports.vue'
 
 const rapportsStore = useRapportsStore()
 const artisansStore = useArtisansStore()
@@ -250,6 +264,19 @@ const expandedArtisan = ref({})
 
 const permanents = computed(() => artisansStore.permanents)
 const temporaires = computed(() => artisansStore.temporaires)
+
+/**
+ * Aplatit toutes les ventes de tous les groupes pour les graphiques en mode global.
+ */
+const allVentesFlat = computed(() => {
+  const ventes = []
+  for (const groupe of rapportsStore.allRapports) {
+    for (const vente of groupe.ventes) {
+      ventes.push(vente)
+    }
+  }
+  return ventes
+})
 
 function getVisibleArticles(vente, expandedMap, key) {
   if (!vente.articles) return []

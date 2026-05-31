@@ -14,14 +14,29 @@ const router = express.Router();
 router.use(authMiddleware);
 
 /**
- * Récupère la liste complète de toutes les ventes enregistrées.
+ * Récupère la liste des ventes avec pagination et filtres optionnels.
  * @route GET /api/ventes
- * @returns {Array<Object>} Tableau de toutes les ventes avec les noms des artisans et vendeurs.
+ * @query {number} [page=1] - Numéro de la page.
+ * @query {number} [limit=50] - Nombre d'éléments par page.
+ * @query {string} [date_debut] - Date de début du filtre (format ISO).
+ * @query {string} [date_fin] - Date de fin du filtre (format ISO).
+ * @query {string} [type_paiement] - Filtre par type de paiement (CB, Espece, Cheque).
+ * @returns {Object} Liste des ventes avec informations de pagination.
  */
 router.get('/', async (req, res) => {
   try {
-    const ventes = await getAllVentes();
-    res.json(ventes);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const { date_debut, date_fin, type_paiement } = req.query;
+
+    const result = await getAllVentes({
+      page,
+      limit,
+      date_debut: date_debut || undefined,
+      date_fin: date_fin || undefined,
+      type_paiement: type_paiement || undefined
+    });
+    res.json(result);
   } catch (err) {
     console.error('GET ventes error:', err);
     res.status(500).json({ error: 'Erreur serveur' });

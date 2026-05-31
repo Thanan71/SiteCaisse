@@ -10,6 +10,69 @@
       </button>
     </div>
 
+    <!-- Filtres avancés -->
+    <div class="filters-card">
+      <div class="filters-row">
+        <div class="filter-group">
+          <label for="filter-date-debut">Date début</label>
+          <input
+            id="filter-date-debut"
+            type="date"
+            v-model="localFilters.date_debut"
+            class="filter-input"
+          />
+        </div>
+        <div class="filter-group">
+          <label for="filter-date-fin">Date fin</label>
+          <input
+            id="filter-date-fin"
+            type="date"
+            v-model="localFilters.date_fin"
+            class="filter-input"
+          />
+        </div>
+        <div class="filter-group">
+          <label for="filter-type-paiement">Type de paiement</label>
+          <select
+            id="filter-type-paiement"
+            v-model="localFilters.type_paiement"
+            class="filter-input"
+          >
+            <option value="">Tous</option>
+            <option value="CB">Carte Bancaire</option>
+            <option value="Espece">Espèce</option>
+            <option value="Cheque">Chèque</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button class="btn btn-sm btn-primary" @click="applyFilters">
+            🔍 Filtrer
+          </button>
+          <button
+            v-if="ventesStore.hasActiveFilters"
+            class="btn btn-sm btn-secondary"
+            @click="resetFilters"
+          >
+            ✕ Réinitialiser
+          </button>
+        </div>
+      </div>
+      <div v-if="ventesStore.hasActiveFilters" class="active-filters-info">
+        <span class="badge badge-info">
+          Filtres actifs
+        </span>
+        <span v-if="localFilters.date_debut" class="filter-chip">
+          Du {{ formatDate(localFilters.date_debut) }}
+        </span>
+        <span v-if="localFilters.date_fin" class="filter-chip">
+          Au {{ formatDate(localFilters.date_fin) }}
+        </span>
+        <span v-if="localFilters.type_paiement" class="filter-chip">
+          {{ getPaymentLabel(localFilters.type_paiement) }}
+        </span>
+      </div>
+    </div>
+
     <div v-if="ventesStore.loading && !ventesStore.ventes.length" class="loading-state">
       <div class="spinner"></div>
       <p>Chargement des ventes...</p>
@@ -79,6 +142,39 @@
           </tr>
         </tbody>
       </table>
+
+      <!-- Pagination -->
+      <div v-if="ventesStore.pagination.totalPages > 1" class="pagination-bar">
+        <div class="pagination-info">
+          Page {{ ventesStore.pagination.page }} / {{ ventesStore.pagination.totalPages }}
+          ({{ ventesStore.pagination.total }} ventes)
+        </div>
+        <div class="pagination-controls">
+          <button
+            class="btn btn-pagination"
+            :disabled="!ventesStore.hasPrevPage"
+            @click="ventesStore.prevPage()"
+          >
+            ◀ Précédent
+          </button>
+          <button
+            v-for="p in displayedPages"
+            :key="p"
+            class="btn btn-pagination"
+            :class="{ active: p === ventesStore.pagination.page }"
+            @click="ventesStore.goToPage(p)"
+          >
+            {{ p }}
+          </button>
+          <button
+            class="btn btn-pagination"
+            :disabled="!ventesStore.hasNextPage"
+            @click="ventesStore.nextPage()"
+          >
+            Suivant ▶
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Modal d'ajout -->
@@ -96,7 +192,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useVentesStore } from '../store/ventes'
 import ModalAjoutVente from '../components/ModalAjoutVente.vue'
 import ModalEditVente from '../components/ModalEditVente.vue'
@@ -106,9 +202,41 @@ const showModal = ref(false)
 const editingVente = ref(null)
 const expandedVentes = ref({})
 
+// État local pour les filtres (copie avant application)
+const localFilters = ref({
+  date_debut: '',
+  date_fin: '',
+  type_paiement: ''
+})
+
 onMounted(() => {
   ventesStore.fetchVentes()
 })
+
+/**
+ * Calcule les pages à afficher dans la pagination.
+ * Affiche max 5 pages autour de la page courante.
+ */
+const displayedPages = computed(() => {
+  const { page, totalPages } = ventesStore.pagination
+  if (totalPages <= 5) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1)
+  }
+  let start = Math.max(1, page - 2)
+  let end = Math.min(totalPages, page + 2)
+  if (start === 1) end = Math.min(5, totalPages)
+  if (end === totalPages) start = Math.max(1, totalPages - 4)
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+})
+
+function applyFilters() {
+  ventesStore.applyFilters({ ...localFilters.value })
+}
+
+function resetFilters() {
+  localFilters.value = { date_debut: '', date_fin: '', type_paiement: '' }
+  ventesStore.resetFilters()
+}
 
 function getVisibleArticles(vente) {
   if (!vente.articles) return []
@@ -186,6 +314,89 @@ async function handleDelete(id) {
   margin: 4px 0 0;
   color: #64748b;
   font-size: 0.9rem;
+}
+
+/* Filtres */
+.filters-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 24px;
+}
+
+.filters-row {
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+}
+
+.filter-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.filter-input {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.filter-input:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.filter-actions {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  padding-bottom: 1px;
+}
+
+.btn-sm {
+  padding: 8px 14px;
+  font-size: 0.85rem;
+}
+
+.active-filters-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+
+.badge-info {
+  background: #dbeafe;
+  color: #2563eb;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.filter-chip {
+  background: #f1f5f9;
+  color: #475569;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
 }
 
 .loading-state,
@@ -399,5 +610,53 @@ tbody tr:last-child td {
 
 .btn-secondary:hover {
   background: #e2e8f0;
+}
+
+/* Pagination */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-top: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pagination-info {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.btn-pagination {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  background: #f8fafc;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.btn-pagination:hover:not(:disabled) {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.btn-pagination.active {
+  background: #4f46e5;
+  color: white;
+  border-color: #4f46e5;
+}
+
+.btn-pagination:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

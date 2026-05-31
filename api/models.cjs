@@ -146,13 +146,38 @@ async function createVente(articles, type_paiement, artisan_id, vendeur_id, date
 
 /**
  * Récupère toutes les ventes avec leurs lignes d'articles et les noms des artisans/vendeurs.
- * @returns {Promise<Array>} Tableau des ventes formatées avec articles, artisan_nom et vendeur_nom.
+ * Supporte la pagination via les paramètres page et limit.
+ * @param {Object} [options] - Options de pagination et filtres.
+ * @param {number} [options.page=1] - Numéro de la page (commence à 1).
+ * @param {number} [options.limit=50] - Nombre de ventes par page.
+ * @param {string} [options.date_debut] - Date de début pour le filtre (format ISO).
+ * @param {string} [options.date_fin] - Date de fin pour le filtre (format ISO).
+ * @param {string} [options.type_paiement] - Filtre par type de paiement (CB, Espece, Cheque).
+ * @returns {Promise<{ventes: Array, pagination: {page: number, limit: number, total: number, totalPages: number}}>}
  */
-async function getAllVentes() {
+async function getAllVentes(options = {}) {
   const supabase = getSupabase();
+  const { page = 1, limit = 50, date_debut, date_fin, type_paiement } = options;
+  const offset = (page - 1) * limit;
 
-  // Récupérer les en-têtes de vente
-  const { data: ventes, error: ventesError } = await supabase
+  // Construire la requête de comptage avec filtres
+  let countQuery = supabase.from('ventes').select('*', { count: 'exact', head: true });
+  
+  if (date_debut) {
+    countQuery = countQuery.gte('date_vente', date_debut);
+  }
+  if (date_fin) {
+    countQuery = countQuery.lte('date_vente', date_fin);
+  }
+  if (type_paiement) {
+    countQuery = countQuery.eq('type_paiement', type_paiement);
+  }
+
+  const { count: total, error: countError } = await countQuery;
+  if (countError) throw countError;
+
+  // Récupérer les en-têtes de vente avec pagination et filtres
+  let query = supabase
     .from('ventes')
     .select(`
       *,
@@ -160,11 +185,34 @@ async function getAllVentes() {
       vendeur:vendeur_id (nom)
     `)
     .order('date_vente', { ascending: false })
-    .order('id', { ascending: false });
+    .order('id', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (date_debut) {
+    query = query.gte('date_vente', date_debut);
+  }
+  if (date_fin) {
+    query = query.lte('date_vente', date_fin);
+  }
+  if (type_paiement) {
+    query = query.eq('type_paiement', type_paiement);
+  }
+
+  const { data: ventes, error: ventesError } = await query;
 
   if (ventesError) throw ventesError;
 
-  if (!ventes || ventes.length === 0) return [];
+  if (!ventes || ventes.length === 0) {
+    return {
+      ventes: [],
+      pagination: {
+        page,
+        limit,
+        total: 0,
+        totalPages: 0
+      }
+    };
+  }
 
   // Récupérer les articles pour toutes ces ventes
   const venteIds = ventes.map(v => v.id);
@@ -185,7 +233,7 @@ async function getAllVentes() {
     articlesByVente[art.vente_id].push(art);
   }
 
-  return ventes.map(v => {
+  const formattedVentes = ventes.map(v => {
     const venteArticles = articlesByVente[v.id] || [];
     const total_articles = venteArticles.reduce((sum, a) => sum + (a.quantite || 0), 0);
     const total_montant = venteArticles.reduce((sum, a) => sum + (a.prix * a.quantite), 0);
@@ -205,6 +253,16 @@ async function getAllVentes() {
       total_montant
     };
   });
+
+  return {
+    ventes: formattedVentes,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    }
+  };
 }
 
 /**
@@ -274,8 +332,9 @@ async function getVentesByArtisan(artisan_id) {
  * Récupère les ventes de tous les artisans groupées par artisan, avec un résumé global.
  * @returns {Promise<{groupes: Array, total: {total_articles: number, total_montant: number}}>}
  */
-async function getAllVentesGroupedByArtisan() {
-  const allVentes = await getAllVentes();
+async function getAllVentesGroupedByArtisan(options = {}) {
+  const result = await getAllVentes(options);
+  const allVentes = result.ventes;
 
   // Grouper par artisan_id
   const grouped = {};
@@ -310,7 +369,11 @@ async function getAllVentesGroupedByArtisan() {
   const total_articles = groupes.reduce((sum, g) => sum + g.summary.total_articles, 0);
   const total_montant = groupes.reduce((sum, g) => sum + g.summary.total_montant, 0);
 
-  return { groupes, total: { total_articles, total_montant } };
+  return {
+    groupes,
+    total: { total_articles, total_montant },
+    pagination: result.pagination
+  };
 }
 
 /**

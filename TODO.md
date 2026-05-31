@@ -26,7 +26,8 @@ SiteCaisse/
 │   │   └── RapportsView.vue    # Rapports
 │   └── components/             # Composants
 │       ├── Navbar.vue          # Navigation
-│       └── ModalAjoutVente.vue # Modal ajout
+│       ├── ModalAjoutVente.vue # Modal ajout
+│       └── GraphiquesRapports.vue # Graphiques statistiques
 ├── vercel.json                 # Config déploiement
 ├── vite.config.js              # Config Vite
 └── package.json                # Dépendances
@@ -48,6 +49,10 @@ SiteCaisse/
   - [x] Prix
   - [x] Date
   - [x] Bouton modifier
+  - [x] Pagination de la liste
+  - [x] Filtres avancés
+    - [x] Par date (début/fin)
+    - [x] Par type de paiement
 - [x] Modal ajout vente
   - [x] Date (auto)
   - [x] Nom article
@@ -65,6 +70,12 @@ SiteCaisse/
   - [x] Total articles vendus
   - [x] Somme totale
 - [x] Export Excel (.xlsx)
+- [x] Statistiques graphiques (Chart.js)
+  - [x] Répartition par type de paiement (donut)
+  - [x] Top articles les plus vendus (barres horizontales)
+  - [x] Évolution mensuelle des ventes (ligne)
+  - [x] Répartition par artisan (camembert, vue globale)
+  - [x] Commissions CB intégrées
 
 ### 4. Base de Données
 - [x] Table `users` (artisans)
@@ -84,18 +95,19 @@ SiteCaisse/
 | `/login` | Connexion | Non |
 | `/` | Ventes | Oui |
 | `/rapports` | Rapports | Oui |
+| `/admin` | Administration | Admin |
 
 ## Flux de données
 
 ```
-User Action → Vue Component → Pinia Store → API Express → SQLite/PostgreSQL
+User Action → Vue Component → Pinia Store → API Express → Supabase/PostgreSQL
                     ↓                                              ↓
               Mise à jour UI ← Store ← Réponse JSON  ← Contrôleur
 ```
 
 ## Améliorations futures possibles
-- [ ] Pagination liste ventes
-- [ ] Filtres avancés (par date, par type paiement)
-- [ ] Statistiques graphiques
-- [ ] Mode hors-ligne
-- [ ] Test unitaires et E2E
+- [ ] Mode hors-ligne (PWA)
+- [ ] Tests unitaires et E2E
+- [ ] Notifications/alertes
+- [ ] Export PDF des rapports
+- [ ] Mode sombre
