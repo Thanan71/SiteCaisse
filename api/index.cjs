@@ -12,6 +12,12 @@ const { router: authRouter } = require('./authController.cjs');
 const ventesRouter = require('./ventesController.cjs');
 const rapportsRouter = require('./rapportsController.cjs');
 const adminRouter = require('./adminController.cjs');
+const { seedAdminIfMissing } = require('./models.cjs');
+
+// Garantir qu'un compte administrateur existe (créé si absent)
+seedAdminIfMissing().catch(err => {
+  console.error('❌ Erreur seed admin:', err);
+});
 
 const app = express();
 

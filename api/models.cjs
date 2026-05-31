@@ -226,8 +226,41 @@ async function deleteVente(id) {
   return true;
 }
 
+/**
+ * Vérifie si un compte administrateur existe, et le crée si nécessaire.
+ * Cette fonction est appelée au démarrage du serveur pour garantir
+ * qu'il y a toujours au moins un admin.
+ * @returns {Promise<void>}
+ */
+async function seedAdminIfMissing() {
+  const supabase = getSupabase();
+
+  const { data: existingAdmin } = await supabase
+    .from('users')
+    .select('id')
+    .eq('email', 'admin@sitecaisse.fr')
+    .maybeSingle();
+
+  if (existingAdmin) {
+    console.log('✅ Compte admin déjà présent');
+    return;
+  }
+
+  const hash = bcrypt.hashSync('password123', 10);
+  const { error } = await supabase
+    .from('users')
+    .insert({ nom: 'Admin', email: 'admin@sitecaisse.fr', password_hash: hash, role: 'admin' });
+
+  if (error) {
+    console.error('❌ Erreur création compte admin:', error.message);
+  } else {
+    console.log('✅ Compte admin créé (admin@sitecaisse.fr / password123)');
+  }
+}
+
 module.exports = {
   seedIfEmpty,
+  seedAdminIfMissing,
   findUserByEmail,
   findUserById,
   getAllArtisans,
