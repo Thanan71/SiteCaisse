@@ -8,6 +8,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { findUserByEmail, findUserById } = require('./models.cjs');
+const { logAction } = require('./services/loggerService.cjs');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'sitecaisse-secret-key-2024';
@@ -56,10 +57,24 @@ router.post('/login', async (req, res) => {
 
     const user = await findUserByEmail(email);
     if (!user) {
+      await logAction({
+        action: 'auth.login_failed',
+        cible_type: 'auth',
+        details: { email, reason: 'unknown_email' },
+        req
+      });
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
     if (!user.est_actif) {
+      await logAction({
+        user,
+        action: 'auth.login_failed',
+        cible_type: 'auth',
+        cible_id: user.id,
+        details: { reason: 'inactive_account' },
+        req
+      });
       return res.status(403).json({ error: 'Compte désactivé' });
     }
 
@@ -69,12 +84,26 @@ router.post('/login', async (req, res) => {
       today.setHours(0, 0, 0, 0);
       const dateFin = new Date(user.date_fin + 'T00:00:00');
       if (dateFin < today) {
+        await logAction({
+          user,
+          action: 'auth.login_failed',
+          cible_type: 'auth',
+          cible_id: user.id,
+          details: { reason: 'expired_access', date_fin: user.date_fin },
+          req
+        });
         return res.status(403).json({ error: 'Votre accès a expiré. Contactez un administrateur.' });
       }
     }
 
     const validPassword = bcrypt.compareSync(password, user.password_hash);
     if (!validPassword) {
+      await logAction({
+        action: 'auth.login_failed',
+        cible_type: 'auth',
+        details: { email, reason: 'invalid_password' },
+        req
+      });
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
     }
 
@@ -83,6 +112,14 @@ router.post('/login', async (req, res) => {
       JWT_SECRET,
       { expiresIn: '24h' }
     );
+
+    await logAction({
+      user,
+      action: 'auth.login_success',
+      cible_type: 'auth',
+      cible_id: user.id,
+      req
+    });
 
     res.json({
       token,

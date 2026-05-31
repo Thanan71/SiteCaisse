@@ -7,6 +7,7 @@
 const express = require('express');
 const { getAllVentes, createVente, updateVente, deleteVente } = require('./models.cjs');
 const { authMiddleware } = require('./authController.cjs');
+const { logAction } = require('./services/loggerService.cjs');
 
 const router = express.Router();
 
@@ -92,6 +93,15 @@ router.post('/', async (req, res) => {
 
     const id = await createVente(articles, type_paiement, artisan_id, vendeur_id, date_vente);
 
+    await logAction({
+      user: req.user,
+      action: 'vente.create',
+      cible_type: 'vente',
+      cible_id: id,
+      details: { articles, type_paiement, artisan_id, date_vente },
+      req
+    });
+
     res.status(201).json({ id, message: 'Vente créée avec succès' });
   } catch (err) {
     console.error('POST vente error:', err);
@@ -132,6 +142,15 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Vente non trouvée ou aucune modification' });
     }
 
+    await logAction({
+      user: req.user,
+      action: 'vente.update',
+      cible_type: 'vente',
+      cible_id: id,
+      details: { modifications: req.body },
+      req
+    });
+
     res.json({ message: 'Vente modifiée avec succès' });
   } catch (err) {
     console.error('PUT vente error:', err);
@@ -154,6 +173,14 @@ router.delete('/:id', async (req, res) => {
     if (!deleted) {
       return res.status(404).json({ error: 'Vente non trouvée' });
     }
+
+    await logAction({
+      user: req.user,
+      action: 'vente.delete',
+      cible_type: 'vente',
+      cible_id: id,
+      req
+    });
 
     res.json({ message: 'Vente supprimée avec succès' });
   } catch (err) {

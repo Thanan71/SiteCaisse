@@ -179,6 +179,89 @@
       </div>
     </div>
 
+    <!-- Journal des actions -->
+    <div class="card logs-card">
+      <div class="section-title-row">
+        <div>
+          <h2>Journal des actions</h2>
+          <p class="section-subtitle">{{ logsPagination.total }} action{{ logsPagination.total > 1 ? 's' : '' }} enregistrée{{ logsPagination.total > 1 ? 's' : '' }}</p>
+        </div>
+        <button @click="fetchLogs" class="btn btn-secondary btn-sm" :disabled="logsLoading">
+          {{ logsLoading ? 'Actualisation...' : 'Actualiser' }}
+        </button>
+      </div>
+
+      <div class="logs-filters">
+        <div class="form-group">
+          <label for="log-action">Action</label>
+          <select id="log-action" v-model="logFilters.action" @change="applyLogFilters">
+            <option value="">Toutes</option>
+            <option value="auth.login_success">Connexion réussie</option>
+            <option value="auth.login_failed">Connexion échouée</option>
+            <option value="vente.create">Vente créée</option>
+            <option value="vente.update">Vente modifiée</option>
+            <option value="vente.delete">Vente supprimée</option>
+            <option value="user.create">Utilisateur créé</option>
+            <option value="user.delete">Utilisateur supprimé</option>
+            <option value="parametre.update">Paramètre modifié</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="log-cible">Cible</label>
+          <select id="log-cible" v-model="logFilters.cible_type" @change="applyLogFilters">
+            <option value="">Toutes</option>
+            <option value="auth">Authentification</option>
+            <option value="vente">Vente</option>
+            <option value="user">Utilisateur</option>
+            <option value="parametre">Paramètre</option>
+          </select>
+        </div>
+      </div>
+
+      <p v-if="logsError" class="error-message">{{ logsError }}</p>
+      <div v-if="logsLoading" class="loading">Chargement des logs...</div>
+      <div v-else-if="logs.length === 0" class="empty-state">
+        Aucun log trouvé.
+      </div>
+      <div v-else class="users-table-wrapper">
+        <table class="users-table logs-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Utilisateur</th>
+              <th>Action</th>
+              <th>Cible</th>
+              <th>Détails</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="log in logs" :key="log.id">
+              <td>{{ formatDate(log.created_at) }}</td>
+              <td>
+                <span>{{ log.user_nom || 'Système' }}</span>
+                <span v-if="log.user_email" class="log-email">{{ log.user_email }}</span>
+              </td>
+              <td>
+                <span class="action-badge">{{ getActionLabel(log.action) }}</span>
+              </td>
+              <td>{{ getCibleLabel(log.cible_type) }}{{ log.cible_id ? ` #${log.cible_id}` : '' }}</td>
+              <td class="log-details">{{ formatLogDetails(log.details) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div v-if="logsPagination.totalPages > 1" class="pagination-controls">
+        <button class="btn btn-secondary btn-sm" @click="changeLogsPage(logsPagination.page - 1)" :disabled="logsPagination.page <= 1 || logsLoading">
+          Précédent
+        </button>
+        <span class="pagination-label">Page {{ logsPagination.page }} / {{ logsPagination.totalPages }}</span>
+        <button class="btn btn-secondary btn-sm" @click="changeLogsPage(logsPagination.page + 1)" :disabled="logsPagination.page >= logsPagination.totalPages || logsLoading">
+          Suivant
+        </button>
+      </div>
+    </div>
+
     <!-- Modal de confirmation de suppression -->
     <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
       <div class="modal-content">
@@ -232,6 +315,21 @@ const commissionTemporaire = ref('')
 const savingCommissions = ref(false)
 const commissionsError = ref('')
 const commissionsSuccess = ref('')
+
+// État du journal des actions
+const logs = ref([])
+const logsLoading = ref(false)
+const logsError = ref('')
+const logFilters = ref({
+  action: '',
+  cible_type: ''
+})
+const logsPagination = ref({
+  page: 1,
+  limit: 25,
+  total: 0,
+  totalPages: 0
+})
 
 // Date minimum pour le champ date (aujourd'hui)
 const minDate = computed(() => {
@@ -300,6 +398,50 @@ async function fetchUsers() {
   } finally {
     loading.value = false
   }
+}
+
+/**
+ * Récupère le journal des actions depuis l'API admin.
+ * @param {number} [page] - Page demandée.
+ * @returns {Promise<void>}
+ */
+async function fetchLogs(page = logsPagination.value.page) {
+  try {
+    logsLoading.value = true
+    logsError.value = ''
+
+    const params = {
+      page,
+      limit: logsPagination.value.limit
+    }
+
+    if (logFilters.value.action) params.action = logFilters.value.action
+    if (logFilters.value.cible_type) params.cible_type = logFilters.value.cible_type
+
+    const response = await api.get('/api/admin/logs', { params })
+    logs.value = response.data.logs
+    logsPagination.value = response.data.pagination
+  } catch (err) {
+    logsError.value = err.response?.data?.error || 'Erreur lors du chargement des logs'
+  } finally {
+    logsLoading.value = false
+  }
+}
+
+/**
+ * Applique les filtres du journal et revient à la première page.
+ */
+function applyLogFilters() {
+  fetchLogs(1)
+}
+
+/**
+ * Change la page du journal.
+ * @param {number} page - Page demandée.
+ */
+function changeLogsPage(page) {
+  if (page < 1 || page > logsPagination.value.totalPages) return
+  fetchLogs(page)
 }
 
 /**
@@ -440,9 +582,76 @@ function formatDateSimple(dateStr) {
   return `${d}/${m}/${y}`
 }
 
+/**
+ * Retourne un libellé lisible pour une action journalisée.
+ * @param {string} action
+ * @returns {string}
+ */
+function getActionLabel(action) {
+  const labels = {
+    'auth.login_success': 'Connexion réussie',
+    'auth.login_failed': 'Connexion échouée',
+    'vente.create': 'Vente créée',
+    'vente.update': 'Vente modifiée',
+    'vente.delete': 'Vente supprimée',
+    'user.create': 'Utilisateur créé',
+    'user.delete': 'Utilisateur supprimé',
+    'parametre.update': 'Paramètre modifié'
+  }
+  return labels[action] || action
+}
+
+/**
+ * Retourne un libellé lisible pour le type de cible.
+ * @param {string} cibleType
+ * @returns {string}
+ */
+function getCibleLabel(cibleType) {
+  const labels = {
+    auth: 'Authentification',
+    vente: 'Vente',
+    user: 'Utilisateur',
+    parametre: 'Paramètre'
+  }
+  return labels[cibleType] || cibleType || '—'
+}
+
+/**
+ * Formate les détails JSON d'un log en résumé court.
+ * @param {Object|string|null} details
+ * @returns {string}
+ */
+function formatLogDetails(details) {
+  if (!details) return '—'
+  let data = details
+
+  if (typeof details === 'string') {
+    try {
+      data = JSON.parse(details)
+    } catch {
+      return details
+    }
+  }
+
+  if (Object.keys(data).length === 0) return '—'
+
+  if (data.reason) return `Raison : ${data.reason}`
+  if (data.cle) return `${data.cle} = ${data.valeur}`
+  if (data.nom && data.email) return `${data.nom} (${data.email})`
+  if (data.type_paiement && data.artisan_id) {
+    const nbArticles = Array.isArray(data.articles) ? data.articles.length : 0
+    return `${data.type_paiement}, artisan #${data.artisan_id}, ${nbArticles} article${nbArticles > 1 ? 's' : ''}`
+  }
+  if (data.modifications) return 'Modification vente'
+  if (data.email) return data.email
+
+  return JSON.stringify(data)
+}
+
 onMounted(() => {
   fetchUsers()
   fetchParametres()
+  fetchLogs()
 })
 </script>
 
@@ -485,6 +694,24 @@ onMounted(() => {
   font-weight: 600;
   color: #1e293b;
   margin: 0 0 20px 0;
+}
+
+.section-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.section-title-row h2 {
+  margin-bottom: 4px;
+}
+
+.section-subtitle {
+  color: #64748b;
+  font-size: 0.85rem;
+  margin: 0;
 }
 
 /* Paramètres card */
@@ -573,6 +800,13 @@ onMounted(() => {
   outline: none;
   border-color: #4f46e5;
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.logs-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(180px, 240px);
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 /* Buttons */
@@ -672,6 +906,48 @@ onMounted(() => {
 
 .users-table tbody tr:hover {
   background: #f8fafc;
+}
+
+.logs-table td {
+  vertical-align: top;
+}
+
+.log-email {
+  display: block;
+  color: #64748b;
+  font-size: 0.78rem;
+  margin-top: 2px;
+}
+
+.action-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #0f766e;
+  background: #ccfbf1;
+  white-space: nowrap;
+}
+
+.log-details {
+  max-width: 260px;
+  color: #475569 !important;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.pagination-label {
+  color: #64748b;
+  font-size: 0.85rem;
 }
 
 /* Role badge */
@@ -791,8 +1067,13 @@ onMounted(() => {
 
 /* Responsive */
 @media (max-width: 640px) {
-  .form-row {
+  .form-row,
+  .logs-filters {
     grid-template-columns: 1fr;
+  }
+
+  .section-title-row {
+    flex-direction: column;
   }
 
   .admin-container {

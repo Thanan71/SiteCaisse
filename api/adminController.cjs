@@ -10,6 +10,7 @@ const bcrypt = require('bcryptjs');
 const { authMiddleware } = require('./authController.cjs');
 const { getSupabase } = require('./db.cjs');
 const { getAllParametres, updateParametre } = require('./services/parametresService.cjs');
+const { logAction, getActionLogs } = require('./services/loggerService.cjs');
 
 const router = express.Router();
 
@@ -108,6 +109,14 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
       .single();
 
     if (error) throw error;
+    await logAction({
+      user: req.user,
+      action: 'user.create',
+      cible_type: 'user',
+      cible_id: data.id,
+      details: { nom: data.nom, email: data.email, role: data.role, date_fin: data.date_fin },
+      req
+    });
     res.status(201).json(data);
   } catch (err) {
     console.error('Admin create user error:', err);
@@ -139,7 +148,7 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
     // Vérifier que l'utilisateur existe
     const { data: userToDelete } = await supabase
       .from('users')
-      .select('id')
+      .select('id, nom, email, role')
       .eq('id', userId)
       .maybeSingle();
 
@@ -154,6 +163,15 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
     // Supprimer l'utilisateur
     const { error } = await supabase.from('users').delete().eq('id', userId);
     if (error) throw error;
+
+    await logAction({
+      user: req.user,
+      action: 'user.delete',
+      cible_type: 'user',
+      cible_id: userId,
+      details: { nom: userToDelete.nom, email: userToDelete.email, role: userToDelete.role },
+      req
+    });
 
     res.json({ message: 'Utilisateur supprimé avec succès' });
   } catch (err) {
@@ -200,10 +218,38 @@ router.put('/parametres/:cle', authMiddleware, adminMiddleware, async (req, res)
     }
 
     await updateParametre(cle, valeur);
+    await logAction({
+      user: req.user,
+      action: 'parametre.update',
+      cible_type: 'parametre',
+      cible_id: cle,
+      details: { cle, valeur },
+      req
+    });
     res.json({ message: 'Paramètre mis à jour avec succès' });
   } catch (err) {
     console.error('Admin update parametre error:', err);
     res.status(500).json({ error: 'Erreur lors de la mise à jour du paramètre' });
+  }
+});
+
+/**
+ * GET /api/admin/logs
+ * Récupère le journal des actions.
+ * @returns {Object} Logs paginés.
+ */
+router.get('/logs', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const result = await getActionLogs({
+      page: req.query.page,
+      limit: req.query.limit,
+      action: req.query.action || undefined,
+      cible_type: req.query.cible_type || undefined
+    });
+    res.json(result);
+  } catch (err) {
+    console.error('Admin get logs error:', err);
+    res.status(500).json({ error: 'Erreur lors de la récupération des logs' });
   }
 });
 
