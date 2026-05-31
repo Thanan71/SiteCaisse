@@ -84,66 +84,13 @@
         <div
           v-for="groupe in rapportsStore.allRapports"
           :key="'groupe-' + groupe.artisan_id"
-          class="artisan-rapport-block"
         >
-          <h2 class="artisan-rapport-title">{{ groupe.artisan_nom }}</h2>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Articles</th>
-                  <th>Total Qté</th>
-                  <th>Montant total</th>
-                  <th>Paiement</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="vente in groupe.ventes" :key="vente.id">
-                  <td>{{ formatDate(vente.date_vente) }}</td>
-                  <td class="articles-cell">
-                    <div v-for="(art, artIdx) in getVisibleArticles(vente, expandedGroupes, getGroupKey(groupe.artisan_id, vente.id))" :key="art.id || artIdx" class="article-line">
-                      <span class="article-name-sm">{{ art.article }} × {{ art.quantite }} &nbsp;</span>
-                      <span class="article-subtotal-sm">{{ formatPrice(art.prix * art.quantite) }}</span>
-                    </div>
-                    <button
-                      v-if="vente.articles && vente.articles.length > 1"
-                      class="btn-expand"
-                      @click="toggleExpand(expandedGroupes, getGroupKey(groupe.artisan_id, vente.id))"
-                    >
-                      {{ expandedGroupes[getGroupKey(groupe.artisan_id, vente.id)] ? '▲ Moins' : `▼ +${vente.articles.length - 1} autre(s)` }}
-                    </button>
-                  </td>
-                  <td class="text-center">{{ vente.total_articles }}</td>
-                  <td class="text-right total-price">{{ formatPrice(vente.total_montant) }}</td>
-                  <td>
-                    <span class="payment-badge" :class="'payment-' + vente.type_paiement.toLowerCase()">
-                      {{ getPaymentLabel(vente.type_paiement) }}
-                    </span>
-                  </td>
-                </tr>
-              </tbody>
-              <tfoot>
-                <tr class="summary-row">
-                  <td colspan="2"><strong>TOTAL {{ groupe.artisan_nom.toUpperCase() }}</strong></td>
-                  <td class="text-center"><strong>{{ groupe.summary.total_articles }}</strong></td>
-                  <td class="text-right"><strong class="total-sum">{{ formatPrice(groupe.summary.total_montant) }}</strong></td>
-                  <td></td>
-                </tr>
-                <!-- Ligne commission CB -->
-                <tr v-if="groupe.summary.commission_cb > 0" class="commission-row">
-                  <td colspan="4" class="text-right">
-                    <span class="commission-label">
-                      Commission CB ({{ groupe.summary.taux_commission }}% sur {{ formatPrice(groupe.summary.total_cb) }})
-                    </span>
-                  </td>
-                  <td class="text-right">
-                    <span class="commission-value">- {{ formatPrice(groupe.summary.commission_cb) }}</span>
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+          <RapportVentesTable
+            :title="groupe.artisan_nom"
+            :ventes="groupe.ventes"
+            :summary="groupe.summary"
+            :total-label="`TOTAL ${groupe.artisan_nom.toUpperCase()}`"
+          />
         </div>
 
         <!-- Résumé global -->
@@ -205,63 +152,11 @@
 
       <!-- Onglet : Liste des ventes (artisan spécifique) -->
       <div v-if="activeTab === 'ventes' && rapportsStore.ventesArtisan.length">
-        <div class="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Articles</th>
-                <th>Total Qté</th>
-                <th>Montant total</th>
-                <th>Paiement</th>
-              </tr>
-            </thead>
-              <tbody>
-              <tr v-for="vente in rapportsStore.ventesArtisan" :key="vente.id">
-                <td>{{ formatDate(vente.date_vente) }}</td>
-                <td class="articles-cell">
-                  <div v-for="(art, artIdx) in getVisibleArticles(vente, expandedArtisan, 'a' + vente.id)" :key="art.id || artIdx" class="article-line">
-                    <span class="article-name-sm">{{ art.article }} × {{ art.quantite }} &nbsp;</span>
-                    <span class="article-subtotal-sm">{{ formatPrice(art.prix * art.quantite) }}</span>
-                  </div>
-                  <button
-                    v-if="vente.articles && vente.articles.length > 1"
-                    class="btn-expand"
-                    @click="toggleExpand(expandedArtisan, 'a' + vente.id)"
-                  >
-                    {{ expandedArtisan['a' + vente.id] ? '▲ Moins' : `▼ +${vente.articles.length - 1} autre(s)` }}
-                  </button>
-                </td>
-                <td class="text-center">{{ vente.total_articles }}</td>
-                <td class="text-right total-price">{{ formatPrice(vente.total_montant) }}</td>
-                <td>
-                  <span class="payment-badge" :class="'payment-' + vente.type_paiement.toLowerCase()">
-                    {{ getPaymentLabel(vente.type_paiement) }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr class="summary-row">
-                <td colspan="2"><strong>TOTAL</strong></td>
-                <td class="text-center"><strong>{{ rapportsStore.summary.total_articles }}</strong></td>
-                <td class="text-right"><strong class="total-sum">{{ formatPrice(rapportsStore.summary.total_montant) }}</strong></td>
-                <td></td>
-              </tr>
-              <!-- Ligne commission CB -->
-              <tr v-if="rapportsStore.summary.commission_cb > 0" class="commission-row">
-                <td colspan="4" class="text-right">
-                  <span class="commission-label">
-                    Commission CB ({{ rapportsStore.summary.taux_commission }}% sur {{ formatPrice(rapportsStore.summary.total_cb) }})
-                  </span>
-                </td>
-                <td class="text-right">
-                  <span class="commission-value">- {{ formatPrice(rapportsStore.summary.commission_cb) }}</span>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+        <RapportVentesTable
+          :ventes="rapportsStore.ventesArtisan"
+          :summary="rapportsStore.summary"
+          total-label="TOTAL"
+        />
 
         <div class="export-section">
           <button class="btn btn-success" @click="rapportsStore.exportToExcel(artisansStore.artisans)">
@@ -277,15 +172,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRapportsStore } from '../store/rapports'
 import { useArtisansStore } from '../store/artisans'
-import { exportVentesToExcel, exportAllRapportsToExcel } from '../services/excelService'
+import { exportAllRapportsToExcel } from '../services/excelService'
 import GraphiquesRapports from '../components/GraphiquesRapports.vue'
+import RapportVentesTable from '../components/RapportVentesTable.vue'
+import { formatPrice } from '../utils/formatters'
 
 const rapportsStore = useRapportsStore()
 const artisansStore = useArtisansStore()
 const selectedArtisanId = ref('')
 const activeTab = ref('graphiques')
-const expandedGroupes = ref({})
-const expandedArtisan = ref({})
 
 const permanents = computed(() => artisansStore.permanents)
 const temporaires = computed(() => artisansStore.temporaires)
@@ -303,22 +198,6 @@ const allVentesFlat = computed(() => {
   return ventes
 })
 
-function getVisibleArticles(vente, expandedMap, key) {
-  if (!vente.articles) return []
-  if (vente.articles.length <= 1 || expandedMap[key]) {
-    return vente.articles
-  }
-  return [vente.articles[0]]
-}
-
-function toggleExpand(expandedMap, key) {
-  expandedMap[key] = !expandedMap[key]
-}
-
-function getGroupKey(groupeId, venteId) {
-  return `g${groupeId}-v${venteId}`
-}
-
 onMounted(() => {
   artisansStore.fetchArtisans()
   rapportsStore.fetchAllRapports()
@@ -333,32 +212,6 @@ function onArtisanChange() {
 
 function exportAllToExcel() {
   exportAllRapportsToExcel(rapportsStore.allRapports, rapportsStore.totalGlobal, rapportsStore.totalAllParams)
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return '-'
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
-}
-
-function formatPrice(price) {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR'
-  }).format(price)
-}
-
-function getPaymentLabel(type) {
-  const labels = {
-    CB: 'Carte Bancaire',
-    Espece: 'Espèce',
-    Cheque: 'Chèque'
-  }
-  return labels[type] || type
 }
 </script>
 
@@ -456,149 +309,6 @@ function getPaymentLabel(type) {
 .empty-state p {
   color: #64748b;
   margin: 0;
-}
-
-/* Blocs par artisan */
-.artisan-rapport-block {
-  margin-bottom: 32px;
-}
-
-.artisan-rapport-title {
-  font-size: 1.15rem;
-  color: #1e293b;
-  margin: 0 0 12px;
-  padding-bottom: 8px;
-  border-bottom: 2px solid #e2e8f0;
-}
-
-.table-container {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  overflow-x: auto;
-}
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-thead th {
-  background: #f8fafc;
-  padding: 12px 16px;
-  text-align: left;
-  font-weight: 600;
-  font-size: 0.8rem;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  border-bottom: 2px solid #e2e8f0;
-  white-space: nowrap;
-}
-
-tbody td {
-  padding: 12px 16px;
-  border-bottom: 1px solid #f1f5f9;
-  font-size: 0.9rem;
-  color: #1e293b;
-}
-
-tbody tr:hover {
-  background: #f8fafc;
-}
-
-tbody tr:last-child td {
-  border-bottom: none;
-}
-
-tfoot td {
-  padding: 16px;
-  border-top: 2px solid #e2e8f0;
-  font-size: 0.95rem;
-}
-
-.summary-row {
-  background: #f8fafc;
-}
-
-.total-sum {
-  color: #059669;
-  font-size: 1.1rem;
-}
-
-/* Commission row */
-.commission-row td {
-  padding: 10px 16px;
-  border-top: 1px dashed #e2e8f0;
-  font-size: 0.85rem;
-}
-
-.commission-label {
-  color: #64748b;
-  font-size: 0.85rem;
-}
-
-.commission-value {
-  color: #ef4444;
-  font-weight: 600;
-  font-size: 0.95rem;
-}
-
-.btn-expand {
-  background: none;
-  border: 1px solid #e2e8f0;
-  color: #4f46e5;
-  cursor: pointer;
-  font-size: 0.75rem;
-  padding: 3px 10px;
-  border-radius: 6px;
-  margin-top: 6px;
-  transition: background 0.2s, border-color 0.2s;
-}
-
-.btn-expand:hover {
-  background: #f1f5f9;
-  border-color: #4f46e5;
-}
-
-.article-name {
-  font-weight: 600;
-}
-
-.text-center {
-  text-align: center;
-}
-
-.text-right {
-  text-align: right;
-}
-
-.total-price {
-  font-weight: 600;
-  color: #059669;
-}
-
-.payment-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.payment-cb {
-  background: #dbeafe;
-  color: #2563eb;
-}
-
-.payment-espece {
-  background: #d1fae5;
-  color: #059669;
-}
-
-.payment-cheque {
-  background: #fef3c7;
-  color: #d97706;
 }
 
 /* Sous-navigation */

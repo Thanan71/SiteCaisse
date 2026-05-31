@@ -8,7 +8,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { findUserByEmail, findUserById } = require('./models.cjs');
-const { logAction } = require('./services/loggerService.cjs');
+const { logAction, logError } = require('./services/loggerService.cjs');
 
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'sitecaisse-secret-key-2024';
@@ -33,6 +33,13 @@ function authMiddleware(req, res, next) {
     req.user = decoded;
     next();
   } catch (err) {
+    void logError({
+      err,
+      context: 'auth.middleware',
+      cible_type: 'auth',
+      details: { reason: 'invalid_or_expired_token' },
+      req
+    });
     return res.status(401).json({ error: 'Token invalide ou expiré' });
   }
 }
@@ -132,6 +139,13 @@ router.post('/login', async (req, res) => {
     });
   } catch (err) {
     console.error('Login error:', err);
+    await logError({
+      err,
+      context: 'auth.login',
+      cible_type: 'auth',
+      details: { email: req.body?.email || null },
+      req
+    });
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -152,6 +166,14 @@ router.get('/me', authMiddleware, async (req, res) => {
     res.json(user);
   } catch (err) {
     console.error('Me error:', err);
+    await logError({
+      user: req.user,
+      err,
+      context: 'auth.me',
+      cible_type: 'auth',
+      cible_id: req.user?.id || null,
+      req
+    });
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });

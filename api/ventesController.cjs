@@ -7,7 +7,7 @@
 const express = require('express');
 const { getAllVentes, createVente, updateVente, deleteVente } = require('./models.cjs');
 const { authMiddleware } = require('./authController.cjs');
-const { logAction } = require('./services/loggerService.cjs');
+const { logAction, logError } = require('./services/loggerService.cjs');
 
 const router = express.Router();
 
@@ -40,6 +40,13 @@ router.get('/', async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('GET ventes error:', err);
+    await logError({
+      user: req.user,
+      err,
+      context: 'ventes.list',
+      cible_type: 'vente',
+      req
+    });
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -105,6 +112,18 @@ router.post('/', async (req, res) => {
     res.status(201).json({ id, message: 'Vente créée avec succès' });
   } catch (err) {
     console.error('POST vente error:', err);
+    await logError({
+      user: req.user,
+      err,
+      context: 'ventes.create',
+      cible_type: 'vente',
+      details: {
+        type_paiement: req.body?.type_paiement || null,
+        artisan_id: req.body?.artisan_id || null,
+        date_vente: req.body?.date_vente || null
+      },
+      req
+    });
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -154,6 +173,14 @@ router.put('/:id', async (req, res) => {
     res.json({ message: 'Vente modifiée avec succès' });
   } catch (err) {
     console.error('PUT vente error:', err);
+    await logError({
+      user: req.user,
+      err,
+      context: 'ventes.update',
+      cible_type: 'vente',
+      cible_id: req.params.id,
+      req
+    });
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -185,6 +212,14 @@ router.delete('/:id', async (req, res) => {
     res.json({ message: 'Vente supprimée avec succès' });
   } catch (err) {
     console.error('DELETE vente error:', err);
+    await logError({
+      user: req.user,
+      err,
+      context: 'ventes.delete',
+      cible_type: 'vente',
+      cible_id: req.params.id,
+      req
+    });
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });

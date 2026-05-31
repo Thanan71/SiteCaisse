@@ -2,11 +2,38 @@
   <div class="admin-container">
     <div class="admin-header">
       <h1>Administration</h1>
-      <p class="admin-subtitle">Gestion des utilisateurs et paramètres</p>
+      <p class="admin-subtitle">Gestion des utilisateurs, commissions et logs</p>
     </div>
 
+    <nav class="admin-subnav" aria-label="Sections administration">
+      <button
+        type="button"
+        class="subnav-button"
+        :class="{ active: activePanel === 'users' }"
+        @click="activePanel = 'users'"
+      >
+        Utilisateurs
+      </button>
+      <button
+        type="button"
+        class="subnav-button"
+        :class="{ active: activePanel === 'commissions' }"
+        @click="activePanel = 'commissions'"
+      >
+        Commissions
+      </button>
+      <button
+        type="button"
+        class="subnav-button"
+        :class="{ active: activePanel === 'logs' }"
+        @click="activePanel = 'logs'"
+      >
+        Logs
+      </button>
+    </nav>
+
     <!-- Section Paramètres : Commissions CB -->
-    <div class="card parametres-card">
+    <div v-if="activePanel === 'commissions'" class="card parametres-card">
       <h2>Paramètres des commissions CB</h2>
       <p class="parametres-info">
         Les commissions CB sont calculées en pourcentage du montant total des ventes par carte bancaire.
@@ -54,133 +81,135 @@
       </form>
     </div>
 
-    <!-- Section Ajouter un utilisateur -->
-    <div class="card add-user-card">
-      <h2>Ajouter un utilisateur</h2>
-      <form @submit.prevent="handleCreateUser" class="add-user-form">
-        <div class="form-row">
-          <div class="form-group">
-            <label for="nom">Nom</label>
-            <input
-              id="nom"
-              v-model="newUser.nom"
-              type="text"
-              placeholder="Nom de l'utilisateur"
-              required
-            />
+    <template v-if="activePanel === 'users'">
+      <!-- Section Ajouter un utilisateur -->
+      <div class="card add-user-card">
+        <h2>Ajouter un utilisateur</h2>
+        <form @submit.prevent="handleCreateUser" class="add-user-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="nom">Nom</label>
+              <input
+                id="nom"
+                v-model="newUser.nom"
+                type="text"
+                placeholder="Nom de l'utilisateur"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="email">Email</label>
+              <input
+                id="email"
+                v-model="newUser.email"
+                type="email"
+                placeholder="Email de l'utilisateur"
+                required
+              />
+            </div>
           </div>
-          <div class="form-group">
-            <label for="email">Email</label>
-            <input
-              id="email"
-              v-model="newUser.email"
-              type="email"
-              placeholder="Email de l'utilisateur"
-              required
-            />
+          <div class="form-row">
+            <div class="form-group">
+              <label for="password">Mot de passe</label>
+              <input
+                id="password"
+                v-model="newUser.password"
+                type="password"
+                placeholder="Mot de passe"
+                required
+                minlength="4"
+              />
+            </div>
+            <div class="form-group">
+              <label for="role">Rôle</label>
+              <select id="role" v-model="newUser.role" required @change="onRoleChange">
+                <option value="" disabled>Sélectionner un rôle</option>
+                <option value="permanent">Permanent</option>
+                <option value="temporaire">Temporaire</option>
+              </select>
+            </div>
           </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label for="password">Mot de passe</label>
-            <input
-              id="password"
-              v-model="newUser.password"
-              type="password"
-              placeholder="Mot de passe"
-              required
-              minlength="4"
-            />
+          <div class="form-row" v-if="newUser.role === 'temporaire'">
+            <div class="form-group">
+              <label for="date_fin">Date de fin d'accès</label>
+              <input
+                id="date_fin"
+                v-model="newUser.date_fin"
+                type="date"
+                required
+                :min="minDate"
+              />
+            </div>
+            <div class="form-group"></div>
           </div>
-          <div class="form-group">
-            <label for="role">Rôle</label>
-            <select id="role" v-model="newUser.role" required @change="onRoleChange">
-              <option value="" disabled>Sélectionner un rôle</option>
-              <option value="permanent">Permanent</option>
-              <option value="temporaire">Temporaire</option>
-            </select>
-          </div>
-        </div>
-        <div class="form-row" v-if="newUser.role === 'temporaire'">
-          <div class="form-group">
-            <label for="date_fin">Date de fin d'accès</label>
-            <input
-              id="date_fin"
-              v-model="newUser.date_fin"
-              type="date"
-              required
-              :min="minDate"
-            />
-          </div>
-          <div class="form-group"></div>
-        </div>
-        <button type="submit" class="btn btn-primary" :disabled="creating">
-          {{ creating ? 'Création...' : "Ajouter l'utilisateur" }}
-        </button>
-        <p v-if="createError" class="error-message">{{ createError }}</p>
-        <p v-if="createSuccess" class="success-message">{{ createSuccess }}</p>
-      </form>
-    </div>
-
-    <!-- Liste des utilisateurs -->
-    <div class="card users-list-card">
-      <h2>Utilisateurs ({{ users.length }})</h2>
-
-      <div v-if="loading" class="loading">Chargement des utilisateurs...</div>
-
-      <div v-else-if="users.length === 0" class="empty-state">
-        Aucun utilisateur trouvé.
+          <button type="submit" class="btn btn-primary" :disabled="creating">
+            {{ creating ? 'Création...' : "Ajouter l'utilisateur" }}
+          </button>
+          <p v-if="createError" class="error-message">{{ createError }}</p>
+          <p v-if="createSuccess" class="success-message">{{ createSuccess }}</p>
+        </form>
       </div>
 
-      <div v-else class="users-table-wrapper">
-        <table class="users-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Nom</th>
-              <th>Email</th>
-              <th>Rôle</th>
-              <th>Actif</th>
-              <th>Date de fin</th>
-              <th>Date de création</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="user in users" :key="user.id">
-              <td>{{ user.id }}</td>
-              <td>{{ user.nom }}</td>
-              <td>{{ user.email }}</td>
-              <td>
-                <span class="role-badge" :class="'role-' + user.role">
-                  {{ user.role === 'admin' ? 'Admin' : user.role === 'permanent' ? 'Permanent' : 'Temporaire' }}
-                </span>
-              </td>
-              <td>
-                <span class="status-dot" :class="getStatusClass(user)"></span>
-                {{ getStatusLabel(user) }}
-              </td>
-              <td>{{ user.date_fin ? formatDateSimple(user.date_fin) : '—' }}</td>
-              <td>{{ formatDate(user.created_at) }}</td>
-              <td>
-                <button
-                  v-if="user.role !== 'admin'"
-                  @click="handleDeleteUser(user)"
-                  class="btn btn-danger btn-sm"
-                  :disabled="deletingId === user.id"
-                >
-                  {{ deletingId === user.id ? 'Suppression...' : 'Supprimer' }}
-                </button>
-                <span v-else class="text-muted">—</span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <!-- Liste des utilisateurs -->
+      <div class="card users-list-card">
+        <h2>Utilisateurs ({{ users.length }})</h2>
+
+        <div v-if="loading" class="loading">Chargement des utilisateurs...</div>
+
+        <div v-else-if="users.length === 0" class="empty-state">
+          Aucun utilisateur trouvé.
+        </div>
+
+        <div v-else class="users-table-wrapper">
+          <table class="users-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nom</th>
+                <th>Email</th>
+                <th>Rôle</th>
+                <th>Actif</th>
+                <th>Date de fin</th>
+                <th>Date de création</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="user in users" :key="user.id">
+                <td>{{ user.id }}</td>
+                <td>{{ user.nom }}</td>
+                <td>{{ user.email }}</td>
+                <td>
+                  <span class="role-badge" :class="'role-' + user.role">
+                    {{ user.role === 'admin' ? 'Admin' : user.role === 'permanent' ? 'Permanent' : 'Temporaire' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="status-dot" :class="getStatusClass(user)"></span>
+                  {{ getStatusLabel(user) }}
+                </td>
+                <td>{{ user.date_fin ? formatDateSimple(user.date_fin) : '—' }}</td>
+                <td>{{ formatDate(user.created_at) }}</td>
+                <td>
+                  <button
+                    v-if="user.role !== 'admin'"
+                    @click="handleDeleteUser(user)"
+                    class="btn btn-danger btn-sm"
+                    :disabled="deletingId === user.id"
+                  >
+                    {{ deletingId === user.id ? 'Suppression...' : 'Supprimer' }}
+                  </button>
+                  <span v-else class="text-muted">—</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </template>
 
     <!-- Journal des actions -->
-    <div class="card logs-card">
+    <div v-if="activePanel === 'logs'" class="card logs-card">
       <div class="section-title-row">
         <div>
           <h2>Journal des actions</h2>
@@ -196,6 +225,7 @@
           <label for="log-action">Action</label>
           <select id="log-action" v-model="logFilters.action" @change="applyLogFilters">
             <option value="">Toutes</option>
+            <option value="error">Erreur</option>
             <option value="auth.login_success">Connexion réussie</option>
             <option value="auth.login_failed">Connexion échouée</option>
             <option value="vente.create">Vente créée</option>
@@ -214,6 +244,8 @@
             <option value="vente">Vente</option>
             <option value="user">Utilisateur</option>
             <option value="parametre">Paramètre</option>
+            <option value="rapport">Rapport</option>
+            <option value="log">Log</option>
           </select>
         </div>
       </div>
@@ -242,7 +274,7 @@
                 <span v-if="log.user_email" class="log-email">{{ log.user_email }}</span>
               </td>
               <td>
-                <span class="action-badge">{{ getActionLabel(log.action) }}</span>
+                <span class="action-badge" :class="{ 'action-error': log.action === 'error' }">{{ getActionLabel(log.action) }}</span>
               </td>
               <td>{{ getCibleLabel(log.cible_type) }}{{ log.cible_id ? ` #${log.cible_id}` : '' }}</td>
               <td class="log-details">{{ formatLogDetails(log.details) }}</td>
@@ -287,6 +319,9 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import api from '../services/api'
+import { formatDateTime, formatDateSimple } from '../utils/formatters'
+
+const activePanel = ref('users')
 
 // État du formulaire d'ajout
 const newUser = ref({
@@ -554,33 +589,7 @@ function isDateFinExpired(dateFin) {
   return fin < today
 }
 
-/**
- * Formate une date ISO en format lisible.
- * @param {string} dateStr - Date au format ISO.
- * @returns {string} Date formatée (jj/mm/aaaa).
- */
-function formatDate(dateStr) {
-  if (!dateStr) return '—'
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
-
-/**
- * Formate une date simple (AAAA-MM-JJ) en format lisible.
- * @param {string} dateStr - Date au format AAAA-MM-JJ.
- * @returns {string} Date formatée (jj/mm/aaaa).
- */
-function formatDateSimple(dateStr) {
-  if (!dateStr) return '—'
-  const [y, m, d] = dateStr.split('-')
-  return `${d}/${m}/${y}`
-}
+const formatDate = formatDateTime
 
 /**
  * Retourne un libellé lisible pour une action journalisée.
@@ -589,6 +598,7 @@ function formatDateSimple(dateStr) {
  */
 function getActionLabel(action) {
   const labels = {
+    error: 'Erreur',
     'auth.login_success': 'Connexion réussie',
     'auth.login_failed': 'Connexion échouée',
     'vente.create': 'Vente créée',
@@ -611,7 +621,10 @@ function getCibleLabel(cibleType) {
     auth: 'Authentification',
     vente: 'Vente',
     user: 'Utilisateur',
-    parametre: 'Paramètre'
+    parametre: 'Paramètre',
+    rapport: 'Rapport',
+    log: 'Log',
+    error: 'Erreur'
   }
   return labels[cibleType] || cibleType || '—'
 }
@@ -635,6 +648,7 @@ function formatLogDetails(details) {
 
   if (Object.keys(data).length === 0) return '—'
 
+  if (data.context && data.message) return `${data.context} : ${data.message}`
   if (data.reason) return `Raison : ${data.reason}`
   if (data.cle) return `${data.cle} = ${data.valeur}`
   if (data.nom && data.email) return `${data.nom} (${data.email})`
@@ -677,6 +691,42 @@ onMounted(() => {
   color: #64748b;
   margin: 4px 0 0 0;
   font-size: 0.95rem;
+}
+
+.admin-subnav {
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  margin-bottom: 24px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.subnav-button {
+  flex: 0 0 auto;
+  padding: 9px 14px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #475569;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.subnav-button:hover {
+  background: #e2e8f0;
+  color: #1e293b;
+}
+
+.subnav-button.active {
+  background: white;
+  color: #4f46e5;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
 /* Cards */
@@ -928,6 +978,11 @@ onMounted(() => {
   color: #0f766e;
   background: #ccfbf1;
   white-space: nowrap;
+}
+
+.action-badge.action-error {
+  color: #b91c1c;
+  background: #fee2e2;
 }
 
 .log-details {

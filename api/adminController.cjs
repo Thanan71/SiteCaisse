@@ -10,7 +10,7 @@ const bcrypt = require('bcryptjs');
 const { authMiddleware } = require('./authController.cjs');
 const { getSupabase } = require('./db.cjs');
 const { getAllParametres, updateParametre } = require('./services/parametresService.cjs');
-const { logAction, getActionLogs } = require('./services/loggerService.cjs');
+const { logAction, logError, getActionLogs } = require('./services/loggerService.cjs');
 
 const router = express.Router();
 
@@ -46,6 +46,13 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
     res.json(data || []);
   } catch (err) {
     console.error('Admin list users error:', err);
+    await logError({
+      user: req.user,
+      err,
+      context: 'admin.users.list',
+      cible_type: 'user',
+      req
+    });
     res.status(500).json({ error: 'Erreur lors de la récupération des utilisateurs' });
   }
 });
@@ -120,6 +127,19 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
     res.status(201).json(data);
   } catch (err) {
     console.error('Admin create user error:', err);
+    await logError({
+      user: req.user,
+      err,
+      context: 'admin.users.create',
+      cible_type: 'user',
+      details: {
+        nom: req.body?.nom || null,
+        email: req.body?.email || null,
+        role: req.body?.role || null,
+        date_fin: req.body?.date_fin || null
+      },
+      req
+    });
     res.status(500).json({ error: 'Erreur lors de la création de l\'utilisateur' });
   }
 });
@@ -176,6 +196,14 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
     res.json({ message: 'Utilisateur supprimé avec succès' });
   } catch (err) {
     console.error('Admin delete user error:', err);
+    await logError({
+      user: req.user,
+      err,
+      context: 'admin.users.delete',
+      cible_type: 'user',
+      cible_id: req.params.id,
+      req
+    });
     res.status(500).json({ error: 'Erreur lors de la suppression de l\'utilisateur' });
   }
 });
@@ -191,6 +219,13 @@ router.get('/parametres', authMiddleware, adminMiddleware, async (req, res) => {
     res.json(params);
   } catch (err) {
     console.error('Admin get parametres error:', err);
+    await logError({
+      user: req.user,
+      err,
+      context: 'admin.parametres.list',
+      cible_type: 'parametre',
+      req
+    });
     res.status(500).json({ error: 'Erreur lors de la récupération des paramètres' });
   }
 });
@@ -229,6 +264,14 @@ router.put('/parametres/:cle', authMiddleware, adminMiddleware, async (req, res)
     res.json({ message: 'Paramètre mis à jour avec succès' });
   } catch (err) {
     console.error('Admin update parametre error:', err);
+    await logError({
+      user: req.user,
+      err,
+      context: 'admin.parametres.update',
+      cible_type: 'parametre',
+      cible_id: req.params.cle,
+      req
+    });
     res.status(500).json({ error: 'Erreur lors de la mise à jour du paramètre' });
   }
 });
@@ -249,6 +292,13 @@ router.get('/logs', authMiddleware, adminMiddleware, async (req, res) => {
     res.json(result);
   } catch (err) {
     console.error('Admin get logs error:', err);
+    await logError({
+      user: req.user,
+      err,
+      context: 'admin.logs.list',
+      cible_type: 'log',
+      req
+    });
     res.status(500).json({ error: 'Erreur lors de la récupération des logs' });
   }
 });

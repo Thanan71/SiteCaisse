@@ -10,6 +10,7 @@ const { getAllArtisans, getVentesByArtisan, getAllVentesGroupedByArtisan } = req
 const { authMiddleware } = require('./authController.cjs');
 const { ajouterCommissionsAuxGroupes, ajouterCommissionAUnArtisan } = require('./services/commissionService.cjs');
 const { getAllParametres } = require('./services/parametresService.cjs');
+const { logError } = require('./services/loggerService.cjs');
 
 const router = express.Router();
 
@@ -48,6 +49,13 @@ router.get('/', async (req, res) => {
     });
   } catch (err) {
     console.error('GET all rapports error:', err);
+    await logError({
+      user: req.user,
+      err,
+      context: 'rapports.list',
+      cible_type: 'rapport',
+      req
+    });
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -63,6 +71,13 @@ router.get('/artisans', async (req, res) => {
     res.json(artisans);
   } catch (err) {
     console.error('GET artisans error:', err);
+    await logError({
+      user: req.user,
+      err,
+      context: 'rapports.artisans',
+      cible_type: 'rapport',
+      req
+    });
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -99,6 +114,14 @@ router.get('/:artisan_id', async (req, res) => {
     res.json(resultat);
   } catch (err) {
     console.error('GET rapport artisan error:', err);
+    await logError({
+      user: req.user,
+      err,
+      context: 'rapports.artisan',
+      cible_type: 'rapport',
+      cible_id: req.params.artisan_id,
+      req
+    });
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });

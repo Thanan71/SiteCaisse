@@ -44,6 +44,37 @@ async function logAction({ user = null, action, cible_type = null, cible_id = nu
 }
 
 /**
+ * Journalise une erreur applicative.
+ * @param {Object} params - Données de journalisation.
+ * @param {Object|null} [params.user] - Utilisateur connecté.
+ * @param {Error|Object|string} params.err - Erreur capturée.
+ * @param {string} params.context - Contexte fonctionnel de l'erreur.
+ * @param {string} [params.cible_type] - Type de ressource concernée.
+ * @param {number|string|null} [params.cible_id] - Identifiant de la ressource.
+ * @param {Object} [params.details] - Détails complémentaires.
+ * @param {import('express').Request} [params.req] - Requête Express.
+ * @returns {Promise<void>}
+ */
+async function logError({ user = null, err, context, cible_type = 'error', cible_id = null, details = {}, req = null }) {
+  const safeError = formatError(err);
+
+  await logAction({
+    user,
+    action: 'error',
+    cible_type,
+    cible_id,
+    details: {
+      context,
+      method: req?.method || null,
+      path: req?.originalUrl || req?.url || null,
+      ...safeError,
+      ...details
+    },
+    req
+  });
+}
+
+/**
  * Récupère les logs avec pagination et filtres.
  * @param {Object} [options] - Options de récupération.
  * @param {number|string} [options.page=1] - Page demandée.
@@ -104,7 +135,25 @@ function getRequestIp(req) {
   return req.ip || req.socket?.remoteAddress || null;
 }
 
+function formatError(err) {
+  if (!err) {
+    return { message: 'Erreur inconnue' };
+  }
+
+  if (typeof err === 'string') {
+    return { message: err };
+  }
+
+  return {
+    name: err.name || null,
+    message: err.message || 'Erreur inconnue',
+    code: err.code || null,
+    status: err.status || err.statusCode || null
+  };
+}
+
 module.exports = {
   logAction,
+  logError,
   getActionLogs
 };

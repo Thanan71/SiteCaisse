@@ -119,16 +119,14 @@
                 class="btn-expand"
                 @click="toggleExpand(vente.id)"
               >
-                {{ expandedVentes[vente.id] ? '▲ Moins' : `▼ +${vente.articles.length - 1} autre(s)` }}
+                {{ isExpanded(vente.id) ? '▲ Moins' : `▼ +${vente.articles.length - 1} autre(s)` }}
               </button>
             </td>
             <td>{{ vente.artisan_nom }}</td>
             <td class="text-center">{{ vente.total_articles }}</td>
             <td class="text-right total-price">{{ formatPrice(vente.total_montant) }}</td>
             <td>
-              <span class="payment-badge" :class="'payment-' + vente.type_paiement.toLowerCase()">
-                {{ getPaymentLabel(vente.type_paiement) }}
-              </span>
+              <PaymentBadge :type="vente.type_paiement" />
             </td>
             <td>{{ vente.vendeur_nom }}</td>
             <td>
@@ -192,15 +190,22 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useVentesStore } from '../store/ventes'
 import ModalAjoutVente from '../components/ModalAjoutVente.vue'
 import ModalEditVente from '../components/ModalEditVente.vue'
+import PaymentBadge from '../components/PaymentBadge.vue'
+import { useExpandableRows } from '../composables/useExpandableRows'
+import { formatDate, formatPrice, getPaymentLabel } from '../utils/formatters'
 
 const ventesStore = useVentesStore()
 const showModal = ref(false)
 const editingVente = ref(null)
-const expandedVentes = ref({})
+const {
+  getVisibleItems: getVisibleArticlesForKey,
+  isExpanded,
+  toggleExpanded
+} = useExpandableRows()
 
 // État local pour les filtres (copie avant application)
 const localFilters = ref({
@@ -239,42 +244,11 @@ function resetFilters() {
 }
 
 function getVisibleArticles(vente) {
-  if (!vente.articles) return []
-  if (vente.articles.length <= 1 || expandedVentes.value[vente.id]) {
-    return vente.articles
-  }
-  // Ne montrer que le premier article
-  return [vente.articles[0]]
+  return getVisibleArticlesForKey(vente.articles, vente.id)
 }
 
 function toggleExpand(venteId) {
-  expandedVentes.value[venteId] = !expandedVentes.value[venteId]
-}
-
-function formatDate(dateStr) {
-  if (!dateStr) return '-'
-  const d = new Date(dateStr)
-  return d.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  })
-}
-
-function formatPrice(price) {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'EUR'
-  }).format(price)
-}
-
-function getPaymentLabel(type) {
-  const labels = {
-    'CB': 'Carte Bancaire',
-    'Espece': 'Espèce',
-    'Cheque': 'Chèque'
-  }
-  return labels[type] || type
+  toggleExpanded(venteId)
 }
 
 function openEdit(vente) {
@@ -524,29 +498,6 @@ tbody tr:last-child td {
   font-weight: 600;
   color: #059669;
   white-space: nowrap;
-}
-
-.payment-badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 0.8rem;
-  font-weight: 500;
-}
-
-.payment-cb {
-  background: #dbeafe;
-  color: #2563eb;
-}
-
-.payment-espece {
-  background: #d1fae5;
-  color: #059669;
-}
-
-.payment-cheque {
-  background: #fef3c7;
-  color: #d97706;
 }
 
 .btn-expand {

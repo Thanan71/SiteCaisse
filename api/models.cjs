@@ -105,6 +105,92 @@ async function getAllArtisans() {
   return data || [];
 }
 
+function parsePositiveInt(value, fallback) {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function buildPagination(page, limit, total = 0) {
+  return {
+    page,
+    limit,
+    total,
+    totalPages: Math.ceil(total / limit)
+  };
+}
+
+function applyVenteFilters(query, { date_debut, date_fin, type_paiement } = {}) {
+  let filteredQuery = query;
+  if (date_debut) {
+    filteredQuery = filteredQuery.gte('date_vente', date_debut);
+  }
+  if (date_fin) {
+    filteredQuery = filteredQuery.lte('date_vente', date_fin);
+  }
+  if (type_paiement) {
+    filteredQuery = filteredQuery.eq('type_paiement', type_paiement);
+  }
+  return filteredQuery;
+}
+
+async function fetchArticlesByVenteIds(supabase, venteIds) {
+  if (!venteIds.length) return [];
+
+  const { data, error } = await supabase
+    .from('vente_articles')
+    .select('*')
+    .in('vente_id', venteIds)
+    .order('id', { ascending: true });
+
+  if (error) throw error;
+  return data || [];
+}
+
+function groupArticlesByVenteId(articles) {
+  return articles.reduce((groups, article) => {
+    if (!groups[article.vente_id]) {
+      groups[article.vente_id] = [];
+    }
+    groups[article.vente_id].push(article);
+    return groups;
+  }, {});
+}
+
+function summarizeVentes(ventes) {
+  return ventes.reduce((summary, vente) => ({
+    total_articles: summary.total_articles + vente.total_articles,
+    total_montant: summary.total_montant + vente.total_montant
+  }), { total_articles: 0, total_montant: 0 });
+}
+
+function formatVente(vente, articlesByVente) {
+  const venteArticles = articlesByVente[vente.id] || [];
+  const total_articles = venteArticles.reduce((sum, article) => sum + (article.quantite || 0), 0);
+  const total_montant = venteArticles.reduce((sum, article) => sum + (article.prix * article.quantite), 0);
+
+  return {
+    id: vente.id,
+    type_paiement: vente.type_paiement,
+    artisan_id: vente.artisan_id,
+    vendeur_id: vente.vendeur_id,
+    date_vente: vente.date_vente,
+    created_at: vente.created_at,
+    artisan_nom: vente.artisan?.nom || null,
+    artisan_role: vente.artisan?.role || null,
+    vendeur_nom: vente.vendeur?.nom || null,
+    articles: venteArticles,
+    total_articles,
+    total_montant
+  };
+}
+
+async function formatVentesWithArticles(supabase, ventes) {
+  const venteIds = ventes.map(vente => vente.id);
+  const articles = await fetchArticlesByVenteIds(supabase, venteIds);
+  const articlesByVente = groupArticlesByVenteId(articles);
+  return ventes.map(vente => formatVente(vente, articlesByVente));
+}
+
 /**
  * Crée une nouvelle vente avec ses lignes d'articles.
  * @param {Array<{article: string, quantite: number, prix: number}>} articles - Liste des articles vendus.
@@ -157,115 +243,47 @@ async function createVente(articles, type_paiement, artisan_id, vendeur_id, date
  */
 async function getAllVentes(options = {}) {
   const supabase = getSupabase();
-  const rawPage = parseInt(options.page, 10);
-  const rawLimit = parseInt(options.limit, 10);
-  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
-  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 10;
+  const page = parsePositiveInt(options.page, 1);
+  const limit = parsePositiveInt(options.limit, 10);
   const { date_debut, date_fin, type_paiement } = options;
   const offset = (page - 1) * limit;
 
-  // Construire la requête de comptage avec filtres
-  let countQuery = supabase.from('ventes').select('*', { count: 'exact', head: true });
-  
-  if (date_debut) {
-    countQuery = countQuery.gte('date_vente', date_debut);
-  }
-  if (date_fin) {
-    countQuery = countQuery.lte('date_vente', date_fin);
-  }
-  if (type_paiement) {
-    countQuery = countQuery.eq('type_paiement', type_paiement);
-  }
-
+  const filters = { date_debut, date_fin, type_paiement };
+  const countQuery = applyVenteFilters(
+    supabase.from('ventes').select('*', { count: 'exact', head: true }),
+    filters
+  );
   const { count: total, error: countError } = await countQuery;
   if (countError) throw countError;
 
-  // Récupérer les en-têtes de vente avec pagination et filtres
-  let query = supabase
-    .from('ventes')
-    .select(`
-      *,
-      artisan:artisan_id (nom, role),
-      vendeur:vendeur_id (nom)
-    `)
-    .order('date_vente', { ascending: false })
-    .order('id', { ascending: false })
-    .range(offset, offset + limit - 1);
-
-  if (date_debut) {
-    query = query.gte('date_vente', date_debut);
-  }
-  if (date_fin) {
-    query = query.lte('date_vente', date_fin);
-  }
-  if (type_paiement) {
-    query = query.eq('type_paiement', type_paiement);
-  }
-
+  const query = applyVenteFilters(
+    supabase
+      .from('ventes')
+      .select(`
+        *,
+        artisan:artisan_id (nom, role),
+        vendeur:vendeur_id (nom)
+      `)
+      .order('date_vente', { ascending: false })
+      .order('id', { ascending: false })
+      .range(offset, offset + limit - 1),
+    filters
+  );
   const { data: ventes, error: ventesError } = await query;
-
   if (ventesError) throw ventesError;
 
   if (!ventes || ventes.length === 0) {
     return {
       ventes: [],
-      pagination: {
-        page,
-        limit,
-        total: total || 0,
-        totalPages: Math.ceil((total || 0) / limit)
-      }
+      pagination: buildPagination(page, limit, total || 0)
     };
   }
 
-  // Récupérer les articles pour toutes ces ventes
-  const venteIds = ventes.map(v => v.id);
-  const { data: articles, error: articlesError } = await supabase
-    .from('vente_articles')
-    .select('*')
-    .in('vente_id', venteIds)
-    .order('id', { ascending: true });
-
-  if (articlesError) throw articlesError;
-
-  // Grouper les articles par vente_id
-  const articlesByVente = {};
-  for (const art of articles || []) {
-    if (!articlesByVente[art.vente_id]) {
-      articlesByVente[art.vente_id] = [];
-    }
-    articlesByVente[art.vente_id].push(art);
-  }
-
-  const formattedVentes = ventes.map(v => {
-    const venteArticles = articlesByVente[v.id] || [];
-    const total_articles = venteArticles.reduce((sum, a) => sum + (a.quantite || 0), 0);
-    const total_montant = venteArticles.reduce((sum, a) => sum + (a.prix * a.quantite), 0);
-
-    return {
-      id: v.id,
-      type_paiement: v.type_paiement,
-      artisan_id: v.artisan_id,
-      vendeur_id: v.vendeur_id,
-      date_vente: v.date_vente,
-      created_at: v.created_at,
-      artisan_nom: v.artisan?.nom || null,
-      artisan_role: v.artisan?.role || null,
-      vendeur_nom: v.vendeur?.nom || null,
-      articles: venteArticles,
-      total_articles,
-      total_montant
-    };
-  });
+  const formattedVentes = await formatVentesWithArticles(supabase, ventes);
 
   return {
     ventes: formattedVentes,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit)
-    }
+    pagination: buildPagination(page, limit, total || 0)
   };
 }
 
@@ -291,45 +309,8 @@ async function getVentesByArtisan(artisan_id) {
 
   if (!ventes || ventes.length === 0) return { ventes: [], summary: { total_articles: 0, total_montant: 0 } };
 
-  const venteIds = ventes.map(v => v.id);
-  const { data: articles, error: articlesError } = await supabase
-    .from('vente_articles')
-    .select('*')
-    .in('vente_id', venteIds)
-    .order('id', { ascending: true });
-
-  if (articlesError) throw articlesError;
-
-  const articlesByVente = {};
-  for (const art of articles || []) {
-    if (!articlesByVente[art.vente_id]) {
-      articlesByVente[art.vente_id] = [];
-    }
-    articlesByVente[art.vente_id].push(art);
-  }
-
-  const formattedVentes = ventes.map(v => {
-    const venteArticles = articlesByVente[v.id] || [];
-    return {
-      id: v.id,
-      type_paiement: v.type_paiement,
-      artisan_id: v.artisan_id,
-      vendeur_id: v.vendeur_id,
-      date_vente: v.date_vente,
-      created_at: v.created_at,
-      artisan_nom: v.artisan?.nom || null,
-      artisan_role: v.artisan?.role || null,
-      vendeur_nom: v.vendeur?.nom || null,
-      articles: venteArticles,
-      total_articles: venteArticles.reduce((sum, a) => sum + (a.quantite || 0), 0),
-      total_montant: venteArticles.reduce((sum, a) => sum + (a.prix * a.quantite), 0)
-    };
-  });
-
-  const total_articles = formattedVentes.reduce((sum, v) => sum + v.total_articles, 0);
-  const total_montant = formattedVentes.reduce((sum, v) => sum + v.total_montant, 0);
-
-  return { ventes: formattedVentes, summary: { total_articles, total_montant } };
+  const formattedVentes = await formatVentesWithArticles(supabase, ventes);
+  return { ventes: formattedVentes, summary: summarizeVentes(formattedVentes) };
 }
 
 /**
@@ -356,13 +337,11 @@ async function getAllVentesGroupedByArtisan(options = {}) {
 
   // Construire le tableau de groupes avec le résumé par artisan
   const groupes = Object.values(grouped).map(g => {
-    const total_articles = g.ventes.reduce((sum, v) => sum + v.total_articles, 0);
-    const total_montant = g.ventes.reduce((sum, v) => sum + v.total_montant, 0);
     return {
       artisan_id: g.artisan_id,
       artisan_nom: g.artisan_nom,
       ventes: g.ventes,
-      summary: { total_articles, total_montant }
+      summary: summarizeVentes(g.ventes)
     };
   });
 
@@ -370,12 +349,14 @@ async function getAllVentesGroupedByArtisan(options = {}) {
   groupes.sort((a, b) => (a.artisan_nom || '').localeCompare(b.artisan_nom || ''));
 
   // Résumé global
-  const total_articles = groupes.reduce((sum, g) => sum + g.summary.total_articles, 0);
-  const total_montant = groupes.reduce((sum, g) => sum + g.summary.total_montant, 0);
+  const total = groupes.reduce((summary, groupe) => ({
+    total_articles: summary.total_articles + groupe.summary.total_articles,
+    total_montant: summary.total_montant + groupe.summary.total_montant
+  }), { total_articles: 0, total_montant: 0 });
 
   return {
     groupes,
-    total: { total_articles, total_montant },
+    total,
     pagination: result.pagination
   };
 }
