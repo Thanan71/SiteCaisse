@@ -29,14 +29,14 @@ function adminMiddleware(req, res, next) {
 /**
  * GET /api/admin/users
  * Récupère la liste de tous les utilisateurs.
- * @returns {Array} Tableau des utilisateurs (id, nom, email, role, est_actif, created_at).
+ * @returns {Array} Tableau des utilisateurs (id, nom, email, role, est_actif, date_fin, created_at).
  */
 router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('users')
-      .select('id, nom, email, role, est_actif, created_at')
+      .select('id, nom, email, role, est_actif, date_fin, created_at')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -54,11 +54,12 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
  * @param {string} req.body.email - Email de l'utilisateur.
  * @param {string} req.body.password - Mot de passe de l'utilisateur.
  * @param {string} req.body.role - Rôle de l'utilisateur ('permanent', 'temporaire').
+ * @param {string} [req.body.date_fin] - Date de fin pour les temporaires (format YYYY-MM-DD).
  * @returns {Object} Utilisateur créé (sans le password_hash).
  */
 router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { nom, email, password, role } = req.body;
+    const { nom, email, password, role, date_fin } = req.body;
 
     if (!nom || !email || !password || !role) {
       return res.status(400).json({ error: 'Nom, email, mot de passe et rôle requis' });
@@ -66,6 +67,16 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
 
     if (!['permanent', 'temporaire'].includes(role)) {
       return res.status(400).json({ error: 'Le rôle doit être "permanent" ou "temporaire"' });
+    }
+
+    // Si le rôle est temporaire, une date de fin est obligatoire
+    if (role === 'temporaire' && !date_fin) {
+      return res.status(400).json({ error: 'Une date de fin est requise pour les utilisateurs temporaires' });
+    }
+
+    // Si le rôle est permanent, pas de date de fin
+    if (role === 'permanent' && date_fin) {
+      return res.status(400).json({ error: 'Un utilisateur permanent ne peut pas avoir de date de fin' });
     }
 
     const supabase = getSupabase();
@@ -83,10 +94,15 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
 
     const password_hash = bcrypt.hashSync(password, 10);
 
+    const userData = { nom, email, password_hash, role };
+    if (date_fin) {
+      userData.date_fin = date_fin;
+    }
+
     const { data, error } = await supabase
       .from('users')
-      .insert({ nom, email, password_hash, role })
-      .select('id, nom, email, role, est_actif, created_at')
+      .insert(userData)
+      .select('id, nom, email, role, est_actif, date_fin, created_at')
       .single();
 
     if (error) throw error;

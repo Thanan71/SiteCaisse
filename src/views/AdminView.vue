@@ -45,15 +45,28 @@
           </div>
           <div class="form-group">
             <label for="role">Rôle</label>
-            <select id="role" v-model="newUser.role" required>
+            <select id="role" v-model="newUser.role" required @change="onRoleChange">
               <option value="" disabled>Sélectionner un rôle</option>
               <option value="permanent">Permanent</option>
               <option value="temporaire">Temporaire</option>
             </select>
           </div>
         </div>
+        <div class="form-row" v-if="newUser.role === 'temporaire'">
+          <div class="form-group">
+            <label for="date_fin">Date de fin d'accès</label>
+            <input
+              id="date_fin"
+              v-model="newUser.date_fin"
+              type="date"
+              required
+              :min="minDate"
+            />
+          </div>
+          <div class="form-group"></div>
+        </div>
         <button type="submit" class="btn btn-primary" :disabled="creating">
-          {{ creating ? 'Création...' : 'Ajouter l\'utilisateur' }}
+          {{ creating ? 'Création...' : "Ajouter l'utilisateur" }}
         </button>
         <p v-if="createError" class="error-message">{{ createError }}</p>
         <p v-if="createSuccess" class="success-message">{{ createSuccess }}</p>
@@ -79,6 +92,7 @@
               <th>Email</th>
               <th>Rôle</th>
               <th>Actif</th>
+              <th>Date de fin</th>
               <th>Date de création</th>
               <th>Actions</th>
             </tr>
@@ -94,9 +108,10 @@
                 </span>
               </td>
               <td>
-                <span class="status-dot" :class="user.est_actif ? 'active' : 'inactive'"></span>
-                {{ user.est_actif ? 'Oui' : 'Non' }}
+                <span class="status-dot" :class="getStatusClass(user)"></span>
+                {{ getStatusLabel(user) }}
               </td>
+              <td>{{ user.date_fin ? formatDateSimple(user.date_fin) : '—' }}</td>
               <td>{{ formatDate(user.created_at) }}</td>
               <td>
                 <button
@@ -138,7 +153,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import axios from 'axios'
 
 // État du formulaire d'ajout
@@ -146,7 +161,8 @@ const newUser = ref({
   nom: '',
   email: '',
   password: '',
-  role: ''
+  role: '',
+  date_fin: ''
 })
 const creating = ref(false)
 const createError = ref('')
@@ -160,6 +176,21 @@ const loading = ref(true)
 const showDeleteModal = ref(false)
 const userToDelete = ref(null)
 const deletingId = ref(null)
+
+// Date minimum pour le champ date (aujourd'hui)
+const minDate = computed(() => {
+  const today = new Date()
+  return today.toISOString().split('T')[0]
+})
+
+/**
+ * Réinitialise la date de fin quand on change de rôle.
+ */
+function onRoleChange() {
+  if (newUser.value.role === 'permanent') {
+    newUser.value.date_fin = ''
+  }
+}
 
 /**
  * Récupère la liste des utilisateurs depuis l'API.
@@ -187,15 +218,22 @@ async function handleCreateUser() {
   createSuccess.value = ''
 
   try {
-    await axios.post('/api/admin/users', {
+    const payload = {
       nom: newUser.value.nom,
       email: newUser.value.email,
       password: newUser.value.password,
       role: newUser.value.role
-    })
+    }
+
+    // Ajouter date_fin uniquement si c'est un temporaire
+    if (newUser.value.role === 'temporaire' && newUser.value.date_fin) {
+      payload.date_fin = newUser.value.date_fin
+    }
+
+    await axios.post('/api/admin/users', payload)
 
     createSuccess.value = `Utilisateur ${newUser.value.nom} créé avec succès !`
-    newUser.value = { nom: '', email: '', password: '', role: '' }
+    newUser.value = { nom: '', email: '', password: '', role: '', date_fin: '' }
     await fetchUsers()
 
     // Effacer le message de succès après 3 secondes
@@ -246,6 +284,41 @@ async function confirmDeleteUser() {
 }
 
 /**
+ * Retourne la classe CSS pour le statut actif/expiré.
+ * @param {Object} user
+ * @returns {string}
+ */
+function getStatusClass(user) {
+  if (!user.est_actif) return 'inactive'
+  if (isDateFinExpired(user.date_fin)) return 'expired'
+  return 'active'
+}
+
+/**
+ * Retourne le label pour le statut.
+ * @param {Object} user
+ * @returns {string}
+ */
+function getStatusLabel(user) {
+  if (!user.est_actif) return 'Non'
+  if (isDateFinExpired(user.date_fin)) return 'Expiré'
+  return 'Oui'
+}
+
+/**
+ * Vérifie si la date de fin est dépassée.
+ * @param {string|null} dateFin
+ * @returns {boolean}
+ */
+function isDateFinExpired(dateFin) {
+  if (!dateFin) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const fin = new Date(dateFin + 'T00:00:00')
+  return fin < today
+}
+
+/**
  * Formate une date ISO en format lisible.
  * @param {string} dateStr - Date au format ISO.
  * @returns {string} Date formatée (jj/mm/aaaa).
@@ -260,6 +333,17 @@ function formatDate(dateStr) {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+/**
+ * Formate une date simple (AAAA-MM-JJ) en format lisible.
+ * @param {string} dateStr - Date au format AAAA-MM-JJ.
+ * @returns {string} Date formatée (jj/mm/aaaa).
+ */
+function formatDateSimple(dateStr) {
+  if (!dateStr) return '—'
+  const [y, m, d] = dateStr.split('-')
+  return `${d}/${m}/${y}`
 }
 
 onMounted(() => {
@@ -489,6 +573,10 @@ onMounted(() => {
 
 .status-dot.inactive {
   background: #ef4444;
+}
+
+.status-dot.expired {
+  background: #f97316;
 }
 
 .text-muted {

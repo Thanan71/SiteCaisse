@@ -83,7 +83,7 @@ async function findUserById(id) {
   const supabase = getSupabase();
   const { data, error } = await supabase
     .from('users')
-    .select('id, nom, email, role, est_actif')
+    .select('id, nom, email, role, est_actif, date_fin')
     .eq('id', id)
     .single();
   if (error && error.code !== 'PGRST116') throw error;

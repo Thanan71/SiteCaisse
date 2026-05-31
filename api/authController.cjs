@@ -63,6 +63,16 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'Compte désactivé' });
     }
 
+    // Vérifier si l'utilisateur temporaire a une date de fin dépassée
+    if (user.role === 'temporaire' && user.date_fin) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const dateFin = new Date(user.date_fin + 'T00:00:00');
+      if (dateFin < today) {
+        return res.status(403).json({ error: 'Votre accès a expiré. Contactez un administrateur.' });
+      }
+    }
+
     const validPassword = bcrypt.compareSync(password, user.password_hash);
     if (!validPassword) {
       return res.status(401).json({ error: 'Email ou mot de passe incorrect' });
