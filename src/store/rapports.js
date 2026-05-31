@@ -5,7 +5,7 @@
  * au service utilitaire excelService.
  */
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import api from '../services/api'
 import { exportVentesToExcel } from '../services/excelService'
 
 export const useRapportsStore = defineStore('rapports', {
@@ -39,7 +39,7 @@ export const useRapportsStore = defineStore('rapports', {
       this.loadingAll = true
       this.error = null
       try {
-        const response = await axios.get('/api/rapports')
+        const response = await api.get('/api/rapports')
         this.allRapports = response.data.groupes
         this.totalGlobal = response.data.total
         this.totalAllParams = response.data.parametres || null
@@ -61,7 +61,7 @@ export const useRapportsStore = defineStore('rapports', {
       this.error = null
       this.selectedArtisanId = id
       try {
-        const response = await axios.get(`/api/rapports/${id}`)
+        const response = await api.get(`/api/rapports/${id}`)
         this.ventesArtisan = response.data.ventes
         this.summary = response.data.summary
       } catch (error) {

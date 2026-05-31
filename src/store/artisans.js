@@ -5,7 +5,7 @@
  * pour filtrer par rôle (permanent/temporaire).
  */
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import api from '../services/api'
 
 export const useArtisansStore = defineStore('artisans', {
   state: () => ({
@@ -52,7 +52,7 @@ export const useArtisansStore = defineStore('artisans', {
       this.loading = true
       this.error = null
       try {
-        const response = await axios.get('/api/rapports/artisans')
+        const response = await api.get('/api/rapports/artisans')
         this.artisans = response.data
       } catch (error) {
         this.error = error.response?.data?.error || 'Erreur lors du chargement des artisans'

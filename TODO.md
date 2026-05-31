@@ -96,10 +96,6 @@ User Action → Vue Component → Pinia Store → API Express → SQLite/Postgre
 ## Améliorations futures possibles
 - [ ] Pagination liste ventes
 - [ ] Filtres avancés (par date, par type paiement)
-- [ ] Modification vente (modal modifier)
-- [ ] Suppression vente
 - [ ] Statistiques graphiques
-- [ ] Notifications en temps réel
-- [ ] Export PDF
 - [ ] Mode hors-ligne
 - [ ] Test unitaires et E2E

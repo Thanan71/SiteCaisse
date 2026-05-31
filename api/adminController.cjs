@@ -9,7 +9,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { authMiddleware } = require('./authController.cjs');
 const { getSupabase } = require('./db.cjs');
-const { getAllParametres, updateParametre } = require('./models.cjs');
+const { getAllParametres, updateParametre } = require('./services/parametresService.cjs');
 
 const router = express.Router();
 

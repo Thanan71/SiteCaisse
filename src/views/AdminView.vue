@@ -203,7 +203,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import axios from 'axios'
+import api from '../services/api'
 
 // État du formulaire d'ajout
 const newUser = ref({
@@ -244,7 +244,7 @@ const minDate = computed(() => {
  */
 async function fetchParametres() {
   try {
-    const response = await axios.get('/api/admin/parametres')
+    const response = await api.get('/api/admin/parametres')
     const params = response.data
     commissionPermanent.value = params.commission_cb_permanent || ''
     commissionTemporaire.value = params.commission_cb_temporaire || ''
@@ -262,10 +262,10 @@ async function handleSaveCommissions() {
   commissionsSuccess.value = ''
 
   try {
-    await axios.put(`/api/admin/parametres/commission_cb_permanent`, {
+    await api.put(`/api/admin/parametres/commission_cb_permanent`, {
       valeur: commissionPermanent.value
     })
-    await axios.put(`/api/admin/parametres/commission_cb_temporaire`, {
+    await api.put(`/api/admin/parametres/commission_cb_temporaire`, {
       valeur: commissionTemporaire.value
     })
     commissionsSuccess.value = 'Commissions CB mises à jour avec succès !'
@@ -293,7 +293,7 @@ function onRoleChange() {
 async function fetchUsers() {
   try {
     loading.value = true
-    const response = await axios.get('/api/admin/users')
+    const response = await api.get('/api/admin/users')
     users.value = response.data
   } catch (err) {
     console.error('Erreur chargement utilisateurs:', err)
@@ -324,7 +324,7 @@ async function handleCreateUser() {
       payload.date_fin = newUser.value.date_fin
     }
 
-    await axios.post('/api/admin/users', payload)
+    await api.post('/api/admin/users', payload)
 
     createSuccess.value = `Utilisateur ${newUser.value.nom} créé avec succès !`
     newUser.value = { nom: '', email: '', password: '', role: '', date_fin: '' }
@@ -366,7 +366,7 @@ async function confirmDeleteUser() {
   deletingId.value = userToDelete.value.id
 
   try {
-    await axios.delete(`/api/admin/users/${userToDelete.value.id}`)
+    await api.delete(`/api/admin/users/${userToDelete.value.id}`)
     closeDeleteModal()
     await fetchUsers()
   } catch (err) {

@@ -4,7 +4,7 @@
  * Gère la connexion, la déconnexion et la vérification du token JWT.
  */
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import api from '../services/api'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -49,7 +49,7 @@ export const useAuthStore = defineStore('auth', {
      * @returns {Promise<Object>} Données de l'utilisateur connecté.
      */
     async login(email, password) {
-      const response = await axios.post('/api/auth/login', { email, password })
+      const response = await api.post('/api/auth/login', { email, password })
       const { token, user } = response.data
 
       this.token = token
@@ -68,7 +68,7 @@ export const useAuthStore = defineStore('auth', {
      */
     async fetchUser() {
       try {
-        const response = await axios.get('/api/auth/me')
+        const response = await api.get('/api/auth/me')
         this.user = response.data
         localStorage.setItem('user', JSON.stringify(this.user))
       } catch (error) {

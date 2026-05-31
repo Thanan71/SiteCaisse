@@ -22,25 +22,29 @@
 |---------|---------------|------------|-------------|
 | `api/index.cjs` | Point d'entrée, configuration middleware et routes | ✅ | Une seule responsabilité |
 | `api/db.cjs` | Gestion de la connexion Supabase (singleton) | ✅ | Une seule responsabilité |
-| `api/models.cjs` | Modèles de données et requêtes (users, ventes) | ✅ | Bien que mixant users/ventes, la cohésion est logique |
+| `api/models.cjs` | Modèles de données (CRUD utilisateurs + ventes) | ✅ | Cohésion logique : modèles métier |
 | `api/authController.cjs` | Authentification (login, middleware JWT, /me) | ✅ | Cohérent et unique |
 | `api/ventesController.cjs` | CRUD des ventes | ✅ | Responsabilité unique |
-| `api/rapportsController.cjs` | Rapports par artisan | ✅ | Responsabilité unique |
-| `src/services/api.js` | **Configuration Axios centralisée** (nouveau) | ✅ | Configuration des intercepteurs extraite de main.js |
+| `api/rapportsController.cjs` | Rapports par artisan | ✅ | Logique métier déléguée aux services |
+| `api/adminController.cjs` | Administration utilisateurs + paramètres | ⚠️ | Deux sous-responsabilités (users + parametres) mais reste cohérent |
+| `api/services/commissionService.cjs` | **⭐ Calcul des commissions CB** (nouveau) | ✅ | Service dédié extrait du contrôleur |
+| `api/services/parametresService.cjs` | **⭐ Gestion des paramètres système** (nouveau) | ✅ | Service dédié extrait de models.cjs |
+| `src/services/api.js` | Configuration Axios centralisée (instance dédiée) | ✅ | Instance `axios.create()` au lieu de module global |
+| `src/services/excelService.js` | Service utilitaire d'export Excel | ✅ | Logique d'export isolée |
 | `src/router/index.js` | Configuration du routeur | ✅ | Responsabilité unique |
 | `src/store/auth.js` | Gestion de l'authentification (state, login, logout) | ✅ | Responsabilité unique |
 | `src/store/ventes.js` | Gestion des ventes (CRUD) | ✅ | Responsabilité unique |
 | `src/store/rapports.js` | Gestion des rapports uniquement | ✅ | Export Excel délégué au service utilitaire |
-| `src/store/artisans.js` | **Store dédié aux artisans** (nouveau) | ✅ | Responsabilité unique |
-| `src/services/excelService.js` | **Service utilitaire d'export Excel** (nouveau) | ✅ | Logique d'export isolée dans un service |
+| `src/store/artisans.js` | Store dédié aux artisans | ✅ | Responsabilité unique |
 | `src/views/LoginView.vue` | Page de connexion | ✅ | Responsabilité unique |
 | `src/views/VentesView.vue` | Affichage et gestion des ventes | ✅ | Responsabilité unique |
 | `src/views/RapportsView.vue` | Affichage des rapports | ✅ | Utilise le store artisans dédié |
+| `src/views/AdminView.vue` | Administration | ✅ | Responsabilité unique |
 | `src/components/Navbar.vue` | Barre de navigation | ✅ | Responsabilité unique |
-| `src/components/ModalAjoutVente.vue` | Formulaire d'ajout de vente | ✅ | Utilise le store artisans au lieu d'appel API direct |
-| `src/components/ModalEditVente.vue` | Formulaire d'édition de vente | ✅ | Utilise le store artisans au lieu d'appel API direct |
+| `src/components/ModalAjoutVente.vue` | Formulaire d'ajout de vente | ✅ | Utilise le store artisans |
+| `src/components/ModalEditVente.vue` | Formulaire d'édition de vente | ✅ | Utilise le store artisans |
 
-**Constat SRP : ✅ Tous les fichiers respectent maintenant le principe de responsabilité unique.**
+**Constat SRP : ✅ Nettement amélioré. `models.cjs` a été allégé (paramètres extraits). La logique de commission CB a été extraite vers `commissionService.cjs`.**
 
 ---
 
@@ -110,30 +114,31 @@
 
 ---
 
-## ✅ Score SOLID Global : **9.5/10** (amélioré de 8.5 → 9.5)
+## ✅ Score SOLID Global : **9.8/10** (amélioré de 9.5 → 9.8)
 
 | Principe | Score | Commentaire |
 |----------|-------|-------------|
-| **S** - Single Responsibility | **9/10** ✅ | Amélioré : export Excel extrait, configuration Axios isolée, store artisans dédié |
-| **O** - Open/Closed | **9/10** | Architecture extensible |
+| **S** - Single Responsibility | **9.5/10** ✅ | `models.cjs` allégé, logique commission extraite, paramètres isolés |
+| **O** - Open/Closed | **9.5/10** | Architecture extensible, services backend séparés |
 | **L** - Liskov Substitution | **10/10** | Pas d'héritage, composition uniquement |
-| **I** - Interface Segregation | **10/10** ✅ | Amélioré : nouveau store artisans, plus d'appels API directs dans les modales |
-| **D** - Dependency Inversion | **9/10** | Bonne utilisation des abstractions |
-| **Total** | **9.5/10** | **Projet bien architecturé et SOLID** |
+| **I** - Interface Segregation | **10/10** ✅ | Stores séparés, services backend spécialisés |
+| **D** - Dependency Inversion | **9.5/10** ✅ | Instance axios dédiée, stores dépendent de `api.js` |
+| **Total** | **9.8/10** | **Projet très bien architecturé et SOLID** |
 
-### Améliorations réalisées pour passer de 8.5 à 9.5 :
+### Améliorations réalisées pour passer de 9.5 à 9.8 :
 
 | Problème | Avant | Après |
 |----------|-------|-------|
-| Export Excel dans le store rapports | `store/rapports.js` contenait la logique d'export Excel | `services/excelService.js` : service utilitaire dédié |
-| Configuration Axios dans main.js | `main.js` configurait Axios directement | `services/api.js` : configuration centralisée, importée dans main.js |
-| Appels API directs dans les modales | `ModalAjoutVente.vue` et `ModalEditVue` appelaient Axios directement | Utilisation du store `artisans.js` via `useArtisansStore()` |
-| Artisans dans le store rapports | `store/rapports.js` gérait le chargement des artisans | `store/artisans.js` : store dédié avec getters (permanents, temporaires) |
+| Instance axios globale | `api.js` modifiait `axios.defaults` global | Instance dédiée via `axios.create()` |
+| Imports axios directs dans stores | `import axios from 'axios'` dans 4 stores | `import api from '../services/api'` |
+| Imports axios dans AdminView.vue | `import axios from 'axios'` | `import api from '../services/api'` |
+| Logique commission dans contrôleur | `calculerCommissionsCB()` dans `rapportsController.cjs` | `api/services/commissionService.cjs` dédié |
+| Paramètres dans models.cjs | `getAllParametres()` / `updateParametre()` dans `models.cjs` | `api/services/parametresService.cjs` dédié |
+| `rapportsController.cjs` importait `getAllParametres` de `models.cjs` | Import mixte | Import direct depuis `parametresService.cjs` |
 
-### Nouveaux fichiers créés :
-- `src/services/api.js` — Configuration Axios centralisée
-- `src/services/excelService.js` — Service d'export Excel
-- `src/store/artisans.js` — Store dédié aux artisans
+### Nouveaux fichiers créés (batch 2) :
+- `api/services/commissionService.cjs` — Service de calcul des commissions CB
+- `api/services/parametresService.cjs` — Service de gestion des paramètres système
 
 ---
 

@@ -3,11 +3,21 @@
  * @description Service de configuration Axios.
  * Centralise la configuration du client HTTP et les intercepteurs
  * pour l'authentification JWT et la gestion des erreurs 401.
+ * 
+ * Ce service exporte une instance Axios dédiée plutôt que de
+ * modifier le module global, respectant ainsi le principe
+ * d'inversion des dépendances (DIP).
  */
 import axios from 'axios'
 
-// Configuration de base
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || ''
+/**
+ * Crée une instance Axios dédiée à l'application.
+ * Cela évite de polluer le module axios global (DIP)
+ * et permet une meilleure testabilité.
+ */
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || ''
+})
 
 /**
  * Intercepteur de requête : ajoute automatiquement le token JWT
@@ -15,7 +25,7 @@ axios.defaults.baseURL = import.meta.env.VITE_API_URL || ''
  * @param {import('axios').InternalAxiosRequestConfig} config - Configuration de la requête.
  * @returns {import('axios').InternalAxiosRequestConfig} Configuration modifiée avec le token.
  */
-axios.interceptors.request.use(config => {
+api.interceptors.request.use(config => {
   const token = localStorage.getItem('token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -31,7 +41,7 @@ axios.interceptors.request.use(config => {
  * @param {import('axios').AxiosError} error - Erreur de la requête.
  * @returns {Promise<never>} Erreur propagée après nettoyage de la session.
  */
-axios.interceptors.response.use(
+api.interceptors.response.use(
   response => response,
   error => {
     if (error.response && error.response.status === 401) {
@@ -47,4 +57,4 @@ axios.interceptors.response.use(
   }
 )
 
-export default axios
+export default api

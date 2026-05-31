@@ -5,7 +5,7 @@
  * avec gestion des états de chargement et d'erreur.
  */
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import api from '../services/api'
 
 export const useVentesStore = defineStore('ventes', {
   state: () => ({
@@ -35,7 +35,7 @@ export const useVentesStore = defineStore('ventes', {
       this.loading = true
       this.error = null
       try {
-        const response = await axios.get('/api/ventes')
+        const response = await api.get('/api/ventes')
         this.ventes = response.data
       } catch (error) {
         this.error = error.response?.data?.error || 'Erreur lors du chargement des ventes'
@@ -60,7 +60,7 @@ export const useVentesStore = defineStore('ventes', {
       this.loading = true
       this.error = null
       try {
-        await axios.post('/api/ventes', data)
+        await api.post('/api/ventes', data)
         await this.fetchVentes()
       } catch (error) {
         this.error = error.response?.data?.error || "Erreur lors de l'ajout de la vente"
@@ -80,7 +80,7 @@ export const useVentesStore = defineStore('ventes', {
       this.loading = true
       this.error = null
       try {
-        await axios.put(`/api/ventes/${id}`, data)
+        await api.put(`/api/ventes/${id}`, data)
         await this.fetchVentes()
       } catch (error) {
         this.error = error.response?.data?.error || 'Erreur lors de la modification'
@@ -99,7 +99,7 @@ export const useVentesStore = defineStore('ventes', {
       this.loading = true
       this.error = null
       try {
-        await axios.delete(`/api/ventes/${id}`)
+        await api.delete(`/api/ventes/${id}`)
         await this.fetchVentes()
       } catch (error) {
         this.error = error.response?.data?.error || 'Erreur lors de la suppression'

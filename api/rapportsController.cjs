@@ -6,28 +6,14 @@
  * Toutes les routes sont protégées par le middleware d'authentification JWT.
  */
 const express = require('express');
-const { getAllArtisans, getVentesByArtisan, getAllVentesGroupedByArtisan, getAllParametres } = require('./models.cjs');
+const { getAllArtisans, getVentesByArtisan, getAllVentesGroupedByArtisan } = require('./models.cjs');
 const { authMiddleware } = require('./authController.cjs');
+const { ajouterCommissionsAuxGroupes, ajouterCommissionAUnArtisan } = require('./services/commissionService.cjs');
+const { getAllParametres } = require('./services/parametresService.cjs');
 
 const router = express.Router();
 
 router.use(authMiddleware);
-
-/**
- * Calcule les commissions CB pour un groupe de ventes.
- * @param {Array} ventes - Les ventes d'un artisan.
- * @param {number} tauxCommission - Le taux de commission en pourcentage.
- * @returns {{total_cb: number, commission_cb: number}}
- */
-function calculerCommissionsCB(ventes, tauxCommission) {
-  const totalCB = ventes
-    .filter(v => v.type_paiement === 'CB')
-    .reduce((sum, v) => sum + (v.prix || 0) * (v.quantite || 0), 0);
-  
-  const commission = totalCB * (tauxCommission / 100);
-  
-  return { total_cb: totalCB, commission_cb: Math.round(commission * 100) / 100 };
-}
 
 /**
  * Récupère les ventes de tous les artisans groupées par artisan.
@@ -44,36 +30,16 @@ router.get('/', async (req, res) => {
     const tauxPermanent = parseFloat(parametres.commission_cb_permanent) || 0;
     const tauxTemporaire = parseFloat(parametres.commission_cb_temporaire) || 0;
 
-    let totalGlobalCB = 0;
-    let totalGlobalCommission = 0;
-
-    // Ajouter les commissions CB pour chaque groupe
-    const groupesAvecCommissions = data.groupes.map(g => {
-      // Déterminer le taux selon le rôle (on prend le rôle de la première vente)
-      const role = g.ventes[0]?.artisan_role || 'permanent';
-      const taux = role === 'temporaire' ? tauxTemporaire : tauxPermanent;
-      
-      const cb = calculerCommissionsCB(g.ventes, taux);
-      totalGlobalCB += cb.total_cb;
-      totalGlobalCommission += cb.commission_cb;
-
-      return {
-        ...g,
-        summary: {
-          ...g.summary,
-          total_cb: cb.total_cb,
-          commission_cb: cb.commission_cb,
-          taux_commission: taux
-        }
-      };
-    });
+    // Déléguer le calcul des commissions au service dédié (SRP)
+    const { groupesAvecCommissions, totalGlobalCB, totalGlobalCommission } = 
+      ajouterCommissionsAuxGroupes(data.groupes, tauxPermanent, tauxTemporaire);
 
     res.json({
       groupes: groupesAvecCommissions,
       total: {
         ...data.total,
         total_cb: totalGlobalCB,
-        total_commission: Math.round(totalGlobalCommission * 100) / 100
+        total_commission: totalGlobalCommission
       },
       parametres: {
         commission_cb_permanent: tauxPermanent,
@@ -121,23 +87,16 @@ router.get('/:artisan_id', async (req, res) => {
       getAllParametres()
     ]);
 
+    const tauxPermanent = parseFloat(parametres.commission_cb_permanent) || 0;
+    const tauxTemporaire = parseFloat(parametres.commission_cb_temporaire) || 0;
+
     // Déterminer le rôle de l'artisan depuis les ventes
     const role = data.ventes[0]?.artisan_role || 'permanent';
-    const taux = role === 'temporaire' 
-      ? parseFloat(parametres.commission_cb_temporaire) 
-      : parseFloat(parametres.commission_cb_permanent);
-    
-    const cb = calculerCommissionsCB(data.ventes, taux || 0);
 
-    res.json({
-      ...data,
-      summary: {
-        ...data.summary,
-        total_cb: cb.total_cb,
-        commission_cb: cb.commission_cb,
-        taux_commission: taux || 0
-      }
-    });
+    // Déléguer le calcul des commissions au service dédié (SRP)
+    const resultat = ajouterCommissionAUnArtisan(data, role, tauxPermanent, tauxTemporaire);
+
+    res.json(resultat);
   } catch (err) {
     console.error('GET rapport artisan error:', err);
     res.status(500).json({ error: 'Erreur serveur' });
