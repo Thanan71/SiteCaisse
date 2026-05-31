@@ -188,6 +188,68 @@ async function getVentesByArtisan(artisan_id) {
 }
 
 /**
+ * Récupère les ventes de tous les artisans groupées par artisan, avec un résumé global.
+ * @returns {Promise<{groupes: Array, total: {total_articles: number, total_montant: number}}>}
+ * Un objet contenant un tableau de groupes (un par artisan ayant des ventes) et un résumé global.
+ */
+async function getAllVentesGroupedByArtisan() {
+  const supabase = getSupabase();
+  const { data: ventes, error: ventesError } = await supabase
+    .from('ventes')
+    .select(`
+      *,
+      artisan:artisan_id (nom),
+      vendeur:vendeur_id (nom)
+    `)
+    .order('date_vente', { ascending: false })
+    .order('id', { ascending: false });
+  if (ventesError) throw ventesError;
+
+  const formattedVentes = (ventes || []).map(v => ({
+    ...v,
+    artisan_nom: v.artisan?.nom || null,
+    vendeur_nom: v.vendeur?.nom || null,
+    artisan: undefined,
+    vendeur: undefined
+  }));
+
+  // Grouper par artisan_id
+  const grouped = {};
+  for (const vente of formattedVentes) {
+    const key = vente.artisan_id;
+    if (!grouped[key]) {
+      grouped[key] = {
+        artisan_id: vente.artisan_id,
+        artisan_nom: vente.artisan_nom,
+        ventes: []
+      };
+    }
+    grouped[key].ventes.push(vente);
+  }
+
+  // Construire le tableau de groupes avec le résumé par artisan
+  const groupes = Object.values(grouped).map(g => {
+    const total_articles = g.ventes.reduce((sum, v) => sum + (v.quantite || 0), 0);
+    const total_montant = g.ventes.reduce((sum, v) => sum + ((v.prix || 0) * (v.quantite || 0)), 0);
+    return {
+      artisan_id: g.artisan_id,
+      artisan_nom: g.artisan_nom,
+      ventes: g.ventes,
+      summary: { total_articles, total_montant }
+    };
+  });
+
+  // Trier les groupes par nom d'artisan
+  groupes.sort((a, b) => (a.artisan_nom || '').localeCompare(b.artisan_nom || ''));
+
+  // Résumé global
+  const total_articles = groupes.reduce((sum, g) => sum + g.summary.total_articles, 0);
+  const total_montant = groupes.reduce((sum, g) => sum + g.summary.total_montant, 0);
+
+  return { groupes, total: { total_articles, total_montant } };
+}
+
+/**
  * Met à jour une vente existante avec les champs fournis.
  * Seuls les champs autorisés sont appliqués.
  * @param {number} id - ID de la vente à modifier.
@@ -280,6 +342,7 @@ module.exports = {
   createVente,
   getAllVentes,
   getVentesByArtisan,
+  getAllVentesGroupedByArtisan,
   updateVente,
   deleteVente
 };

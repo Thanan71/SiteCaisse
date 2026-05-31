@@ -19,10 +19,35 @@ export const useRapportsStore = defineStore('rapports', {
     /** @property {boolean} loading - Indicateur de chargement. */
     loading: false,
     /** @property {string|null} error - Message d'erreur éventuel. */
-    error: null
+    error: null,
+    /** @property {Array} allRapports - Tous les rapports groupés par artisan (quand aucun filtre). */
+    allRapports: [],
+    /** @property {Object} totalGlobal - Résumé global de tous les artisans. */
+    totalGlobal: { total_articles: 0, total_montant: 0 },
+    /** @property {boolean} loadingAll - Indicateur de chargement pour tous les rapports. */
+    loadingAll: false
   }),
 
   actions: {
+    /**
+     * Récupère les ventes de tous les artisans groupées par artisan.
+     * @returns {Promise<void>}
+     */
+    async fetchAllRapports() {
+      this.loadingAll = true
+      this.error = null
+      try {
+        const response = await axios.get('/api/rapports')
+        this.allRapports = response.data.groupes
+        this.totalGlobal = response.data.total
+      } catch (error) {
+        this.error = error.response?.data?.error || 'Erreur lors du chargement des rapports'
+        throw error
+      } finally {
+        this.loadingAll = false
+      }
+    },
+
     /**
      * Récupère les ventes d'un artisan spécifique et met à jour le résumé.
      * @param {number} id - ID de l'artisan dont on veut les ventes.

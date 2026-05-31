@@ -6,12 +6,27 @@
  * Toutes les routes sont protégées par le middleware d'authentification JWT.
  */
 const express = require('express');
-const { getAllArtisans, getVentesByArtisan } = require('./models.cjs');
+const { getAllArtisans, getVentesByArtisan, getAllVentesGroupedByArtisan } = require('./models.cjs');
 const { authMiddleware } = require('./authController.cjs');
 
 const router = express.Router();
 
 router.use(authMiddleware);
+
+/**
+ * Récupère les ventes de tous les artisans groupées par artisan.
+ * @route GET /api/rapports
+ * @returns {Object} Groupes de ventes par artisan avec résumé global.
+ */
+router.get('/', async (req, res) => {
+  try {
+    const data = await getAllVentesGroupedByArtisan();
+    res.json(data);
+  } catch (err) {
+    console.error('GET all rapports error:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
 
 /**
  * Récupère la liste de tous les artisans actifs pour le menu déroulant.

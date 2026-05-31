@@ -13,7 +13,7 @@
         <select
           id="artisan-select"
           v-model="selectedArtisanId"
-          @change="loadVentes"
+          @change="onArtisanChange"
           class="artisan-select"
         >
           <option value="">-- Choisir un artisan --</option>
@@ -39,66 +39,145 @@
       </div>
     </div>
 
-    <div v-if="!selectedArtisanId" class="empty-state">
-      <div class="empty-icon">📊</div>
-      <h3>Sélectionnez un artisan</h3>
-      <p>Choisissez un artisan dans la liste ci-dessus pour voir son rapport</p>
-    </div>
-
-    <div v-else-if="rapportsStore.loading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Chargement du rapport...</p>
-    </div>
-
-    <div v-else-if="!rapportsStore.ventesArtisan.length" class="empty-state">
-      <div class="empty-icon">📭</div>
-      <h3>Aucune vente</h3>
-      <p>Cet artisan n'a pas encore de ventes enregistrées</p>
-    </div>
-
-    <div v-else>
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Article</th>
-              <th>Quantité</th>
-              <th>Prix unitaire</th>
-              <th>Total</th>
-              <th>Paiement</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="vente in rapportsStore.ventesArtisan" :key="vente.id">
-              <td>{{ formatDate(vente.date_vente) }}</td>
-              <td class="article-name">{{ vente.article }}</td>
-              <td class="text-center">{{ vente.quantite }}</td>
-              <td class="text-right">{{ formatPrice(vente.prix) }}</td>
-              <td class="text-right total-price">{{ formatPrice(vente.prix * vente.quantite) }}</td>
-              <td>
-                <span class="payment-badge" :class="'payment-' + vente.type_paiement.toLowerCase()">
-                  {{ getPaymentLabel(vente.type_paiement) }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-          <tfoot>
-            <tr class="summary-row">
-              <td colspan="2"><strong>TOTAL</strong></td>
-              <td class="text-center"><strong>{{ rapportsStore.summary.total_articles }}</strong></td>
-              <td></td>
-              <td class="text-right"><strong class="total-sum">{{ formatPrice(rapportsStore.summary.total_montant) }}</strong></td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
+    <!-- Mode : Tous les artisans -->
+    <div v-if="!selectedArtisanId">
+      <div v-if="rapportsStore.loadingAll" class="loading-state">
+        <div class="spinner"></div>
+        <p>Chargement des rapports...</p>
       </div>
 
-      <div class="export-section">
-        <button class="btn btn-success" @click="rapportsStore.exportToExcel(artisansStore.artisans)">
-          📥 Télécharger en Excel
-        </button>
+      <div v-else-if="!rapportsStore.allRapports.length" class="empty-state">
+        <div class="empty-icon">📊</div>
+        <h3>Sélectionnez un artisan</h3>
+        <p>Choisissez un artisan dans la liste ci-dessus pour voir son rapport</p>
+      </div>
+
+      <div v-else>
+        <div
+          v-for="groupe in rapportsStore.allRapports"
+          :key="'groupe-' + groupe.artisan_id"
+          class="artisan-rapport-block"
+        >
+          <h2 class="artisan-rapport-title">{{ groupe.artisan_nom }}</h2>
+          <div class="table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Article</th>
+                  <th>Quantité</th>
+                  <th>Prix unitaire</th>
+                  <th>Total</th>
+                  <th>Paiement</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="vente in groupe.ventes" :key="vente.id">
+                  <td>{{ formatDate(vente.date_vente) }}</td>
+                  <td class="article-name">{{ vente.article }}</td>
+                  <td class="text-center">{{ vente.quantite }}</td>
+                  <td class="text-right">{{ formatPrice(vente.prix) }}</td>
+                  <td class="text-right total-price">{{ formatPrice(vente.prix * vente.quantite) }}</td>
+                  <td>
+                    <span class="payment-badge" :class="'payment-' + vente.type_paiement.toLowerCase()">
+                      {{ getPaymentLabel(vente.type_paiement) }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="summary-row">
+                  <td colspan="2"><strong>TOTAL {{ groupe.artisan_nom.toUpperCase() }}</strong></td>
+                  <td class="text-center"><strong>{{ groupe.summary.total_articles }}</strong></td>
+                  <td></td>
+                  <td class="text-right"><strong class="total-sum">{{ formatPrice(groupe.summary.total_montant) }}</strong></td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+
+        <!-- Résumé global -->
+        <div class="global-summary-card">
+          <h3>Résumé global</h3>
+          <div class="global-summary-stats">
+            <div class="stat">
+              <span class="stat-label">Total articles</span>
+              <span class="stat-value">{{ rapportsStore.totalGlobal.total_articles }}</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Total montant</span>
+              <span class="stat-value stat-value-amount">{{ formatPrice(rapportsStore.totalGlobal.total_montant) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="export-section">
+          <button class="btn btn-success" @click="exportAllToExcel">
+            📥 Télécharger tout en Excel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mode : Artisan spécifique -->
+    <div v-else>
+      <div v-if="rapportsStore.loading" class="loading-state">
+        <div class="spinner"></div>
+        <p>Chargement du rapport...</p>
+      </div>
+
+      <div v-else-if="!rapportsStore.ventesArtisan.length" class="empty-state">
+        <div class="empty-icon">📭</div>
+        <h3>Aucune vente</h3>
+        <p>Cet artisan n'a pas encore de ventes enregistrées</p>
+      </div>
+
+      <div v-else>
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Article</th>
+                <th>Quantité</th>
+                <th>Prix unitaire</th>
+                <th>Total</th>
+                <th>Paiement</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="vente in rapportsStore.ventesArtisan" :key="vente.id">
+                <td>{{ formatDate(vente.date_vente) }}</td>
+                <td class="article-name">{{ vente.article }}</td>
+                <td class="text-center">{{ vente.quantite }}</td>
+                <td class="text-right">{{ formatPrice(vente.prix) }}</td>
+                <td class="text-right total-price">{{ formatPrice(vente.prix * vente.quantite) }}</td>
+                <td>
+                  <span class="payment-badge" :class="'payment-' + vente.type_paiement.toLowerCase()">
+                    {{ getPaymentLabel(vente.type_paiement) }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr class="summary-row">
+                <td colspan="2"><strong>TOTAL</strong></td>
+                <td class="text-center"><strong>{{ rapportsStore.summary.total_articles }}</strong></td>
+                <td></td>
+                <td class="text-right"><strong class="total-sum">{{ formatPrice(rapportsStore.summary.total_montant) }}</strong></td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        <div class="export-section">
+          <button class="btn btn-success" @click="rapportsStore.exportToExcel(artisansStore.artisans)">
+            📥 Télécharger en Excel
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -108,6 +187,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRapportsStore } from '../store/rapports'
 import { useArtisansStore } from '../store/artisans'
+import { exportVentesToExcel } from '../services/excelService'
 
 const rapportsStore = useRapportsStore()
 const artisansStore = useArtisansStore()
@@ -118,12 +198,18 @@ const temporaires = computed(() => artisansStore.temporaires)
 
 onMounted(() => {
   artisansStore.fetchArtisans()
+  rapportsStore.fetchAllRapports()
 })
 
-function loadVentes() {
+function onArtisanChange() {
   if (selectedArtisanId.value) {
     rapportsStore.fetchVentesByArtisan(selectedArtisanId.value)
   }
+}
+
+function exportAllToExcel() {
+  const allVentes = rapportsStore.allRapports.flatMap(g => g.ventes)
+  exportVentesToExcel(allVentes, artisansStore.artisans || [], null, rapportsStore.totalGlobal)
 }
 
 function formatDate(dateStr) {
@@ -249,6 +335,19 @@ function getPaymentLabel(type) {
   margin: 0;
 }
 
+/* Blocs par artisan */
+.artisan-rapport-block {
+  margin-bottom: 32px;
+}
+
+.artisan-rapport-title {
+  font-size: 1.15rem;
+  color: #1e293b;
+  margin: 0 0 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
 .table-container {
   background: white;
   border-radius: 12px;
@@ -348,5 +447,48 @@ tfoot td {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+/* Carte résumé global */
+.global-summary-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 24px;
+  border: 2px solid #4f46e5;
+}
+
+.global-summary-card h3 {
+  margin: 0 0 16px;
+  font-size: 1.1rem;
+  color: #1e293b;
+}
+
+.global-summary-stats {
+  display: flex;
+  gap: 40px;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.stat-value-amount {
+  color: #059669;
 }
 </style>
