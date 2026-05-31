@@ -1,6 +1,6 @@
 <template>
   <div v-if="show" class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-card">
+    <div class="modal-card modal-card-wide">
       <div class="modal-header">
         <h2>Ajouter une vente</h2>
         <button class="btn-close" @click="$emit('close')">&times;</button>
@@ -34,49 +34,72 @@
         </div>
 
         <div class="form-group">
-          <label for="article">Nom de l'article</label>
-          <input
-            id="article"
-            v-model="form.article"
-            type="text"
-            placeholder="Ex: Pot en céramique"
-            required
-          />
+          <label for="paiement">Type de paiement</label>
+          <select id="paiement" v-model="form.type_paiement" required>
+            <option value="" disabled>Choisir</option>
+            <option value="CB">Carte Bancaire</option>
+            <option value="Espece">Espèce</option>
+            <option value="Cheque">Chèque</option>
+          </select>
         </div>
 
-        <div class="form-row">
-          <div class="form-group">
-            <label for="quantite">Quantité</label>
-            <input
-              id="quantite"
-              v-model.number="form.quantite"
-              type="number"
-              min="1"
-              required
-            />
-          </div>
+        <div class="section-title">
+          <h3>Articles</h3>
+          <button type="button" class="btn btn-sm btn-secondary" @click="addArticle">
+            + Ajouter un article
+          </button>
+        </div>
 
-          <div class="form-group">
-            <label for="prix">Prix (€)</label>
-            <input
-              id="prix"
-              v-model.number="form.prix"
-              type="number"
-              step="0.01"
-              min="0"
-              placeholder="0.00"
-              required
-            />
+        <div
+          v-for="(article, index) in form.articles"
+          :key="index"
+          class="article-row"
+          :class="{ 'article-highlight': index === form.articles.length - 1 && form.articles.length > 1 }"
+        >
+          <div class="article-header" v-if="form.articles.length > 1">
+            <span class="article-number">Article n°{{ index + 1 }}</span>
+            <button
+              type="button"
+              class="btn-icon-remove"
+              @click="removeArticle(index)"
+              title="Supprimer cet article"
+            >
+              &times;
+            </button>
           </div>
-
-          <div class="form-group">
-            <label for="paiement">Type de paiement</label>
-            <select id="paiement" v-model="form.type_paiement" required>
-              <option value="" disabled>Choisir</option>
-              <option value="CB">Carte Bancaire</option>
-              <option value="Espece">Espèce</option>
-              <option value="Cheque">Chèque</option>
-            </select>
+          <div class="form-row article-fields">
+            <div class="form-group form-group-article">
+              <label :for="'article-name-' + index">Nom de l'article</label>
+              <input
+                :id="'article-name-' + index"
+                v-model="article.article"
+                type="text"
+                placeholder="Ex: Pot en céramique"
+                required
+              />
+            </div>
+            <div class="form-group form-group-qty">
+              <label :for="'article-qty-' + index">Qté</label>
+              <input
+                :id="'article-qty-' + index"
+                v-model.number="article.quantite"
+                type="number"
+                min="1"
+                required
+              />
+            </div>
+            <div class="form-group form-group-price">
+              <label :for="'article-price-' + index">Prix (€)</label>
+              <input
+                :id="'article-price-' + index"
+                v-model.number="article.prix"
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                required
+              />
+            </div>
           </div>
         </div>
 
@@ -114,13 +137,17 @@ const artisans = computed(() => artisansStore.artisans)
 const loading = ref(false)
 const error = ref(null)
 
-const form = reactive({
-  date_vente: new Date().toISOString().split('T')[0],
+const emptyArticle = () => ({
   article: '',
   quantite: 1,
+  prix: ''
+})
+
+const form = reactive({
+  date_vente: new Date().toISOString().split('T')[0],
   artisan_id: '',
-  prix: '',
-  type_paiement: ''
+  type_paiement: '',
+  articles: [{ ...emptyArticle() }]
 })
 
 // Charger les artisans quand le modal s'ouvre
@@ -136,24 +163,37 @@ watch(() => props.show, async (newVal) => {
   } else {
     // Réinitialiser le formulaire
     form.date_vente = new Date().toISOString().split('T')[0]
-    form.article = ''
-    form.quantite = 1
     form.artisan_id = ''
-    form.prix = ''
     form.type_paiement = ''
+    form.articles = [{ ...emptyArticle() }]
     error.value = null
   }
 })
+
+function addArticle() {
+  form.articles.push({ ...emptyArticle() })
+}
+
+function removeArticle(index) {
+  if (form.articles.length > 1) {
+    form.articles.splice(index, 1)
+  }
+}
 
 async function handleSubmit() {
   loading.value = true
   error.value = null
 
   try {
+    // Construire les données pour l'API
+    const articlesData = form.articles.map(a => ({
+      article: a.article,
+      quantite: a.quantite || 1,
+      prix: parseFloat(a.prix)
+    }))
+
     await ventesStore.addVente({
-      article: form.article,
-      quantite: form.quantite,
-      prix: parseFloat(form.prix),
+      articles: articlesData,
       type_paiement: form.type_paiement,
       artisan_id: form.artisan_id,
       date_vente: form.date_vente
@@ -186,6 +226,10 @@ async function handleSubmit() {
   max-width: 580px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   animation: slideIn 0.2s ease-out;
+}
+
+.modal-card-wide {
+  max-width: 680px;
 }
 
 @keyframes slideIn {
@@ -274,6 +318,129 @@ async function handleSubmit() {
   border-radius: 8px;
   font-size: 0.85rem;
   margin-bottom: 16px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 20px 0 12px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.section-title h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #1e293b;
+}
+
+.article-row {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  transition: border-color 0.2s;
+}
+
+.article-highlight {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.article-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.article-number {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.btn-icon-remove {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.btn-icon-remove:hover {
+  opacity: 1;
+}
+
+.article-fields {
+  grid-template-columns: 1fr 80px 110px;
+}
+
+.form-group-article {
+  margin-bottom: 0;
+}
+
+.form-group-qty,
+.form-group-price {
+  margin-bottom: 0;
+}
+
+.btn-sm {
+  font-size: 0.8rem;
+  padding: 6px 12px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: #4f46e5;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #4338ca;
+}
+
+.btn-primary:disabled {
+  background: #a5b4fc;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.btn-secondary:hover {
+  background: #e2e8f0;
 }
 
 .modal-actions {

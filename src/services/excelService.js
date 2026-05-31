@@ -8,7 +8,7 @@ import { saveAs } from 'file-saver'
 
 /**
  * Exporte un tableau de ventes au format Excel (pour un artisan spécifique).
- * @param {Array} ventes - Liste des ventes à exporter.
+ * @param {Array} ventes - Liste des ventes à exporter (avec articles[] imbriqué).
  * @param {Array} artisans - Liste des artisans (pour trouver le nom).
  * @param {number} artisanId - ID de l'artisan sélectionné.
  * @param {Object} summary - Résumé des ventes { total_articles, total_montant, total_cb, commission_cb, taux_commission }.
@@ -124,20 +124,27 @@ export function exportAllRapportsToExcel(groupes, total, parametres) {
 
 /**
  * Construit une worksheet (feuille) à partir d'un tableau de ventes et d'un résumé.
- * @param {Array} ventes - Liste des ventes.
+ * @param {Array} ventes - Liste des ventes (avec articles[] imbriqué).
  * @param {Object} summary - Résumé { total_articles, total_montant, total_cb, commission_cb, taux_commission }.
  * @returns {Object} Worksheet XLSX.
  */
 function buildWorksheet(ventes, summary) {
-  const data = ventes.map(v => ({
-    'Date': v.date_vente,
-    'Article': v.article,
-    'Quantité': v.quantite,
-    'Prix unitaire (€)': v.prix,
-    'Total (€)': (v.prix * v.quantite).toFixed(2),
-    'Type de paiement': formatPaymentForExcel(v.type_paiement),
-    'Vendu par': v.vendeur_nom
-  }))
+  // Aplatir les ventes avec leurs articles en lignes individuelles
+  const data = []
+  for (const v of ventes) {
+    const articles = v.articles || [{ article: v.article, quantite: v.quantite, prix: v.prix }]
+    for (const art of articles) {
+      data.push({
+        'Date': v.date_vente,
+        'Article': art.article,
+        'Quantité': art.quantite,
+        'Prix unitaire (€)': art.prix,
+        'Total (€)': (art.prix * art.quantite).toFixed(2),
+        'Type de paiement': formatPaymentForExcel(v.type_paiement),
+        'Vendu par': v.vendeur_nom
+      })
+    }
+  }
 
   // Ajouter la ligne de résumé
   data.push({

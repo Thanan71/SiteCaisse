@@ -64,20 +64,23 @@
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Article</th>
-                  <th>Quantité</th>
-                  <th>Prix unitaire</th>
-                  <th>Total</th>
+                  <th>Articles</th>
+                  <th>Total Qté</th>
+                  <th>Montant total</th>
                   <th>Paiement</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="vente in groupe.ventes" :key="vente.id">
                   <td>{{ formatDate(vente.date_vente) }}</td>
-                  <td class="article-name">{{ vente.article }}</td>
-                  <td class="text-center">{{ vente.quantite }}</td>
-                  <td class="text-right">{{ formatPrice(vente.prix) }}</td>
-                  <td class="text-right total-price">{{ formatPrice(vente.prix * vente.quantite) }}</td>
+                  <td class="articles-cell">
+                    <div v-for="art in vente.articles" :key="art.id" class="article-line">
+                      <span class="article-name-sm">{{ art.article }} × {{ art.quantite }} &nbsp;</span>
+                      <span class="article-subtotal-sm">{{ formatPrice(art.prix * art.quantite) }}</span>
+                    </div>
+                  </td>
+                  <td class="text-center">{{ vente.total_articles }}</td>
+                  <td class="text-right total-price">{{ formatPrice(vente.total_montant) }}</td>
                   <td>
                     <span class="payment-badge" :class="'payment-' + vente.type_paiement.toLowerCase()">
                       {{ getPaymentLabel(vente.type_paiement) }}
@@ -89,13 +92,12 @@
                 <tr class="summary-row">
                   <td colspan="2"><strong>TOTAL {{ groupe.artisan_nom.toUpperCase() }}</strong></td>
                   <td class="text-center"><strong>{{ groupe.summary.total_articles }}</strong></td>
-                  <td></td>
                   <td class="text-right"><strong class="total-sum">{{ formatPrice(groupe.summary.total_montant) }}</strong></td>
                   <td></td>
                 </tr>
                 <!-- Ligne commission CB -->
                 <tr v-if="groupe.summary.commission_cb > 0" class="commission-row">
-                  <td colspan="5" class="text-right">
+                  <td colspan="4" class="text-right">
                     <span class="commission-label">
                       Commission CB ({{ groupe.summary.taux_commission }}% sur {{ formatPrice(groupe.summary.total_cb) }})
                     </span>
@@ -164,20 +166,23 @@
             <thead>
               <tr>
                 <th>Date</th>
-                <th>Article</th>
-                <th>Quantité</th>
-                <th>Prix unitaire</th>
-                <th>Total</th>
+                <th>Articles</th>
+                <th>Total Qté</th>
+                <th>Montant total</th>
                 <th>Paiement</th>
               </tr>
             </thead>
-            <tbody>
+              <tbody>
               <tr v-for="vente in rapportsStore.ventesArtisan" :key="vente.id">
                 <td>{{ formatDate(vente.date_vente) }}</td>
-                <td class="article-name">{{ vente.article }}</td>
-                <td class="text-center">{{ vente.quantite }}</td>
-                <td class="text-right">{{ formatPrice(vente.prix) }}</td>
-                <td class="text-right total-price">{{ formatPrice(vente.prix * vente.quantite) }}</td>
+                <td class="articles-cell">
+                  <div v-for="art in vente.articles" :key="art.id" class="article-line">
+                    <span class="article-name-sm">{{ art.article }} × {{ art.quantite }} &nbsp;</span>
+                    <span class="article-subtotal-sm">{{ formatPrice(art.prix * art.quantite) }}</span>
+                  </div>
+                </td>
+                <td class="text-center">{{ vente.total_articles }}</td>
+                <td class="text-right total-price">{{ formatPrice(vente.total_montant) }}</td>
                 <td>
                   <span class="payment-badge" :class="'payment-' + vente.type_paiement.toLowerCase()">
                     {{ getPaymentLabel(vente.type_paiement) }}
@@ -189,13 +194,12 @@
               <tr class="summary-row">
                 <td colspan="2"><strong>TOTAL</strong></td>
                 <td class="text-center"><strong>{{ rapportsStore.summary.total_articles }}</strong></td>
-                <td></td>
                 <td class="text-right"><strong class="total-sum">{{ formatPrice(rapportsStore.summary.total_montant) }}</strong></td>
                 <td></td>
               </tr>
               <!-- Ligne commission CB -->
               <tr v-if="rapportsStore.summary.commission_cb > 0" class="commission-row">
-                <td colspan="5" class="text-right">
+                <td colspan="4" class="text-right">
                   <span class="commission-label">
                     Commission CB ({{ rapportsStore.summary.taux_commission }}% sur {{ formatPrice(rapportsStore.summary.total_cb) }})
                   </span>

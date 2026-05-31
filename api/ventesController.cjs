@@ -29,11 +29,9 @@ router.get('/', async (req, res) => {
 });
 
 /**
- * Crée une nouvelle vente.
+ * Crée une nouvelle vente avec un ou plusieurs articles.
  * @route POST /api/ventes
- * @param {string} req.body.article - Nom de l'article vendu (requis).
- * @param {number} [req.body.quantite=1] - Quantité vendue.
- * @param {number} req.body.prix - Prix unitaire de l'article (requis).
+ * @param {Array<{article: string, quantite: number, prix: number}>} req.body.articles - Liste des articles vendus (requis, minimum 1).
  * @param {string} req.body.type_paiement - Type de paiement, doit être 'CB', 'Espece' ou 'Cheque' (requis).
  * @param {number} req.body.artisan_id - ID de l'artisan concerné (requis).
  * @param {string} req.body.date_vente - Date de la vente au format ISO (requis).
@@ -42,11 +40,17 @@ router.get('/', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { article, quantite, prix, type_paiement, artisan_id, date_vente } = req.body;
+    const { articles, type_paiement, artisan_id, date_vente } = req.body;
 
-    if (!article || !prix || !type_paiement || !artisan_id || !date_vente) {
+    if (!articles || !Array.isArray(articles) || articles.length === 0) {
       return res.status(400).json({
-        error: 'Champs requis : article, prix, type_paiement, artisan_id, date_vente'
+        error: 'Au moins un article est requis'
+      });
+    }
+
+    if (!type_paiement || !artisan_id || !date_vente) {
+      return res.status(400).json({
+        error: 'Champs requis : articles, type_paiement, artisan_id, date_vente'
       });
     }
 
@@ -55,10 +59,23 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Type de paiement invalide (CB, Espece, Cheque)' });
     }
 
-    const vendeur_id = req.user.id;
-    const qte = quantite || 1;
+    // Valider chaque article
+    for (const [index, article] of articles.entries()) {
+      if (!article.article || !article.prix) {
+        return res.status(400).json({
+          error: `Article ${index + 1} : le nom et le prix sont requis`
+        });
+      }
+      if (article.prix <= 0) {
+        return res.status(400).json({
+          error: `Article ${index + 1} : le prix doit être supérieur à 0`
+        });
+      }
+    }
 
-    const id = await createVente(article, qte, prix, type_paiement, artisan_id, vendeur_id, date_vente);
+    const vendeur_id = req.user.id;
+
+    const id = await createVente(articles, type_paiement, artisan_id, vendeur_id, date_vente);
 
     res.status(201).json({ id, message: 'Vente créée avec succès' });
   } catch (err) {
@@ -71,13 +88,29 @@ router.post('/', async (req, res) => {
  * Modifie une vente existante.
  * @route PUT /api/ventes/:id
  * @param {number} req.params.id - ID de la vente à modifier.
- * @param {Object} req.body - Champs à modifier (article, quantite, prix, type_paiement, artisan_id, date_vente).
+ * @param {Object} req.body - Champs à modifier (type_paiement, artisan_id, date_vente, articles).
+ * @param {Array} [req.body.articles] - Nouvelle liste d'articles (remplace les anciens).
  * @returns {Object} Message de confirmation de la modification.
  * @throws {404} Si la vente n'est pas trouvée ou si aucun champ valide fourni.
  */
 router.put('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10);
+
+    // Si des articles sont fournis, valider
+    if (req.body.articles) {
+      if (!Array.isArray(req.body.articles) || req.body.articles.length === 0) {
+        return res.status(400).json({ error: 'La liste des articles est invalide' });
+      }
+      for (const [index, article] of req.body.articles.entries()) {
+        if (!article.article || !article.prix) {
+          return res.status(400).json({
+            error: `Article ${index + 1} : le nom et le prix sont requis`
+          });
+        }
+      }
+    }
+
     const updated = await updateVente(id, req.body);
 
     if (!updated) {

@@ -106,34 +106,53 @@ async function getAllArtisans() {
 }
 
 /**
- * Crée une nouvelle vente dans la base de données.
- * @param {string} article - Nom de l'article vendu.
- * @param {number} quantite - Quantité vendue.
- * @param {number} prix - Prix unitaire de l'article.
+ * Crée une nouvelle vente avec ses lignes d'articles.
+ * @param {Array<{article: string, quantite: number, prix: number}>} articles - Liste des articles vendus.
  * @param {string} type_paiement - Type de paiement (CB, Espece, Cheque).
  * @param {number} artisan_id - ID de l'artisan concerné.
  * @param {number} vendeur_id - ID de l'utilisateur qui a effectué la vente.
  * @param {string} date_vente - Date de la vente au format ISO.
  * @returns {Promise<number>} L'ID de la vente créée.
  */
-async function createVente(article, quantite, prix, type_paiement, artisan_id, vendeur_id, date_vente) {
+async function createVente(articles, type_paiement, artisan_id, vendeur_id, date_vente) {
   const supabase = getSupabase();
-  const { data, error } = await supabase
+
+  // 1. Créer l'en-tête de la vente
+  const { data: venteData, error: venteError } = await supabase
     .from('ventes')
-    .insert({ article, quantite, prix, type_paiement, artisan_id, vendeur_id, date_vente })
+    .insert({ type_paiement, artisan_id, vendeur_id, date_vente })
     .select('id')
     .single();
-  if (error) throw error;
-  return data.id;
+
+  if (venteError) throw venteError;
+  const venteId = venteData.id;
+
+  // 2. Insérer les lignes d'articles
+  const articlesData = articles.map(a => ({
+    vente_id: venteId,
+    article: a.article,
+    quantite: a.quantite || 1,
+    prix: a.prix
+  }));
+
+  const { error: articlesError } = await supabase
+    .from('vente_articles')
+    .insert(articlesData);
+
+  if (articlesError) throw articlesError;
+
+  return venteId;
 }
 
 /**
- * Récupère toutes les ventes avec les noms des artisans et vendeurs associés.
- * @returns {Promise<Array>} Tableau des ventes formatées avec artisan_nom et vendeur_nom.
+ * Récupère toutes les ventes avec leurs lignes d'articles et les noms des artisans/vendeurs.
+ * @returns {Promise<Array>} Tableau des ventes formatées avec articles, artisan_nom et vendeur_nom.
  */
 async function getAllVentes() {
   const supabase = getSupabase();
-  const { data, error } = await supabase
+
+  // Récupérer les en-têtes de vente
+  const { data: ventes, error: ventesError } = await supabase
     .from('ventes')
     .select(`
       *,
@@ -142,23 +161,56 @@ async function getAllVentes() {
     `)
     .order('date_vente', { ascending: false })
     .order('id', { ascending: false });
-  if (error) throw error;
 
-  return (data || []).map(v => ({
-    ...v,
-    artisan_nom: v.artisan?.nom || null,
-    artisan_role: v.artisan?.role || null,
-    vendeur_nom: v.vendeur?.nom || null,
-    artisan: undefined,
-    vendeur: undefined
-  }));
+  if (ventesError) throw ventesError;
+
+  if (!ventes || ventes.length === 0) return [];
+
+  // Récupérer les articles pour toutes ces ventes
+  const venteIds = ventes.map(v => v.id);
+  const { data: articles, error: articlesError } = await supabase
+    .from('vente_articles')
+    .select('*')
+    .in('vente_id', venteIds)
+    .order('id', { ascending: true });
+
+  if (articlesError) throw articlesError;
+
+  // Grouper les articles par vente_id
+  const articlesByVente = {};
+  for (const art of articles || []) {
+    if (!articlesByVente[art.vente_id]) {
+      articlesByVente[art.vente_id] = [];
+    }
+    articlesByVente[art.vente_id].push(art);
+  }
+
+  return ventes.map(v => {
+    const venteArticles = articlesByVente[v.id] || [];
+    const total_articles = venteArticles.reduce((sum, a) => sum + (a.quantite || 0), 0);
+    const total_montant = venteArticles.reduce((sum, a) => sum + (a.prix * a.quantite), 0);
+
+    return {
+      id: v.id,
+      type_paiement: v.type_paiement,
+      artisan_id: v.artisan_id,
+      vendeur_id: v.vendeur_id,
+      date_vente: v.date_vente,
+      created_at: v.created_at,
+      artisan_nom: v.artisan?.nom || null,
+      artisan_role: v.artisan?.role || null,
+      vendeur_nom: v.vendeur?.nom || null,
+      articles: venteArticles,
+      total_articles,
+      total_montant
+    };
+  });
 }
 
 /**
  * Récupère les ventes d'un artisan spécifique avec un résumé.
  * @param {number} artisan_id - ID de l'artisan.
  * @returns {Promise<{ventes: Array, summary: {total_articles: number, total_montant: number}}>}
- * Un objet contenant les ventes formatées et un résumé (nombre total d'articles et montant total).
  */
 async function getVentesByArtisan(artisan_id) {
   const supabase = getSupabase();
@@ -172,19 +224,48 @@ async function getVentesByArtisan(artisan_id) {
     .eq('artisan_id', artisan_id)
     .order('date_vente', { ascending: false })
     .order('id', { ascending: false });
+
   if (ventesError) throw ventesError;
 
-  const formattedVentes = (ventes || []).map(v => ({
-    ...v,
-    artisan_nom: v.artisan?.nom || null,
-    artisan_role: v.artisan?.role || null,
-    vendeur_nom: v.vendeur?.nom || null,
-    artisan: undefined,
-    vendeur: undefined
-  }));
+  if (!ventes || ventes.length === 0) return { ventes: [], summary: { total_articles: 0, total_montant: 0 } };
 
-  const total_articles = formattedVentes.reduce((sum, v) => sum + (v.quantite || 0), 0);
-  const total_montant = formattedVentes.reduce((sum, v) => sum + ((v.prix || 0) * (v.quantite || 0)), 0);
+  const venteIds = ventes.map(v => v.id);
+  const { data: articles, error: articlesError } = await supabase
+    .from('vente_articles')
+    .select('*')
+    .in('vente_id', venteIds)
+    .order('id', { ascending: true });
+
+  if (articlesError) throw articlesError;
+
+  const articlesByVente = {};
+  for (const art of articles || []) {
+    if (!articlesByVente[art.vente_id]) {
+      articlesByVente[art.vente_id] = [];
+    }
+    articlesByVente[art.vente_id].push(art);
+  }
+
+  const formattedVentes = ventes.map(v => {
+    const venteArticles = articlesByVente[v.id] || [];
+    return {
+      id: v.id,
+      type_paiement: v.type_paiement,
+      artisan_id: v.artisan_id,
+      vendeur_id: v.vendeur_id,
+      date_vente: v.date_vente,
+      created_at: v.created_at,
+      artisan_nom: v.artisan?.nom || null,
+      artisan_role: v.artisan?.role || null,
+      vendeur_nom: v.vendeur?.nom || null,
+      articles: venteArticles,
+      total_articles: venteArticles.reduce((sum, a) => sum + (a.quantite || 0), 0),
+      total_montant: venteArticles.reduce((sum, a) => sum + (a.prix * a.quantite), 0)
+    };
+  });
+
+  const total_articles = formattedVentes.reduce((sum, v) => sum + v.total_articles, 0);
+  const total_montant = formattedVentes.reduce((sum, v) => sum + v.total_montant, 0);
 
   return { ventes: formattedVentes, summary: { total_articles, total_montant } };
 }
@@ -192,33 +273,13 @@ async function getVentesByArtisan(artisan_id) {
 /**
  * Récupère les ventes de tous les artisans groupées par artisan, avec un résumé global.
  * @returns {Promise<{groupes: Array, total: {total_articles: number, total_montant: number}}>}
- * Un objet contenant un tableau de groupes (un par artisan ayant des ventes) et un résumé global.
  */
 async function getAllVentesGroupedByArtisan() {
-  const supabase = getSupabase();
-  const { data: ventes, error: ventesError } = await supabase
-    .from('ventes')
-    .select(`
-      *,
-      artisan:artisan_id (nom, role),
-      vendeur:vendeur_id (nom)
-    `)
-    .order('date_vente', { ascending: false })
-    .order('id', { ascending: false });
-  if (ventesError) throw ventesError;
-
-  const formattedVentes = (ventes || []).map(v => ({
-    ...v,
-    artisan_nom: v.artisan?.nom || null,
-    artisan_role: v.artisan?.role || null,
-    vendeur_nom: v.vendeur?.nom || null,
-    artisan: undefined,
-    vendeur: undefined
-  }));
+  const allVentes = await getAllVentes();
 
   // Grouper par artisan_id
   const grouped = {};
-  for (const vente of formattedVentes) {
+  for (const vente of allVentes) {
     const key = vente.artisan_id;
     if (!grouped[key]) {
       grouped[key] = {
@@ -232,8 +293,8 @@ async function getAllVentesGroupedByArtisan() {
 
   // Construire le tableau de groupes avec le résumé par artisan
   const groupes = Object.values(grouped).map(g => {
-    const total_articles = g.ventes.reduce((sum, v) => sum + (v.quantite || 0), 0);
-    const total_montant = g.ventes.reduce((sum, v) => sum + ((v.prix || 0) * (v.quantite || 0)), 0);
+    const total_articles = g.ventes.reduce((sum, v) => sum + v.total_articles, 0);
+    const total_montant = g.ventes.reduce((sum, v) => sum + v.total_montant, 0);
     return {
       artisan_id: g.artisan_id,
       artisan_nom: g.artisan_nom,
@@ -253,39 +314,66 @@ async function getAllVentesGroupedByArtisan() {
 }
 
 /**
- * Met à jour une vente existante avec les champs fournis.
- * Seuls les champs autorisés sont appliqués.
+ * Met à jour une vente existante (en-tête et articles).
  * @param {number} id - ID de la vente à modifier.
  * @param {Object} fields - Objet contenant les champs à mettre à jour.
- * @param {string} [fields.article] - Nouveau nom de l'article.
- * @param {number} [fields.quantite] - Nouvelle quantité.
- * @param {number} [fields.prix] - Nouveau prix unitaire.
  * @param {string} [fields.type_paiement] - Nouveau type de paiement.
  * @param {number} [fields.artisan_id] - Nouvel ID de l'artisan.
  * @param {string} [fields.date_vente] - Nouvelle date de vente.
- * @returns {Promise<boolean>} true si la mise à jour a réussi, false si aucun champ valide fourni.
+ * @param {Array<{id?: number, article: string, quantite: number, prix: number}>} [fields.articles] - Nouvelle liste d'articles.
+ * @returns {Promise<boolean>} true si la mise à jour a réussi.
  */
 async function updateVente(id, fields) {
-  const allowed = ['article', 'quantite', 'prix', 'type_paiement', 'artisan_id', 'date_vente'];
+  const supabase = getSupabase();
+
+  // Mettre à jour l'en-tête de la vente
+  const allowed = ['type_paiement', 'artisan_id', 'date_vente'];
   const updateData = {};
   for (const key of allowed) {
     if (fields[key] !== undefined) updateData[key] = fields[key];
   }
-  if (Object.keys(updateData).length === 0) return false;
 
-  const supabase = getSupabase();
-  const { error } = await supabase.from('ventes').update(updateData).eq('id', id);
-  if (error) throw error;
+  if (Object.keys(updateData).length > 0) {
+    const { error } = await supabase.from('ventes').update(updateData).eq('id', id);
+    if (error) throw error;
+  }
+
+  // Mettre à jour les articles si fournis
+  if (fields.articles && Array.isArray(fields.articles)) {
+    // Supprimer tous les anciens articles
+    const { error: deleteError } = await supabase
+      .from('vente_articles')
+      .delete()
+      .eq('vente_id', id);
+
+    if (deleteError) throw deleteError;
+
+    // Insérer les nouveaux articles
+    const articlesData = fields.articles.map(a => ({
+      vente_id: id,
+      article: a.article,
+      quantite: a.quantite || 1,
+      prix: a.prix
+    }));
+
+    const { error: insertError } = await supabase
+      .from('vente_articles')
+      .insert(articlesData);
+
+    if (insertError) throw insertError;
+  }
+
   return true;
 }
 
 /**
- * Supprime une vente par son ID.
+ * Supprime une vente et ses articles associés par son ID.
  * @param {number} id - ID de la vente à supprimer.
  * @returns {Promise<boolean>} true si la suppression a réussi.
  */
 async function deleteVente(id) {
   const supabase = getSupabase();
+  // La suppression en cascade via la clé étrangère sur vente_articles s'occupe des articles
   const { error } = await supabase.from('ventes').delete().eq('id', id);
   if (error) throw error;
   return true;
@@ -294,8 +382,6 @@ async function deleteVente(id) {
 /**
  * Vérifie si un compte administrateur existe, le crée si nécessaire,
  * ou met à jour le mot de passe si le hash actuel est invalide.
- * Cette fonction est appelée au démarrage du serveur pour garantir
- * qu'il y a toujours au moins un admin avec un mot de passe valide.
  * @returns {Promise<void>}
  */
 async function seedAdminIfMissing() {
@@ -311,7 +397,6 @@ async function seedAdminIfMissing() {
 
   if (existingAdmin) {
     // Mettre à jour le mot de passe pour garantir qu'il soit valide
-    // (corrige le cas où la migration a inséré un hash invalide)
     const { error: updateError } = await supabase
       .from('users')
       .update({ password_hash: hash })

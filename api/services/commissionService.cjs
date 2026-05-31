@@ -7,15 +7,21 @@
 
 /**
  * Calcule les commissions CB pour un ensemble de ventes.
- * @param {Array} ventes - Les ventes à analyser (doivent contenir `type_paiement`, `prix`, `quantite`).
+ * @param {Array} ventes - Les ventes à analyser (doivent contenir `type_paiement` et `articles[]` avec `prix` et `quantite`).
  * @param {number} tauxCommission - Le taux de commission en pourcentage (ex: 1.5 pour 1.5%).
  * @returns {{total_cb: number, commission_cb: number}}
  * Un objet contenant le total des paiements CB et la commission calculée.
  */
 function calculerCommissionsCB(ventes, tauxCommission) {
-  const totalCB = ventes
-    .filter(v => v.type_paiement === 'CB')
-    .reduce((sum, v) => sum + (v.prix || 0) * (v.quantite || 0), 0);
+  const ventesCB = ventes.filter(v => v.type_paiement === 'CB');
+  
+  let totalCB = 0;
+  for (const v of ventesCB) {
+    const articles = v.articles || [{ prix: v.prix, quantite: v.quantite }];
+    for (const art of articles) {
+      totalCB += (art.prix || 0) * (art.quantite || 0);
+    }
+  }
   
   const commission = totalCB * (tauxCommission / 100);
   

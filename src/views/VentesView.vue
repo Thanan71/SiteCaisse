@@ -31,11 +31,10 @@
         <thead>
           <tr>
             <th>Date</th>
-            <th>Article</th>
+            <th>Articles</th>
             <th>Artisan</th>
-            <th>Quantité</th>
-            <th>Prix unitaire</th>
-            <th>Total</th>
+            <th>Total articles</th>
+            <th>Montant total</th>
             <th>Paiement</th>
             <th>Vendeur</th>
             <th>Actions</th>
@@ -44,11 +43,18 @@
         <tbody>
           <tr v-for="vente in ventesStore.ventes" :key="vente.id">
             <td>{{ formatDate(vente.date_vente) }}</td>
-            <td class="article-name">{{ vente.article }}</td>
+            <td class="articles-cell">
+              <div v-for="art in vente.articles" :key="art.id" class="article-line">
+                <span class="article-name">{{ art.article }}</span>
+                <span class="article-details">
+                  {{ art.quantite }} &times; {{ formatPrice(art.prix) }}
+                  <span class="article-subtotal">= {{ formatPrice(art.prix * art.quantite) }}</span>
+                </span>
+              </div>
+            </td>
             <td>{{ vente.artisan_nom }}</td>
-            <td class="text-center">{{ vente.quantite }}</td>
-            <td class="text-center">{{ formatPrice(vente.prix) }}</td>
-            <td class="text-center total-price">{{ formatPrice(vente.prix * vente.quantite) }}</td>
+            <td class="text-center">{{ vente.total_articles }}</td>
+            <td class="text-right total-price">{{ formatPrice(vente.total_montant) }}</td>
             <td>
               <span class="payment-badge" :class="'payment-' + vente.type_paiement.toLowerCase()">
                 {{ getPaymentLabel(vente.type_paiement) }}
@@ -71,7 +77,7 @@
     <!-- Modal d'ajout -->
     <ModalAjoutVente :show="showModal" @close="showModal = false" />
 
-    <!-- Modal de modification (réutilise le même composant avec les données pré-remplies) -->
+    <!-- Modal de modification -->
     <ModalEditVente
       v-if="editingVente"
       :show="!!editingVente"
@@ -230,6 +236,7 @@ tbody td {
   border-bottom: 1px solid #f1f5f9;
   font-size: 0.9rem;
   color: #1e293b;
+  vertical-align: top;
 }
 
 tbody tr:hover {
@@ -240,8 +247,37 @@ tbody tr:last-child td {
   border-bottom: none;
 }
 
+.articles-cell {
+  min-width: 220px;
+}
+
+.article-line {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0;
+}
+
+.article-line + .article-line {
+  border-top: 1px dashed #e2e8f0;
+  margin-top: 4px;
+  padding-top: 8px;
+}
+
 .article-name {
   font-weight: 600;
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+.article-details {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.article-subtotal {
+  font-weight: 600;
+  color: #059669;
 }
 
 .text-center {
@@ -255,6 +291,7 @@ tbody tr:last-child td {
 .total-price {
   font-weight: 600;
   color: #059669;
+  white-space: nowrap;
 }
 
 .payment-badge {
@@ -292,5 +329,37 @@ tbody tr:last-child td {
 
 .btn-icon:hover {
   background: #f1f5f9;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: #4f46e5;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #4338ca;
+}
+
+.btn-secondary {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.btn-secondary:hover {
+  background: #e2e8f0;
 }
 </style>
