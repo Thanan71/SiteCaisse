@@ -488,11 +488,6 @@ onMounted(() => {
 }
 
 /* Paramètres card */
-.parametres-card {
-  border: 2px solid #818cf8;
-  background: linear-gradient(135deg, #f5f3ff 0%, #ffffff 100%);
-}
-
 .parametres-info {
   color: #64748b;
   font-size: 0.85rem;
