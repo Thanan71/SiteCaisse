@@ -111,3 +111,4 @@ User Action → Vue Component → Pinia Store → API Express → Supabase/Postg
 - [ ] Notifications/alertes
 - [ ] Export PDF des rapports
 - [ ] Mode sombre
+- [ ] Ajout d'un service logger pour log toutes les action en bdd et ajout sur la page admin l'acces au log

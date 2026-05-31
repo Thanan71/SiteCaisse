@@ -19,7 +19,7 @@ export const useVentesStore = defineStore('ventes', {
     /** @property {Object} pagination - Informations de pagination. */
     pagination: {
       page: 1,
-      limit: 50,
+      limit: 10,
       total: 0,
       totalPages: 0
     },

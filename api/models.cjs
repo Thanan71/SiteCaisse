@@ -149,7 +149,7 @@ async function createVente(articles, type_paiement, artisan_id, vendeur_id, date
  * Supporte la pagination via les paramètres page et limit.
  * @param {Object} [options] - Options de pagination et filtres.
  * @param {number} [options.page=1] - Numéro de la page (commence à 1).
- * @param {number} [options.limit=50] - Nombre de ventes par page.
+ * @param {number} [options.limit=10] - Nombre de ventes par page.
  * @param {string} [options.date_debut] - Date de début pour le filtre (format ISO).
  * @param {string} [options.date_fin] - Date de fin pour le filtre (format ISO).
  * @param {string} [options.type_paiement] - Filtre par type de paiement (CB, Espece, Cheque).
@@ -157,7 +157,11 @@ async function createVente(articles, type_paiement, artisan_id, vendeur_id, date
  */
 async function getAllVentes(options = {}) {
   const supabase = getSupabase();
-  const { page = 1, limit = 50, date_debut, date_fin, type_paiement } = options;
+  const rawPage = parseInt(options.page, 10);
+  const rawLimit = parseInt(options.limit, 10);
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : 10;
+  const { date_debut, date_fin, type_paiement } = options;
   const offset = (page - 1) * limit;
 
   // Construire la requête de comptage avec filtres
@@ -208,8 +212,8 @@ async function getAllVentes(options = {}) {
       pagination: {
         page,
         limit,
-        total: 0,
-        totalPages: 0
+        total: total || 0,
+        totalPages: Math.ceil((total || 0) / limit)
       }
     };
   }

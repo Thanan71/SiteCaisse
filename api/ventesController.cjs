@@ -17,7 +17,7 @@ router.use(authMiddleware);
  * Récupère la liste des ventes avec pagination et filtres optionnels.
  * @route GET /api/ventes
  * @query {number} [page=1] - Numéro de la page.
- * @query {number} [limit=50] - Nombre d'éléments par page.
+ * @query {number} [limit=10] - Nombre d'éléments par page.
  * @query {string} [date_debut] - Date de début du filtre (format ISO).
  * @query {string} [date_fin] - Date de fin du filtre (format ISO).
  * @query {string} [type_paiement] - Filtre par type de paiement (CB, Espece, Cheque).
@@ -26,7 +26,7 @@ router.use(authMiddleware);
 router.get('/', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    const limit = parseInt(req.query.limit) || 10;
     const { date_debut, date_fin, type_paiement } = req.query;
 
     const result = await getAllVentes({
