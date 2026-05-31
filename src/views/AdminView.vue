@@ -319,7 +319,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import api from '../services/api'
-import { formatDateTime, formatDateSimple } from '../utils/formatters'
+import { formatDateTime as formatDate, formatDateSimple } from '../utils/formatters'
 
 const activePanel = ref('users')
 
@@ -588,8 +588,6 @@ function isDateFinExpired(dateFin) {
   const fin = new Date(dateFin + 'T00:00:00')
   return fin < today
 }
-
-const formatDate = formatDateTime
 
 /**
  * Retourne un libellé lisible pour une action journalisée.

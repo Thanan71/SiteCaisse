@@ -81,17 +81,14 @@
 
       <!-- Onglet : Liste des ventes (vue globale) -->
       <div v-if="activeTab === 'ventes' && rapportsStore.allRapports.length">
-        <div
+        <RapportVentesTable
           v-for="groupe in rapportsStore.allRapports"
           :key="'groupe-' + groupe.artisan_id"
-        >
-          <RapportVentesTable
-            :title="groupe.artisan_nom"
-            :ventes="groupe.ventes"
-            :summary="groupe.summary"
-            :total-label="`TOTAL ${groupe.artisan_nom.toUpperCase()}`"
-          />
-        </div>
+          :title="groupe.artisan_nom"
+          :ventes="groupe.ventes"
+          :summary="groupe.summary"
+          :total-label="`TOTAL ${groupe.artisan_nom.toUpperCase()}`"
+        />
 
         <!-- Résumé global -->
         <div class="global-summary-card">
@@ -220,22 +217,6 @@ function exportAllToExcel() {
   padding: 24px;
 }
 
-.page-header {
-  margin-bottom: 24px;
-}
-
-.page-header h1 {
-  margin: 0;
-  font-size: 1.5rem;
-  color: #1e293b;
-}
-
-.page-subtitle {
-  margin: 4px 0 0;
-  color: #64748b;
-  font-size: 0.9rem;
-}
-
 .filters-card {
   background: white;
   border-radius: 12px;
@@ -273,27 +254,12 @@ function exportAllToExcel() {
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-.loading-state,
 .empty-state {
   text-align: center;
   padding: 60px 20px;
   background: white;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #e2e8f0;
-  border-top-color: #4f46e5;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-  margin: 0 auto 16px;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .empty-icon {
