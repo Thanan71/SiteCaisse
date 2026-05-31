@@ -43,17 +43,17 @@
     <div v-if="rapportsStore.allRapports.length || rapportsStore.ventesArtisan.length" class="sub-nav">
       <button
         class="sub-nav-btn"
-        :class="{ active: activeTab === 'graphiques' }"
-        @click="activeTab = 'graphiques'"
-      >
-        📊 Graphiques
-      </button>
-      <button
-        class="sub-nav-btn"
         :class="{ active: activeTab === 'ventes' }"
         @click="activeTab = 'ventes'"
       >
         📋 Liste des ventes
+      </button>
+      <button
+        class="sub-nav-btn"
+        :class="{ active: activeTab === 'graphiques' }"
+        @click="activeTab = 'graphiques'"
+      >
+        📊 Graphiques
       </button>
     </div>
 
@@ -177,7 +177,7 @@ import { formatPrice } from '../utils/formatters'
 const rapportsStore = useRapportsStore()
 const artisansStore = useArtisansStore()
 const selectedArtisanId = ref('')
-const activeTab = ref('graphiques')
+const activeTab = ref('ventes')
 
 const permanents = computed(() => artisansStore.permanents)
 const temporaires = computed(() => artisansStore.temporaires)
