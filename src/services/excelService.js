@@ -1,16 +1,18 @@
 /**
- * Service utilitaire d'export Excel
- * Responsabilité unique : générer et télécharger des fichiers Excel
+ * @module services/excelService
+ * @description Service utilitaire d'export Excel.
+ * Responsabilité unique : générer et télécharger des fichiers Excel.
  */
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 
 /**
- * Exporte un tableau de ventes au format Excel
- * @param {Array} ventes - Liste des ventes à exporter
- * @param {Array} artisans - Liste des artisans (pour trouver le nom)
- * @param {number} artisanId - ID de l'artisan sélectionné
- * @param {Object} summary - Résumé des ventes { total_articles, total_montant }
+ * Exporte un tableau de ventes au format Excel.
+ * @param {Array} ventes - Liste des ventes à exporter.
+ * @param {Array} artisans - Liste des artisans (pour trouver le nom).
+ * @param {number} artisanId - ID de l'artisan sélectionné.
+ * @param {Object} summary - Résumé des ventes { total_articles, total_montant }.
+ * @returns {void}
  */
 export function exportVentesToExcel(ventes, artisans, artisanId, summary) {
   if (!ventes || ventes.length === 0) return
@@ -64,9 +66,10 @@ export function exportVentesToExcel(ventes, artisans, artisanId, summary) {
 }
 
 /**
- * Formate le type de paiement pour l'affichage dans Excel
- * @param {string} type - Code du type de paiement (CB, Espece, Cheque)
- * @returns {string} Libellé formaté
+ * Formate le type de paiement pour l'affichage dans Excel.
+ * Convertit le code interne en libellé français lisible.
+ * @param {string} type - Code du type de paiement ('CB', 'Espece', 'Cheque').
+ * @returns {string} Libellé formaté en français.
  */
 function formatPaymentForExcel(type) {
   const labels = {

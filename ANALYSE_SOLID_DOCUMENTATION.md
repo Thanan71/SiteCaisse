@@ -137,7 +137,7 @@
 
 ---
 
-## 📚 Documentation complète des fonctions
+## 📚 Documentation complète des fonctions (format JSDoc)
 
 ### Partie 1 : Backend (API)
 
@@ -145,67 +145,113 @@
 
 #### `api/index.cjs`
 
-| Fonction / Élément | Description |
-|-------------------|-------------|
-| **Module** | Point d'entrée de l'application Express. Configure CORS, le parsing JSON, et monte les routeurs sur `/api/auth`, `/api/ventes` et `/api/rapports`. Exporte l'application pour Vercel, ou démarre un serveur local sur le port 3001 si non déployé sur Vercel. |
+```
+/**
+ * @module index
+ * @description Point d'entrée de l'application Express.
+ * Configure les middlewares et monte les routeurs API.
+ * @returns {import('express').Application} L'application Express configurée.
+ */
+```
+
+**Exportations :**
+- `module.exports` → Application Express configurée (pour Vercel ou développement local)
 
 ---
 
 #### `api/db.cjs`
 
-| Fonction | Description |
-|----------|-------------|
-| `getSupabase()` | Initialise et retourne le client Supabase (singleton). Utilise la clé `service_role` (ou `anon_key` en fallback) pour contourner les Row-Level Security (RLS). Configure le client sans persistance de session ni auto-refresh du token. Lève une erreur si les variables d'environnement `VITE_PUBLIC_SUPABASE_URL` et `VITE_PUBLIC_SUPABASE_ANON_KEY` sont absentes. |
-| `getFirst(table, match)` | Récupère la première ligne d'une table Supabase correspondant aux critères de recherche passés dans l'objet `match`. Retourne `null` si aucun résultat (code erreur PGRST116 ignoré). |
-| `getAll(table, select, options)` | Récupère toutes les lignes d'une table Supabase. Supporte la sélection de colonnes et l'ordonnancement via `options.order = { column, ascending }`. Retourne un tableau vide si aucun résultat. |
+```
+/**
+ * @module db
+ * @description Gestion de la connexion à Supabase.
+ * Implémente le pattern Singleton pour le client Supabase.
+ */
+```
+
+| Fonction | Signature JSDoc |
+|----------|----------------|
+| `getSupabase()` | `/** * Initialise et retourne le client Supabase (singleton). * @returns {import('@supabase/supabase-js').SupabaseClient} L'instance du client Supabase. * @throws {Error} Si les variables d'environnement sont manquantes. */` |
+| `getFirst(table, match)` | `/** * Récupère la première ligne d'une table Supabase. * @param {string} table - Nom de la table Supabase. * @param {Object} [match={}] - Objet de critères de correspondance. * @returns {Promise<Object|null>} La première ligne trouvée, ou null. */` |
+| `getAll(table, select, options)` | `/** * Récupère toutes les lignes d'une table Supabase. * @param {string} table - Nom de la table. * @param {string} [select='*'] - Colonnes à sélectionner. * @param {Object} [options={}] - Options (order.column, order.ascending). * @returns {Promise<Array>} Tableau des résultats. */` |
 
 ---
 
 #### `api/models.cjs`
 
-| Fonction | Description |
-|----------|-------------|
-| `seedIfEmpty()` | Vérifie si des utilisateurs existent dans la table `users`. Si la table est vide, insère 5 utilisateurs de démonstration (Marcel, Sophie, Jean, Lucas, Emma) avec le mot de passe haché `password123`. Utilise bcrypt pour le hachage. À exécuter une seule fois via `node api/models.cjs`. |
-| `findUserByEmail(email)` | Recherche un utilisateur par son adresse email dans la table `users`. Retourne l'utilisateur complet ou `null` si non trouvé. |
-| `findUserById(id)` | Recherche un utilisateur par son ID. Retourne uniquement les champs `id, nom, email, role, est_actif`. |
-| `getAllArtisans()` | Récupère tous les artisans actifs (`est_actif = 1`) ayant le rôle `permanent` ou `temporaire`. Retourne `id, nom, email, role`. |
-| `createVente(article, quantite, prix, type_paiement, artisan_id, vendeur_id, date_vente)` | Crée une nouvelle vente dans la table `ventes` avec les informations fournies. Retourne l'ID de la vente créée. |
-| `getAllVentes()` | Récupère toutes les ventes avec les noms des artisans et vendeurs associés (via jointures Supabase). Formatte les résultats en convertissant les objets `artisan: { nom }` en `artisan_nom`. Ordonne par date puis par ID décroissants. |
-| `getVentesByArtisan(artisan_id)` | Récupère toutes les ventes d'un artisan spécifique avec les informations associées. Calcule et retourne un résumé (`summary`) contenant le nombre total d'articles vendus et le montant total. |
-| `updateVente(id, fields)` | Met à jour une vente existante avec les champs fournis. Seuls les champs autorisés (`article, quantite, prix, type_paiement, artisan_id, date_vente`) sont appliqués. Retourne `false` si aucun champ à mettre à jour. |
-| `deleteVente(id)` | Supprime une vente par son ID. Retourne `true` si la suppression a réussi. |
+```
+/**
+ * @module models
+ * @description Modèles de données pour l'application SiteCaisse.
+ * Contient les fonctions de CRUD pour les utilisateurs et les ventes.
+ */
+```
+
+| Fonction | Signature JSDoc |
+|----------|----------------|
+| `seedIfEmpty()` | `/** * Vérifie si des utilisateurs existent. Si vide, insère 5 utilisateurs de démonstration. * @returns {Promise<void>} */` |
+| `findUserByEmail(email)` | `/** * Recherche un utilisateur par son adresse email. * @param {string} email - L'adresse email de l'utilisateur. * @returns {Promise<Object|null>} L'objet utilisateur complet, ou null. */` |
+| `findUserById(id)` | `/** * Recherche un utilisateur par son ID. * @param {number} id - L'ID de l'utilisateur. * @returns {Promise<Object|null>} L'utilisateur (id, nom, email, role, est_actif), ou null. */` |
+| `getAllArtisans()` | `/** * Récupère tous les artisans actifs. * @returns {Promise<Array>} Tableau des artisans (id, nom, email, role). */` |
+| `createVente(article, quantite, prix, type_paiement, artisan_id, vendeur_id, date_vente)` | `/** * Crée une nouvelle vente. * @param {string} article - Nom de l'article. * @param {number} quantite - Quantité vendue. * @param {number} prix - Prix unitaire. * @param {string} type_paiement - Type (CB, Espece, Cheque). * @param {number} artisan_id - ID de l'artisan. * @param {number} vendeur_id - ID du vendeur. * @param {string} date_vente - Date ISO. * @returns {Promise<number>} L'ID de la vente créée. */` |
+| `getAllVentes()` | `/** * Récupère toutes les ventes avec les noms associés. * @returns {Promise<Array>} Tableau des ventes formatées. */` |
+| `getVentesByArtisan(artisan_id)` | `/** * Récupère les ventes d'un artisan avec résumé. * @param {number} artisan_id - ID de l'artisan. * @returns {Promise<{ventes: Array, summary: {total_articles, total_montant}}>} Ventes et résumé. */` |
+| `updateVente(id, fields)` | `/** * Met à jour une vente (champs autorisés seulement). * @param {number} id - ID de la vente. * @param {Object} fields - Champs à modifier. * @param {string} [fields.article] - Nouvel article. * @param {number} [fields.quantite] - Nouvelle quantité. * @param {number} [fields.prix] - Nouveau prix. * @param {string} [fields.type_paiement] - Nouveau type. * @param {number} [fields.artisan_id] - Nouvel artisan. * @param {string} [fields.date_vente] - Nouvelle date. * @returns {Promise<boolean>} true si réussi. */` |
+| `deleteVente(id)` | `/** * Supprime une vente par son ID. * @param {number} id - ID de la vente. * @returns {Promise<boolean>} true si réussi. */` |
 
 ---
 
 #### `api/authController.cjs`
 
-| Fonction / Middleware | Description |
-|-----------------------|-------------|
-| `authMiddleware(req, res, next)` | Middleware d'authentification JWT. Extrait le token du header `Authorization: Bearer <token>`, le vérifie avec `jsonwebtoken`, et attache les informations décodées à `req.user`. Retourne 401 si le token est manquant, invalide ou expiré. |
-| **POST** `/api/auth/login` | Authentifie un utilisateur avec email et mot de passe. Vérifie que le compte est actif (`est_actif`), compare le mot de passe avec bcrypt, génère un token JWT valide 24h, et retourne le token + les informations utilisateur. |
-| **GET** `/api/auth/me` | (Protégé par `authMiddleware`) Retourne les informations de l'utilisateur connecté. Nécessite un token JWT valide dans le header. |
+```
+/**
+ * @module authController
+ * @description Contrôleur d'authentification.
+ * Gère la connexion, la vérification des tokens JWT et le profil utilisateur.
+ */
+```
+
+| Fonction / Route | Signature JSDoc |
+|------------------|----------------|
+| `authMiddleware(req, res, next)` | `/** * Middleware de vérification du token JWT. * @param {import('express').Request} req - Requête Express. * @param {import('express').Response} res - Réponse Express. * @param {import('express').NextFunction} next - Fonction suivante. * @returns {void} */` |
+| **POST** `/api/auth/login` | `/** * Route de connexion : authentifie un utilisateur. * @route POST /api/auth/login * @param {string} req.body.email - Adresse email. * @param {string} req.body.password - Mot de passe. * @returns {Object} Token JWT et informations utilisateur. * @throws {400} Si email ou mot de passe manquant. * @throws {401} Si identifiants incorrects. * @throws {403} Si compte désactivé. */` |
+| **GET** `/api/auth/me` | `/** * Route de vérification du profil utilisateur connecté. * @route GET /api/auth/me * @returns {Object} Informations utilisateur (id, nom, email, role, est_actif). * @throws {401} Si token manquant ou invalide. * @throws {404} Si utilisateur non trouvé. */` |
 
 ---
 
 #### `api/ventesController.cjs`
 
-| Route | Description |
-|-------|-------------|
-| **Toutes les routes** | Protégées par le middleware `authMiddleware` |
-| **GET** `/api/ventes` | Récupère la liste complète de toutes les ventes |
-| **POST** `/api/ventes` | Crée une nouvelle vente. Valide les champs requis (`article, prix, type_paiement, artisan_id, date_vente`). Valide le type de paiement (CB, Espece, Cheque). Le `vendeur_id` est automatiquement défini à partir de l'utilisateur connecté. La quantité par défaut est 1. |
-| **PUT** `/api/ventes/:id` | Modifie une vente existante identifiée par son ID |
-| **DELETE** `/api/ventes/:id` | Supprime une vente existante identifiée par son ID |
+```
+/**
+ * @module ventesController
+ * @description Contrôleur de gestion des ventes.
+ * Opérations CRUD protégées par authentification JWT.
+ */
+```
+
+| Route | Signature JSDoc |
+|-------|----------------|
+| **GET** `/api/ventes` | `/** * Récupère la liste complète de toutes les ventes. * @route GET /api/ventes * @returns {Array<Object>} Tableau des ventes avec noms associés. */` |
+| **POST** `/api/ventes` | `/** * Crée une nouvelle vente. * @route POST /api/ventes * @param {string} req.body.article - Nom de l'article (requis). * @param {number} [req.body.quantite=1] - Quantité. * @param {number} req.body.prix - Prix unitaire (requis). * @param {string} req.body.type_paiement - 'CB', 'Espece' ou 'Cheque' (requis). * @param {number} req.body.artisan_id - ID de l'artisan (requis). * @param {string} req.body.date_vente - Date ISO (requis). * @returns {Object} ID de la vente créée et message. * @throws {400} Si champ requis manquant ou type invalide. */` |
+| **PUT** `/api/ventes/:id` | `/** * Modifie une vente existante. * @route PUT /api/ventes/:id * @param {number} req.params.id - ID de la vente. * @param {Object} req.body - Champs à modifier. * @returns {Object} Message de confirmation. * @throws {404} Si vente non trouvée. */` |
+| **DELETE** `/api/ventes/:id` | `/** * Supprime une vente existante. * @route DELETE /api/ventes/:id * @param {number} req.params.id - ID de la vente. * @returns {Object} Message de confirmation. * @throws {404} Si vente non trouvée. */` |
 
 ---
 
 #### `api/rapportsController.cjs`
 
-| Route | Description |
-|-------|-------------|
-| **Toutes les routes** | Protégées par le middleware `authMiddleware` |
-| **GET** `/api/rapports/artisans` | Retourne la liste de tous les artisans actifs pour alimenter le menu déroulant |
-| **GET** `/api/rapports/:artisan_id` | Retourne les ventes d'un artisan spécifique avec un résumé (total articles, total montant) |
+```
+/**
+ * @module rapportsController
+ * @description Contrôleur de gestion des rapports.
+ * Routes pour la liste des artisans et les ventes par artisan.
+ */
+```
+
+| Route | Signature JSDoc |
+|-------|----------------|
+| **GET** `/api/rapports/artisans` | `/** * Récupère la liste de tous les artisans actifs. * @route GET /api/rapports/artisans * @returns {Array<Object>} Liste des artisans (id, nom, email, role). */` |
+| **GET** `/api/rapports/:artisan_id` | `/** * Récupère les ventes d'un artisan spécifique avec résumé. * @route GET /api/rapports/:artisan_id * @param {number} req.params.artisan_id - ID de l'artisan. * @returns {Object} Ventes et résumé (total_articles, total_montant). * @throws {400} Si ID invalide. */` |
 
 ---
 
@@ -213,23 +259,39 @@
 
 ---
 
-#### `src/services/api.js` — Service Axios centralisé
+#### `src/services/api.js`
 
-| Fonction / Élément | Description |
-|-------------------|-------------|
-| **Configuration Axios** | Définit l'URL de base via `VITE_API_URL` (ou chaîne vide pour proxy) |
-| **Intercepteur de requête** | Ajoute automatiquement le token JWT (`Bearer <token>`) dans le header `Authorization` de chaque requête HTTP sortante |
-| **Intercepteur de réponse** | En cas d'erreur 401, déconnecte l'utilisateur (suppression du token du localStorage) et redirige vers `/login` |
-| **Export** | Exporte l'instance Axios configurée pour être utilisée par les stores |
+```
+/**
+ * @module services/api
+ * @description Service de configuration Axios.
+ * Centralise la configuration du client HTTP et les intercepteurs
+ * pour l'authentification JWT et la gestion des erreurs 401.
+ */
+```
+
+| Élément | Signature JSDoc |
+|---------|----------------|
+| Configuration de base | `// Configuration de base : axios.defaults.baseURL = import.meta.env.VITE_API_URL \|\| ''` |
+| Intercepteur de requête | `/** * Ajoute automatiquement le token JWT à chaque requête sortante. * @param {import('axios').InternalAxiosRequestConfig} config - Configuration. * @returns {import('axios').InternalAxiosRequestConfig} Configuration modifiée. */` |
+| Intercepteur de réponse | `/** * Gère les erreurs 401 : déconnexion automatique si token expiré. * @param {import('axios').AxiosResponse} response - Réponse réussie. * @returns {import('axios').AxiosResponse} Réponse non modifiée. * @param {import('axios').AxiosError} error - Erreur. * @returns {Promise<never>} Erreur propagée après nettoyage. */` |
 
 ---
 
-#### `src/services/excelService.js` — Service d'export Excel
+#### `src/services/excelService.js`
 
-| Fonction | Description |
-|----------|-------------|
-| `exportVentesToExcel(ventes, artisans, artisanId, summary)` | Fonction utilitaire pure. Génère un fichier Excel contenant les ventes formatées avec : date, article, quantité, prix unitaire, total, type de paiement (libellé français), vendeur. Ajoute une ligne de résumé avec le total des articles et le montant total. Ajuste automatiquement la largeur des colonnes. Nomme le fichier avec le nom de l'artisan et la date du jour. |
-| `formatPaymentForExcel(type)` | Fonction interne privée. Convertit le code du type de paiement (CB, Espece, Cheque) en libellé français pour l'affichage dans Excel. |
+```
+/**
+ * @module services/excelService
+ * @description Service utilitaire d'export Excel.
+ * Responsabilité unique : générer et télécharger des fichiers Excel.
+ */
+```
+
+| Fonction | Signature JSDoc |
+|----------|----------------|
+| `exportVentesToExcel(ventes, artisans, artisanId, summary)` | `/** * Exporte un tableau de ventes au format Excel. * @param {Array} ventes - Liste des ventes à exporter. * @param {Array} artisans - Liste des artisans (pour le nom). * @param {number} artisanId - ID de l'artisan sélectionné. * @param {Object} summary - Résumé { total_articles, total_montant }. * @returns {void} */` |
+| `formatPaymentForExcel(type)` | `/** * Formate le type de paiement pour l'affichage dans Excel. * @param {string} type - Code ('CB', 'Espece', 'Cheque'). * @returns {string} Libellé formaté en français. */` |
 
 ---
 
@@ -239,157 +301,205 @@
 
 #### `src/main.js`
 
-| Fonction / Élément | Description |
-|-------------------|-------------|
-| **Point d'entrée** | Importe la configuration Axios centralisée depuis `./services/api`. Crée l'application Vue, initialise Pinia pour la gestion d'état, enregistre le routeur et monte l'application sur `#app`. |
+```
+/**
+ * @module main
+ * @description Point d'entrée de l'application Vue.js.
+ * Initialise l'application avec Pinia, le routeur Vue Router,
+ * la configuration Axios, et monte le composant racine App.
+ */
+```
 
----
-
-#### `src/store/artisans.js` — Store des artisans (Pinia)
-
-| Fonction / Élément | Description |
-|-------------------|-------------|
-| `state.artisans` | Liste des artisans chargés depuis l'API |
-| `state.loading` | Indicateur de chargement |
-| `state.error` | Message d'erreur éventuel |
-| `permanents` (getter) | Filtre et retourne uniquement les artisans avec le rôle `permanent` |
-| `temporaires` (getter) | Filtre et retourne uniquement les artisans avec le rôle `temporaire` |
-| `getArtisanName(id)` (getter) | Retourne le nom d'un artisan à partir de son ID, ou `'Artisan inconnu'` |
-| `fetchArtisans()` | Récupère la liste des artisans via GET `/api/rapports/artisans` |
-
----
-
-#### `src/store/auth.js` — Store d'authentification (Pinia)
-
-| Fonction / Élément | Description |
-|-------------------|-------------|
-| `state.user` | Utilisateur connecté, chargé depuis le localStorage |
-| `state.token` | Token JWT, chargé depuis le localStorage |
-| `isAuthenticated` (getter) | Retourne `true` si un token est présent |
-| `isPermanent` (getter) | Retourne `true` si le rôle de l'utilisateur est `permanent` |
-| `userName` (getter) | Retourne le nom de l'utilisateur ou une chaîne vide |
-| `login(email, password)` | Envoie une requête POST à `/api/auth/login`. Stocke le token et l'utilisateur dans le state et le localStorage. |
-| `fetchUser()` | Vérifie la validité du token en appelant GET `/api/auth/me`. Met à jour l'utilisateur. En cas d'erreur, déconnecte automatiquement. |
-| `logout()` | Vide le state et supprime le token et l'utilisateur du localStorage |
-
----
-
-#### `src/store/ventes.js` — Store des ventes (Pinia)
-
-| Fonction / Élément | Description |
-|-------------------|-------------|
-| `state.ventes` | Liste de toutes les ventes |
-| `state.loading` | Indicateur de chargement |
-| `state.error` | Message d'erreur éventuel |
-| `totalVentes` (getter) | Nombre total de ventes |
-| `fetchVentes()` | Récupère toutes les ventes via GET `/api/ventes`. Gère les états de chargement et d'erreur. |
-| `addVente(data)` | Ajoute une vente via POST `/api/ventes`, puis rafraîchit la liste |
-| `updateVente(id, data)` | Modifie une vente via PUT `/api/ventes/:id`, puis rafraîchit la liste |
-| `deleteVente(id)` | Supprime une vente via DELETE `/api/ventes/:id`, puis rafraîchit la liste |
-
----
-
-#### `src/store/rapports.js` — Store des rapports (Pinia)
-
-| Fonction / Élément | Description |
-|-------------------|-------------|
-| `state.selectedArtisanId` | ID de l'artisan sélectionné |
-| `state.ventesArtisan` | Ventes de l'artisan sélectionné |
-| `state.summary` | Résumé des ventes (total articles, total montant) |
-| `state.loading` | Indicateur de chargement |
-| `state.error` | Message d'erreur éventuel |
-| `fetchVentesByArtisan(id)` | Récupère les ventes d'un artisan spécifique via GET `/api/rapports/:id`. Met à jour le résumé. |
-| `exportToExcel(artisans)` | Délègue l'export Excel au service utilitaire `excelService.js`. Reçoit la liste des artisans en paramètre pour résoudre le nom. |
-
----
-
-#### `src/components/Navbar.vue`
-
-| Fonction / Élément | Description |
-|-------------------|-------------|
-| **Composant** | Barre de navigation fixe en haut de page |
-| `handleLogout()` | Déconnecte l'utilisateur via le store d'auth et redirige vers la page de connexion |
-| **Affichage** | Logo, liens de navigation (Ventes, Rapports), informations utilisateur (nom, badge rôle) et bouton de déconnexion |
-
----
-
-#### `src/components/ModalAjoutVente.vue`
-
-| Fonction / Élément | Description |
-|-------------------|-------------|
-| **Props** | `show` (Booléen) — contrôle l'affichage de la modale |
-| **Événements** | `close` — émis pour fermer la modale |
-| `form` (reactive) | Objet contenant les champs du formulaire : date_vente, article, quantite (1 par défaut), artisan_id, prix, type_paiement |
-| `watch(show)` | Quand la modale s'ouvre : charge les artisans via le store `artisansStore` si pas déjà chargés. Quand elle se ferme : réinitialise le formulaire. |
-| `handleSubmit()` | Valide et envoie les données au store `ventesStore.addVente()`. Émet l'événement `close` en cas de succès. |
-
----
-
-#### `src/components/ModalEditVente.vue`
-
-| Fonction / Élément | Description |
-|-------------------|-------------|
-| **Props** | `show` (Booléen), `vente` (Objet) — données de la vente à modifier |
-| **Événements** | `close`, `saved` |
-| `watch(vente)` | Quand la prop `vente` change, pré-remplit le formulaire avec les valeurs existantes |
-| **Initialisation** | Charge les artisans via le store `artisansStore` si pas déjà chargés |
-| `handleSubmit()` | Envoie les modifications au store `ventesStore.updateVente()`. Émet `saved` en cas de succès. |
-
----
-
-#### `src/views/LoginView.vue`
-
-| Fonction / Élément | Description |
-|-------------------|-------------|
-| `email` (ref) | Champ email lié au formulaire |
-| `password` (ref) | Champ mot de passe lié au formulaire |
-| `loading` (ref) | État de chargement du formulaire |
-| `error` (ref) | Message d'erreur d'authentification |
-| `handleLogin()` | Appelle `authStore.login(email, password)`. Redirige vers `/` en cas de succès. Affiche un message d'erreur en cas d'échec. |
-
----
-
-#### `src/views/VentesView.vue`
-
-| Fonction / Élément | Description |
-|-------------------|-------------|
-| `formatDate(dateStr)` | Formate une date ISO en format français (JJ/MM/AAAA) |
-| `formatPrice(price)` | Formate un nombre en devise euro (€) avec le format français |
-| `getPaymentLabel(type)` | Traduit le type de paiement en libellé français (CB → Carte Bancaire, Espece → Espèce, Cheque → Chèque) |
-| `openEdit(vente)` | Clone l'objet vente et l'assigne à `editingVente` pour ouvrir la modale d'édition |
-| `handleDelete(id)` | Demande confirmation avant de supprimer une vente via le store |
-| **États d'affichage** | Chargement (spinner), erreur (avec bouton réessayer), liste vide, tableau des ventes |
-
----
-
-#### `src/views/RapportsView.vue`
-
-| Fonction / Élément | Description |
-|-------------------|-------------|
-| `selectedArtisanId` (ref) | ID de l'artisan sélectionné dans le menu déroulant |
-| `permanents` (computed) | Utilise le getter `artisansStore.permanents` |
-| `temporaires` (computed) | Utilise le getter `artisansStore.temporaires` |
-| `loadVentes()` | Appelle `rapportsStore.fetchVentesByArtisan()` pour charger les ventes |
-| **Bouton d'export** | Télécharge un fichier Excel via `rapportsStore.exportToExcel(artisansStore.artisans)` |
-
----
-
-#### `src/router/index.js`
-
-| Fonction / Élément | Description |
-|-------------------|-------------|
-| **Routes définies** | `/login` → LoginView (publique), `/` → VentesView (protégée), `/rapports` → RapportsView (protégée) |
-| `beforeEach` | Garde de navigation. Redirige vers `/login` si la route nécessite une authentification sans token. Redirige vers `/` si l'utilisateur est déjà connecté et tente d'accéder à `/login`. |
-| **Route générique** | `/:\pathMatch(.*)*` redirige toute route inconnue vers `/` |
+| Élément | Description |
+|---------|-------------|
+| Import `./services/api` | Charge la configuration Axios centralisée (intercepteurs, base URL). |
+| Création de l'app | `createApp(App)` — crée l'instance Vue. |
+| Initialisation Pinia | `createPinia()` — gestion d'état réactive. |
+| Montage | `app.mount('#app')` — monte l'application dans le DOM. |
 
 ---
 
 #### `src/App.vue`
 
-| Fonction / Élément | Description |
-|-------------------|-------------|
-| **Composant racine** | Structure globale de l'application. Affiche la barre de navigation (`Navbar`) si l'utilisateur est authentifié. Ajoute la classe CSS `with-navbar` pour le padding du contenu principal. |
-| `onMounted` | Au chargement, si un token JWT est présent dans le store, vérifie sa validité en appelant `fetchUser()`. Nettoie la session si le token est invalide. |
+| Élément | Signature JSDoc |
+|---------|----------------|
+| Composant racine | `/** * Composant racine de l'application. * Affiche la navbar si l'utilisateur est authentifié. * @vue-component */` |
+| `onMounted` | `/** * Au montage, vérifie la validité du token JWT si présent. * @returns {Promise<void>} */` |
+
+---
+
+#### `src/router/index.js`
+
+```
+/**
+ * @module router/index
+ * @description Configuration du routeur Vue Router.
+ * Définit les routes avec un guard de navigation pour l'authentification.
+ */
+```
+
+| Route | Description |
+|-------|-------------|
+| **GET** `/login` | Page de connexion (publique). |
+| **GET** `/` | Page des ventes (protégée). |
+| **GET** `/rapports` | Page des rapports (protégée). |
+| **GET** `/:pathMatch(.*)*` | Redirection des routes inconnues vers `/`. |
+
+| Fonction | Signature JSDoc |
+|----------|----------------|
+| `beforeEach(to, from, next)` | `/** * Guard de navigation : protège les routes. * @param {import('vue-router').RouteRecordNormalized} to - Destination. * @param {import('vue-router').RouteRecordNormalized} from - Origine. * @param {import('vue-router').NavigationGuardNext} next - Résolution. * @returns {void} */` |
+
+---
+
+#### `src/store/auth.js`
+
+```
+/**
+ * @module store/auth
+ * @description Store d'authentification Pinia.
+ * Gère connexion, déconnexion et vérification du token JWT.
+ */
+```
+
+| Élément | Signature JSDoc |
+|---------|----------------|
+| `state.user` | `/** @property {Object\|null} user - Utilisateur connecté. */` |
+| `state.token` | `/** @property {string} token - Jeton JWT. */` |
+| `isAuthenticated` (getter) | `/** * Vérifie si authentifié. * @returns {boolean} true si token présent. */` |
+| `isPermanent` (getter) | `/** * Vérifie si utilisateur permanent. * @returns {boolean} true si rôle 'permanent'. */` |
+| `userName` (getter) | `/** * Retourne le nom de l'utilisateur. * @returns {string} Nom ou chaîne vide. */` |
+| `login(email, password)` | `/** * Connecte un utilisateur. * @param {string} email - Email. * @param {string} password - Mot de passe. * @returns {Promise<Object>} Données utilisateur. */` |
+| `fetchUser()` | `/** * Vérifie la validité du token. * @returns {Promise<void>} */` |
+| `logout()` | `/** * Déconnecte l'utilisateur. * @returns {void} */` |
+
+---
+
+#### `src/store/ventes.js`
+
+```
+/**
+ * @module store/ventes
+ * @description Store Pinia de gestion des ventes.
+ * Actions CRUD avec gestion des états de chargement et d'erreur.
+ */
+```
+
+| Élément | Signature JSDoc |
+|---------|----------------|
+| `state.ventes` | `/** @property {Array} ventes - Liste des ventes. */` |
+| `state.loading` | `/** @property {boolean} loading - Indicateur de chargement. */` |
+| `state.error` | `/** @property {string|null} error - Message d'erreur. */` |
+| `totalVentes` (getter) | `/** * Nombre total de ventes. * @returns {number} */` |
+| `fetchVentes()` | `/** * Récupère toutes les ventes. * @returns {Promise<void>} */` |
+| `addVente(data)` | `/** * Ajoute une vente et rafraîchit la liste. * @param {Object} data - Données de la vente. * @returns {Promise<void>} */` |
+| `updateVente(id, data)` | `/** * Modifie une vente et rafraîchit la liste. * @param {number} id - ID de la vente. * @param {Object} data - Champs à modifier. * @returns {Promise<void>} */` |
+| `deleteVente(id)` | `/** * Supprime une vente et rafraîchit la liste. * @param {number} id - ID de la vente. * @returns {Promise<void>} */` |
+
+---
+
+#### `src/store/rapports.js`
+
+```
+/**
+ * @module store/rapports
+ * @description Store Pinia de gestion des rapports.
+ * Charge les ventes d'un artisan et délègue l'export Excel.
+ */
+```
+
+| Élément | Signature JSDoc |
+|---------|----------------|
+| `state.selectedArtisanId` | `/** @property {number|null} selectedArtisanId - ID de l'artisan sélectionné. */` |
+| `state.ventesArtisan` | `/** @property {Array} ventesArtisan - Ventes de l'artisan. */` |
+| `state.summary` | `/** @property {Object} summary - Résumé (total_articles, total_montant). */` |
+| `fetchVentesByArtisan(id)` | `/** * Récupère les ventes d'un artisan. * @param {number} id - ID de l'artisan. * @returns {Promise<void>} */` |
+| `exportToExcel(artisans)` | `/** * Exporte les ventes en Excel via le service utilitaire. * @param {Array} artisans - Liste des artisans. * @returns {void} */` |
+
+---
+
+#### `src/store/artisans.js`
+
+```
+/**
+ * @module store/artisans
+ * @description Store Pinia dédié aux artisans.
+ * Gère le chargement et le filtrage par rôle.
+ */
+```
+
+| Élément | Signature JSDoc |
+|---------|----------------|
+| `state.artisans` | `/** @property {Array} artisans - Liste des artisans. */` |
+| `permanents` (getter) | `/** * Filtre les artisans permanents. * @returns {Array} */` |
+| `temporaires` (getter) | `/** * Filtre les artisans temporaires. * @returns {Array} */` |
+| `getArtisanName(id)` (getter) | `/** * Retourne le nom d'un artisan par son ID. * @param {number} id - ID de l'artisan. * @returns {string} Nom ou 'Artisan inconnu'. */` |
+| `fetchArtisans()` | `/** * Récupère la liste des artisans. * @returns {Promise<void>} */` |
+
+---
+
+#### `src/components/Navbar.vue`
+
+| Élément | Signature JSDoc |
+|---------|----------------|
+| Composant | `/** * Barre de navigation fixe avec logo, liens et infos utilisateur. * @vue-component */` |
+| `handleLogout()` | `/** * Déconnecte l'utilisateur et redirige vers /login. * @returns {void} */` |
+
+---
+
+#### `src/components/ModalAjoutVente.vue`
+
+| Élément | Signature JSDoc |
+|---------|----------------|
+| **Props** | `@prop {boolean} show - Contrôle l'affichage de la modale.` |
+| **Events** | `@emit close - Ferme la modale.` |
+| `watch(show)` | `/** * À l'ouverture : charge les artisans si nécessaire. * À la fermeture : réinitialise le formulaire. * @param {boolean} newVal - Nouvel état d'affichage. * @returns {Promise<void>} */` |
+| `handleSubmit()` | `/** * Soumet le formulaire d'ajout de vente. * @returns {Promise<void>} */` |
+
+---
+
+#### `src/components/ModalEditVente.vue`
+
+| Élément | Signature JSDoc |
+|---------|----------------|
+| **Props** | `@prop {boolean} show - Contrôle l'affichage.` `@prop {Object} vente - Données de la vente à modifier.` |
+| **Events** | `@emit close - Ferme la modale.` `@emit saved - Vente modifiée avec succès.` |
+| `watch(vente)` | `/** * Pré-remplit le formulaire avec les données de la vente. * @param {Object} newVente - Nouvelles données. * @returns {void} */` |
+| `handleSubmit()` | `/** * Soumet les modifications de la vente. * @returns {Promise<void>} */` |
+
+---
+
+#### `src/views/LoginView.vue`
+
+| Élément | Signature JSDoc |
+|---------|----------------|
+| `email` (ref) | `/** @type {import('vue').Ref<string>} Champ email du formulaire. */` |
+| `password` (ref) | `/** @type {import('vue').Ref<string>} Champ mot de passe. */` |
+| `loading` (ref) | `/** @type {import('vue').Ref<boolean>} État de chargement. */` |
+| `error` (ref) | `/** @type {import('vue').Ref<string|null>} Message d'erreur. */` |
+| `handleLogin()` | `/** * Authentifie l'utilisateur et redirige vers la page d'accueil. * @returns {Promise<void>} */` |
+
+---
+
+#### `src/views/VentesView.vue`
+
+| Élément | Signature JSDoc |
+|---------|----------------|
+| `formatDate(dateStr)` | `/** * Formate une date ISO en format français JJ/MM/AAAA. * @param {string} dateStr - Date ISO. * @returns {string} Date formatée. */` |
+| `formatPrice(price)` | `/** * Formate un nombre en devise euro (€). * @param {number} price - Montant. * @returns {string} Montant formaté. */` |
+| `getPaymentLabel(type)` | `/** * Traduit le type de paiement en libellé français. * @param {string} type - Code (CB, Espece, Cheque). * @returns {string} Libellé français. */` |
+| `openEdit(vente)` | `/** * Clone la vente et ouvre la modale d'édition. * @param {Object} vente - Vente à modifier. * @returns {void} */` |
+| `handleDelete(id)` | `/** * Demande confirmation puis supprime la vente. * @param {number} id - ID de la vente. * @returns {Promise<void>} */` |
+
+---
+
+#### `src/views/RapportsView.vue`
+
+| Élément | Signature JSDoc |
+|---------|----------------|
+| `selectedArtisanId` (ref) | `/** @type {import('vue').Ref<string|number>} ID de l'artisan sélectionné. */` |
+| `permanents` (computed) | `/** * Artisans avec rôle 'permanent'. * @returns {import('vue').ComputedRef<Array>} */` |
+| `temporaires` (computed) | `/** * Artisans avec rôle 'temporaire'. * @returns {import('vue').ComputedRef<Array>} */` |
+| `loadVentes()` | `/** * Charge les ventes de l'artisan sélectionné. * @returns {void} */` |
 
 ---
 
@@ -449,4 +559,11 @@ SiteCaisse/
 
 ---
 
-*Documentation générée le 30/05/2026 — Refactoring SOLID effectué avec amélioration du score de 8.5 → 9.5/10*
+*Documentation générée le 31/05/2026 — Refactoring SOLID effectué avec amélioration du score de 8.5 → 9.5/10.*  
+*Tous les fichiers source sont documentés avec des commentaires JSDoc au format :*
+```
+/**
+ * Description de la fonction.
+ * @param {type} nomParam - Description du paramètre.
+ * @returns {type} Description du retour.
+ */

@@ -1,3 +1,9 @@
+/**
+ * @module router/index
+ * @description Configuration du routeur Vue Router.
+ * Définit les routes de l'application avec un guard de navigation
+ * pour protéger l'accès aux pages nécessitant une authentification.
+ */
 import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from '../views/LoginView.vue'
 import VentesView from '../views/VentesView.vue'
@@ -8,18 +14,21 @@ const routes = [
     path: '/login',
     name: 'Login',
     component: LoginView,
+    /** @property {boolean} meta.requiresAuth - false = page publique. */
     meta: { requiresAuth: false }
   },
   {
     path: '/',
     name: 'Ventes',
     component: VentesView,
+    /** @property {boolean} meta.requiresAuth - true = page protégée. */
     meta: { requiresAuth: true }
   },
   {
     path: '/rapports',
     name: 'Rapports',
     component: RapportsView,
+    /** @property {boolean} meta.requiresAuth - true = page protégée. */
     meta: { requiresAuth: true }
   },
   {
@@ -33,7 +42,15 @@ const router = createRouter({
   routes
 })
 
-// Navigation guard : protéger les routes qui nécessitent une auth
+/**
+ * Guard de navigation : protège les routes nécessitant une authentification.
+ * Redirige vers la page de connexion si l'utilisateur n'a pas de token.
+ * Redirige vers la page des ventes si l'utilisateur déjà connecté tente d'accéder à /login.
+ * @param {import('vue-router').RouteRecordNormalized} to - Route de destination.
+ * @param {import('vue-router').RouteRecordNormalized} from - Route d'origine.
+ * @param {import('vue-router').NavigationGuardNext} next - Fonction pour résoudre la navigation.
+ * @returns {void}
+ */
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
 
