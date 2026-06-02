@@ -16,7 +16,7 @@
           @change="onArtisanChange"
           class="artisan-select"
         >
-          <option value="">-- Choisir un artisan --</option>
+          <option value="">-- Tous les artisans --</option>
           <optgroup label="Artisans permanents">
             <option
               v-for="a in permanents"
