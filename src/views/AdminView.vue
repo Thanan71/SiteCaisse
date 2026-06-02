@@ -34,51 +34,16 @@
 
     <!-- Section Paramètres : Commissions CB -->
     <div v-if="activePanel === 'commissions'" class="card parametres-card">
-      <h2>Paramètres des commissions CB</h2>
-      <p class="parametres-info">
-        Les commissions CB sont calculées en pourcentage du montant total des ventes par carte bancaire.
-      </p>
-      <form @submit.prevent="handleSaveCommissions" class="parametres-form">
-        <div class="form-row">
-          <div class="form-group">
-            <label for="commission-permanent">Commission CB - Artisans permanents (%)</label>
-            <div class="input-with-suffix">
-              <input
-                id="commission-permanent"
-                v-model="commissionPermanent"
-                type="number"
-                step="0.01"
-                min="0"
-                max="100"
-                placeholder="1.70"
-                required
-              />
-              <span class="input-suffix">%</span>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="commission-temporaire">Commission CB - Artisans temporaires (%)</label>
-            <div class="input-with-suffix">
-              <input
-                id="commission-temporaire"
-                v-model="commissionTemporaire"
-                type="number"
-                step="0.01"
-                min="0"
-                max="100"
-                placeholder="1.70"
-                required
-              />
-              <span class="input-suffix">%</span>
-            </div>
-          </div>
-        </div>
-        <button type="submit" class="btn btn-primary" :disabled="savingCommissions">
-          {{ savingCommissions ? 'Enregistrement...' : 'Enregistrer les commissions' }}
-        </button>
-        <p v-if="commissionsError" class="error-message">{{ commissionsError }}</p>
-        <p v-if="commissionsSuccess" class="success-message">{{ commissionsSuccess }}</p>
-      </form>
+      <parametres-commissions
+        :commission-permanent="commissionPermanent"
+        :commission-temporaire="commissionTemporaire"
+        :saving="savingCommissions"
+        :error="commissionsError"
+        :success="commissionsSuccess"
+        @save="handleSaveCommissions"
+        @update:commission-permanent="commissionPermanent = $event"
+        @update:commission-temporaire="commissionTemporaire = $event"
+      />
     </div>
 
     <template v-if="activePanel === 'users'">
@@ -153,153 +118,38 @@
       <!-- Liste des utilisateurs -->
       <div class="card users-list-card">
         <h2>Utilisateurs ({{ users.length }})</h2>
-
         <div v-if="loading" class="loading">Chargement des utilisateurs...</div>
-
         <div v-else-if="users.length === 0" class="empty-state">
           Aucun utilisateur trouvé.
         </div>
-
-        <div v-else class="users-table-wrapper">
-          <table class="users-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Nom</th>
-                <th>Email</th>
-                <th>Rôle</th>
-                <th>Actif</th>
-                <th>Date de fin</th>
-                <th>Date de création</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="user in users" :key="user.id">
-                <td>{{ user.id }}</td>
-                <td>{{ user.nom }}</td>
-                <td>{{ user.email }}</td>
-                <td>
-                  <span class="role-badge" :class="'role-' + user.role">
-                    {{ user.role === 'admin' ? 'Admin' : user.role === 'permanent' ? 'Permanent' : 'Temporaire' }}
-                  </span>
-                </td>
-                <td>
-                  <span class="status-dot" :class="getStatusClass(user)"></span>
-                  {{ getStatusLabel(user) }}
-                </td>
-                <td>{{ user.date_fin ? formatDateSimple(user.date_fin) : '—' }}</td>
-                <td>{{ formatDate(user.created_at) }}</td>
-                <td>
-                  <div class="actions-cell">
-                    <button
-                      v-if="user.role !== 'admin'"
-                      @click="handleDeleteUser(user)"
-                      class="btn btn-danger btn-sm"
-                      :disabled="deletingId === user.id"
-                    >
-                      {{ deletingId === user.id ? 'Suppression...' : 'Supprimer' }}
-                    </button>
-                    <button
-                      @click="handleResetPassword(user)"
-                      class="btn btn-warning btn-sm"
-                      :disabled="resettingId === user.id"
-                    >
-                      {{ resettingId === user.id ? 'Envoi...' : 'Reset MDP' }}
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <UserTable
+          v-else
+          :users="users"
+          :deleting-id="deletingId"
+          :extending-id="extendingId"
+          :resetting-id="resettingId"
+          :get-status-class="getStatusClass"
+          :get-status-label="getStatusLabel"
+          @delete="openDeleteModal"
+          @extend="openExtendModal"
+          @reset-password="openResetModal"
+        />
       </div>
     </template>
 
     <!-- Journal des actions -->
     <div v-if="activePanel === 'logs'" class="card logs-card">
-      <div class="section-title-row">
-        <div>
-          <h2>Journal des actions</h2>
-          <p class="section-subtitle">{{ logsPagination.total }} action{{ logsPagination.total > 1 ? 's' : '' }} enregistrée{{ logsPagination.total > 1 ? 's' : '' }}</p>
-        </div>
-        <button @click="fetchLogs" class="btn btn-secondary btn-sm" :disabled="logsLoading">
-          {{ logsLoading ? 'Actualisation...' : 'Actualiser' }}
-        </button>
-      </div>
-
-      <div class="logs-filters">
-        <div class="form-group">
-          <label for="log-action">Action</label>
-          <select id="log-action" v-model="logFilters.action" @change="applyLogFilters">
-            <option value="">Toutes</option>
-            <option value="error">Erreur</option>
-            <option value="auth.login_success">Connexion réussie</option>
-            <option value="auth.login_failed">Connexion échouée</option>
-            <option value="vente.create">Vente créée</option>
-            <option value="vente.update">Vente modifiée</option>
-            <option value="vente.delete">Vente supprimée</option>
-            <option value="user.create">Utilisateur créé</option>
-            <option value="user.delete">Utilisateur supprimé</option>
-            <option value="parametre.update">Paramètre modifié</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="log-cible">Cible</label>
-          <select id="log-cible" v-model="logFilters.cible_type" @change="applyLogFilters">
-            <option value="">Toutes</option>
-            <option value="auth">Authentification</option>
-            <option value="vente">Vente</option>
-            <option value="user">Utilisateur</option>
-            <option value="parametre">Paramètre</option>
-            <option value="rapport">Rapport</option>
-            <option value="log">Log</option>
-          </select>
-        </div>
-      </div>
-
-      <p v-if="logsError" class="error-message">{{ logsError }}</p>
-      <div v-if="logsLoading" class="loading">Chargement des logs...</div>
-      <div v-else-if="logs.length === 0" class="empty-state">
-        Aucun log trouvé.
-      </div>
-      <div v-else class="users-table-wrapper">
-        <table class="users-table logs-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Utilisateur</th>
-              <th>Action</th>
-              <th>Cible</th>
-              <th>Détails</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="log in logs" :key="log.id">
-              <td>{{ formatDate(log.created_at) }}</td>
-              <td>
-                <span>{{ log.user_nom || 'Système' }}</span>
-                <span v-if="log.user_email" class="log-email">{{ log.user_email }}</span>
-              </td>
-              <td>
-                <span class="action-badge" :class="{ 'action-error': log.action === 'error' }">{{ getActionLabel(log.action) }}</span>
-              </td>
-              <td>{{ getCibleLabel(log.cible_type) }}{{ log.cible_id ? ` #${log.cible_id}` : '' }}</td>
-              <td class="log-details">{{ formatLogDetails(log.details) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div v-if="logsPagination.totalPages > 1" class="pagination-controls">
-        <button class="btn btn-secondary btn-sm" @click="changeLogsPage(logsPagination.page - 1)" :disabled="logsPagination.page <= 1 || logsLoading">
-          Précédent
-        </button>
-        <span class="pagination-label">Page {{ logsPagination.page }} / {{ logsPagination.totalPages }}</span>
-        <button class="btn btn-secondary btn-sm" @click="changeLogsPage(logsPagination.page + 1)" :disabled="logsPagination.page >= logsPagination.totalPages || logsLoading">
-          Suivant
-        </button>
-      </div>
+      <logs-viewer
+        :logs="logs"
+        :logs-loading="logsLoading"
+        :logs-error="logsError"
+        :log-filters="logFilters"
+        :logs-pagination="logsPagination"
+        @fetch="fetchLogs"
+        @apply-filters="applyLogFilters"
+        @change-page="changeLogsPage"
+        @update:log-filters="logFilters = $event"
+      />
     </div>
 
     <!-- Modal de confirmation de suppression -->
@@ -317,6 +167,33 @@
           <button @click="closeDeleteModal" class="btn btn-secondary">Annuler</button>
           <button @click="confirmDeleteUser" class="btn btn-danger" :disabled="deletingId !== null">
             {{ deletingId ? 'Suppression...' : 'Confirmer la suppression' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de prolongation d'accès -->
+    <div v-if="showExtendModal" class="modal-overlay" @click.self="closeExtendModal">
+      <div class="modal-content">
+        <h3>Prolonger l'accès de {{ userToExtend?.nom }}</h3>
+        <p>
+          Date de fin actuelle : <strong>{{ userToExtend?.date_fin ? formatDateSimple(userToExtend.date_fin) : '—' }}</strong>
+        </p>
+        <div class="form-group" style="margin: 16px 0;">
+          <label for="new-date-fin">Nouvelle date de fin</label>
+          <input
+            id="new-date-fin"
+            v-model="extendDateFin"
+            type="date"
+            required
+            :min="minDate"
+          />
+        </div>
+        <p v-if="extendError" class="error-message">{{ extendError }}</p>
+        <div class="modal-actions">
+          <button @click="closeExtendModal" class="btn btn-secondary">Annuler</button>
+          <button @click="confirmExtendUser" class="btn btn-success" :disabled="!extendDateFin || extendingId !== null">
+            {{ extendingId ? 'Prolongement...' : 'Prolonger' }}
           </button>
         </div>
       </div>
@@ -342,36 +219,26 @@
 import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
 import ConfirmModal from '../components/ConfirmModal.vue'
+import UserTable from '../components/UserTable.vue'
+import ParametresCommissions from '../components/ParametresCommissions.vue'
+import LogsViewer from '../components/LogsViewer.vue'
 import { formatDateTime as formatDate, formatDateSimple } from '../utils/formatters'
+import { useUsers } from '../composables/useUsers'
 
 const activePanel = ref('users')
 
-// État du formulaire d'ajout
-const newUser = ref({
-  nom: '',
-  email: '',
-  password: '',
-  role: '',
-  date_fin: '',
-})
-const creating = ref(false)
-const createError = ref('')
-const createSuccess = ref('')
-
-// État de la liste
-const users = ref([])
-const loading = ref(true)
-
-// État de la suppression
-const showDeleteModal = ref(false)
-const userToDelete = ref(null)
-const deletingId = ref(null)
-
-// État de la réinitialisation de mot de passe
-const showResetModal = ref(false)
-const userToReset = ref(null)
-const resetMessage = ref('')
-const resettingId = ref(null)
+// Utilisateurs : toute la logique métier extraite dans le composable
+const {
+  users, loading, creating, createError, createSuccess, newUser,
+  deletingId, showDeleteModal, userToDelete,
+  showExtendModal, userToExtend, extendDateFin, extendError, extendingId,
+  showResetModal, userToReset, resetMessage, resettingId,
+  fetchUsers, handleCreateUser, onRoleChange,
+  openDeleteModal, closeDeleteModal, confirmDeleteUser,
+  openExtendModal, closeExtendModal, confirmExtendUser,
+  openResetModal, closeResetModal, confirmResetPassword,
+  getStatusClass, getStatusLabel,
+} = useUsers()
 
 // État des commissions CB
 const commissionPermanent = ref('')
@@ -384,16 +251,8 @@ const commissionsSuccess = ref('')
 const logs = ref([])
 const logsLoading = ref(false)
 const logsError = ref('')
-const logFilters = ref({
-  action: '',
-  cible_type: '',
-})
-const logsPagination = ref({
-  page: 1,
-  limit: 25,
-  total: 0,
-  totalPages: 0,
-})
+const logFilters = ref({ action: '', cible_type: '' })
+const logsPagination = ref({ page: 1, limit: 25, total: 0, totalPages: 0 })
 
 // Date minimum pour le champ date (aujourd'hui)
 const minDate = computed(() => {
@@ -424,16 +283,14 @@ async function handleSaveCommissions() {
   commissionsSuccess.value = ''
 
   try {
-    await api.put(`/api/admin/parametres/commission_cb_permanent`, {
+    await api.put('/api/admin/parametres/commission_cb_permanent', {
       valeur: commissionPermanent.value,
     })
-    await api.put(`/api/admin/parametres/commission_cb_temporaire`, {
+    await api.put('/api/admin/parametres/commission_cb_temporaire', {
       valeur: commissionTemporaire.value,
     })
     commissionsSuccess.value = 'Commissions CB mises à jour avec succès !'
-    setTimeout(() => {
-      commissionsSuccess.value = ''
-    }, 3000)
+    setTimeout(() => { commissionsSuccess.value = '' }, 3000)
   } catch (err) {
     commissionsError.value = err.response?.data?.error || "Erreur lors de l'enregistrement"
   } finally {
@@ -442,45 +299,14 @@ async function handleSaveCommissions() {
 }
 
 /**
- * Réinitialise la date de fin quand on change de rôle.
- */
-function onRoleChange() {
-  if (newUser.value.role === 'permanent') {
-    newUser.value.date_fin = ''
-  }
-}
-
-/**
- * Récupère la liste des utilisateurs depuis l'API.
- * @returns {Promise<void>}
- */
-async function fetchUsers() {
-  try {
-    loading.value = true
-    const response = await api.get('/api/admin/users')
-    users.value = response.data
-  } catch (err) {
-    console.error('Erreur chargement utilisateurs:', err)
-  } finally {
-    loading.value = false
-  }
-}
-
-/**
  * Récupère le journal des actions depuis l'API admin.
- * @param {number} [page] - Page demandée.
- * @returns {Promise<void>}
  */
 async function fetchLogs(page = logsPagination.value.page) {
   try {
     logsLoading.value = true
     logsError.value = ''
 
-    const params = {
-      page,
-      limit: logsPagination.value.limit,
-    }
-
+    const params = { page, limit: logsPagination.value.limit }
     if (logFilters.value.action) params.action = logFilters.value.action
     if (logFilters.value.cible_type) params.cible_type = logFilters.value.cible_type
 
@@ -494,242 +320,11 @@ async function fetchLogs(page = logsPagination.value.page) {
   }
 }
 
-/**
- * Applique les filtres du journal et revient à la première page.
- */
-function applyLogFilters() {
-  fetchLogs(1)
-}
+function applyLogFilters() { fetchLogs(1) }
 
-/**
- * Change la page du journal.
- * @param {number} page - Page demandée.
- */
 function changeLogsPage(page) {
   if (page < 1 || page > logsPagination.value.totalPages) return
   fetchLogs(page)
-}
-
-/**
- * Crée un nouvel utilisateur.
- * @returns {Promise<void>}
- */
-async function handleCreateUser() {
-  creating.value = true
-  createError.value = ''
-  createSuccess.value = ''
-
-  try {
-    const payload = {
-      nom: newUser.value.nom,
-      email: newUser.value.email,
-      password: newUser.value.password,
-      role: newUser.value.role,
-    }
-
-    // Ajouter date_fin uniquement si c'est un temporaire
-    if (newUser.value.role === 'temporaire' && newUser.value.date_fin) {
-      payload.date_fin = newUser.value.date_fin
-    }
-
-    await api.post('/api/admin/users', payload)
-
-    createSuccess.value = `Utilisateur ${newUser.value.nom} créé avec succès !`
-    newUser.value = { nom: '', email: '', password: '', role: '', date_fin: '' }
-    await fetchUsers()
-
-    // Effacer le message de succès après 3 secondes
-    setTimeout(() => {
-      createSuccess.value = ''
-    }, 3000)
-  } catch (err) {
-    createError.value = err.response?.data?.error || 'Erreur lors de la création'
-  } finally {
-    creating.value = false
-  }
-}
-
-/**
- * Ouvre la modale de confirmation de réinitialisation de mot de passe.
- * @param {Object} user - Utilisateur dont le mot de passe est à réinitialiser.
- */
-function handleResetPassword(user) {
-  userToReset.value = user
-  resetMessage.value = `Confirmer la réinitialisation du mot de passe pour ${user.nom} (${user.email}) ?`
-  showResetModal.value = true
-}
-
-/**
- * Ferme la modale de réinitialisation.
- */
-function closeResetModal() {
-  showResetModal.value = false
-  userToReset.value = null
-}
-
-/**
- * Confirme et exécute la réinitialisation du mot de passe.
- * @returns {Promise<void>}
- */
-async function confirmResetPassword() {
-  if (!userToReset.value) return
-
-  resettingId.value = userToReset.value.id
-
-  try {
-    const response = await api.post(`/api/admin/users/${userToReset.value.id}/reset-password`)
-    closeResetModal()
-    alert(response.data.message || 'Mot de passe réinitialisé avec succès.')
-  } catch (err) {
-    closeResetModal()
-    alert(err.response?.data?.error || 'Erreur lors de la réinitialisation du mot de passe')
-  } finally {
-    resettingId.value = null
-  }
-}
-
-/**
- * Ouvre la modale de confirmation de suppression.
- * @param {Object} user - Utilisateur à supprimer.
- */
-function handleDeleteUser(user) {
-  userToDelete.value = user
-  showDeleteModal.value = true
-}
-
-/**
- * Ferme la modale de suppression.
- */
-function closeDeleteModal() {
-  showDeleteModal.value = false
-  userToDelete.value = null
-}
-
-/**
- * Confirme et exécute la suppression d'un utilisateur.
- * @returns {Promise<void>}
- */
-async function confirmDeleteUser() {
-  if (!userToDelete.value) return
-
-  deletingId.value = userToDelete.value.id
-
-  try {
-    await api.delete(`/api/admin/users/${userToDelete.value.id}`)
-    closeDeleteModal()
-    await fetchUsers()
-  } catch (err) {
-    console.error('Erreur suppression:', err)
-    alert(err.response?.data?.error || 'Erreur lors de la suppression')
-  } finally {
-    deletingId.value = null
-  }
-}
-
-/**
- * Retourne la classe CSS pour le statut actif/expiré.
- * @param {Object} user
- * @returns {string}
- */
-function getStatusClass(user) {
-  if (!user.est_actif) return 'inactive'
-  if (isDateFinExpired(user.date_fin)) return 'expired'
-  return 'active'
-}
-
-/**
- * Retourne le label pour le statut.
- * @param {Object} user
- * @returns {string}
- */
-function getStatusLabel(user) {
-  if (!user.est_actif) return 'Non'
-  if (isDateFinExpired(user.date_fin)) return 'Expiré'
-  return 'Oui'
-}
-
-/**
- * Vérifie si la date de fin est dépassée.
- * @param {string|null} dateFin
- * @returns {boolean}
- */
-function isDateFinExpired(dateFin) {
-  if (!dateFin) return false
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const fin = new Date(`${dateFin}T00:00:00`)
-  return fin < today
-}
-
-/**
- * Retourne un libellé lisible pour une action journalisée.
- * @param {string} action
- * @returns {string}
- */
-function getActionLabel(action) {
-  const labels = {
-    error: 'Erreur',
-    'auth.login_success': 'Connexion réussie',
-    'auth.login_failed': 'Connexion échouée',
-    'vente.create': 'Vente créée',
-    'vente.update': 'Vente modifiée',
-    'vente.delete': 'Vente supprimée',
-    'user.create': 'Utilisateur créé',
-    'user.delete': 'Utilisateur supprimé',
-    'parametre.update': 'Paramètre modifié',
-  }
-  return labels[action] || action
-}
-
-/**
- * Retourne un libellé lisible pour le type de cible.
- * @param {string} cibleType
- * @returns {string}
- */
-function getCibleLabel(cibleType) {
-  const labels = {
-    auth: 'Authentification',
-    vente: 'Vente',
-    user: 'Utilisateur',
-    parametre: 'Paramètre',
-    rapport: 'Rapport',
-    log: 'Log',
-    error: 'Erreur',
-  }
-  return labels[cibleType] || cibleType || '—'
-}
-
-/**
- * Formate les détails JSON d'un log en résumé court.
- * @param {Object|string|null} details
- * @returns {string}
- */
-function formatLogDetails(details) {
-  if (!details) return '—'
-  let data = details
-
-  if (typeof details === 'string') {
-    try {
-      data = JSON.parse(details)
-    } catch {
-      return details
-    }
-  }
-
-  if (Object.keys(data).length === 0) return '—'
-
-  if (data.context && data.message) return `${data.context} : ${data.message}`
-  if (data.reason) return `Raison : ${data.reason}`
-  if (data.cle) return `${data.cle} = ${data.valeur}`
-  if (data.nom && data.email) return `${data.nom} (${data.email})`
-  if (data.type_paiement && data.artisan_id) {
-    const nbArticles = Array.isArray(data.articles) ? data.articles.length : 0
-    return `${data.type_paiement}, artisan #${data.artisan_id}, ${nbArticles} article${nbArticles > 1 ? 's' : ''}`
-  }
-  if (data.modifications) return 'Modification vente'
-  if (data.email) return data.email
-
-  return JSON.stringify(data)
 }
 
 onMounted(() => {
@@ -741,7 +336,7 @@ onMounted(() => {
 
 <style scoped>
 .admin-container {
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 32px 24px;
 }
@@ -816,25 +411,6 @@ onMounted(() => {
   margin: 0 0 20px 0;
 }
 
-.section-title-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.section-title-row h2 {
-  margin-bottom: 4px;
-}
-
-.section-subtitle {
-  color: #64748b;
-  font-size: 0.85rem;
-  margin: 0;
-}
-
-/* Paramètres card */
 .parametres-info {
   color: #64748b;
   font-size: 0.85rem;
@@ -922,13 +498,6 @@ onMounted(() => {
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-.logs-filters {
-  display: grid;
-  grid-template-columns: minmax(180px, 240px) minmax(180px, 240px);
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
 /* Buttons */
 .btn {
   padding: 10px 20px;
@@ -968,6 +537,15 @@ onMounted(() => {
   background: #e2e8f0;
 }
 
+.btn-success {
+  background: #22c55e;
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #16a34a;
+}
+
 .btn-danger {
   background: #ef4444;
   color: white;
@@ -986,17 +564,6 @@ onMounted(() => {
   background: #d97706;
 }
 
-.actions-cell {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 0.8rem;
-}
-
 /* Messages */
 .error-message {
   color: #ef4444;
@@ -1008,136 +575,6 @@ onMounted(() => {
   color: #22c55e;
   font-size: 0.85rem;
   margin: 0;
-}
-
-/* Table */
-.users-table-wrapper {
-  overflow-x: auto;
-}
-
-.users-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-.users-table th {
-  text-align: left;
-  padding: 12px 16px;
-  border-bottom: 2px solid #e2e8f0;
-  color: #64748b;
-  font-weight: 600;
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  white-space: nowrap;
-}
-
-.users-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid #f1f5f9;
-  color: #1e293b;
-}
-
-.users-table tbody tr:hover {
-  background: #f8fafc;
-}
-
-.logs-table td {
-  vertical-align: top;
-}
-
-.log-email {
-  display: block;
-  color: #64748b;
-  font-size: 0.78rem;
-  margin-top: 2px;
-}
-
-.action-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: #0f766e;
-  background: #ccfbf1;
-  white-space: nowrap;
-}
-
-.action-badge.action-error {
-  color: #b91c1c;
-  background: #fee2e2;
-}
-
-.log-details {
-  max-width: 260px;
-  color: #475569 !important;
-  font-size: 0.82rem;
-  line-height: 1.4;
-}
-
-.pagination-controls {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.pagination-label {
-  color: #64748b;
-  font-size: 0.85rem;
-}
-
-/* Role badge */
-.role-badge {
-  display: inline-block;
-  padding: 3px 10px;
-  border-radius: 12px;
-  font-size: 0.78rem;
-  font-weight: 500;
-}
-
-.role-admin {
-  background: #f3e8ff;
-  color: #9333ea;
-}
-
-.role-permanent {
-  background: #dbeafe;
-  color: #2563eb;
-}
-
-.role-temporaire {
-  background: #fef3c7;
-  color: #d97706;
-}
-
-/* Status dot */
-.status-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  margin-right: 6px;
-}
-
-.status-dot.active {
-  background: #22c55e;
-}
-
-.status-dot.inactive {
-  background: #ef4444;
-}
-
-.status-dot.expired {
-  background: #f97316;
-}
-
-.text-muted {
-  color: #94a3b8;
-  font-size: 0.85rem;
 }
 
 /* Loading & Empty */
@@ -1207,13 +644,8 @@ onMounted(() => {
 
 /* Responsive */
 @media (max-width: 640px) {
-  .form-row,
-  .logs-filters {
+  .form-row {
     grid-template-columns: 1fr;
-  }
-
-  .section-title-row {
-    flex-direction: column;
   }
 
   .admin-container {

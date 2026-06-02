@@ -456,6 +456,17 @@ async function deleteVente(id) {
  * @param {number} id - ID de l'utilisateur.
  * @returns {Promise<string>} Le nouveau mot de passe en clair (pour l'envoyer par email).
  */
+async function extendUserDateFin(id, newDateFin) {
+  const supabase = getSupabase()
+  const { error } = await supabase
+    .from('users')
+    .update({ date_fin: newDateFin })
+    .eq('id', id)
+
+  if (error) throw error
+  return true
+}
+
 async function resetUserPassword(id) {
   const supabase = getSupabase()
 
@@ -524,6 +535,7 @@ module.exports = {
   findUserByEmail,
   findUserById,
   updatePassword,
+  extendUserDateFin,
   resetUserPassword,
   getAllArtisans,
   createVente,

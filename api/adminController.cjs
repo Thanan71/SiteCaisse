@@ -12,7 +12,7 @@ const { getSupabase } = require('./db.cjs')
 const { getAllParametres, updateParametre } = require('./services/parametresService.cjs')
 const { logAction, logError, getActionLogs } = require('./services/loggerService.cjs')
 const { sendAccountCreated, sendPasswordReset } = require('./services/mailService.cjs')
-const { resetUserPassword } = require('./models.cjs')
+const { extendUserDateFin, resetUserPassword } = require('./models.cjs')
 
 const router = express.Router()
 
@@ -395,6 +395,76 @@ router.post('/users/:id/reset-password', authMiddleware, adminMiddleware, async 
       req,
     })
     res.status(500).json({ error: "Erreur lors de la réinitialisation du mot de passe" })
+  }
+})
+
+/**
+ * PATCH /api/admin/users/:id/extend
+ * Prolonge la date de fin d'accès d'un utilisateur temporaire.
+ * @param {number} req.params.id - ID de l'utilisateur.
+ * @param {string} req.body.date_fin - Nouvelle date de fin (YYYY-MM-DD).
+ * @returns {Object} Message de confirmation.
+ */
+router.patch('/users/:id/extend', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10)
+
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'ID utilisateur invalide' })
+    }
+
+    const { date_fin } = req.body
+    if (!date_fin) {
+      return res.status(400).json({ error: 'La nouvelle date de fin est requise' })
+    }
+
+    const supabase = getSupabase()
+
+    // Vérifier que l'utilisateur existe et est temporaire
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, nom, email, role, date_fin')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' })
+    }
+
+    if (user.role !== 'temporaire') {
+      return res.status(400).json({ error: 'Seuls les utilisateurs temporaires peuvent être prolongés' })
+    }
+
+    // Valider que la nouvelle date est postérieure à l'ancienne
+    const oldDate = new Date(user.date_fin)
+    const newDate = new Date(date_fin)
+    if (newDate <= oldDate) {
+      return res.status(400).json({ error: 'La nouvelle date de fin doit être postérieure à la date actuelle' })
+    }
+
+    await extendUserDateFin(userId, date_fin)
+
+    await logAction({
+      user: req.user,
+      action: 'user.extend',
+      cible_type: 'user',
+      cible_id: userId,
+      details: { nom: user.nom, email: user.email, ancienne_date: user.date_fin, nouvelle_date: date_fin },
+      req,
+    })
+
+    res.json({ message: 'Accès prolongé avec succès', nouvelle_date_fin: date_fin })
+  } catch (err) {
+    console.error('Admin extend user error:', err)
+    await logError({
+      user: req.user,
+      err,
+      context: 'admin.users.extend',
+      cible_type: 'user',
+      cible_id: req.params.id,
+      req,
+    })
+    res.status(500).json({ error: "Erreur lors de la prolongation de l'accès" })
   }
 })
 
