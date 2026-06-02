@@ -1,17 +1,12 @@
 /**
  * @module store/auth
  * @description Store d'authentification Pinia.
- * Gère la connexion et la déconnexion via Supabase Auth.
+ * Gère la connexion et la déconnexion via Supabase Auth directement
+ * et la récupération du profil depuis le backend.
  */
 import { defineStore } from 'pinia'
 import api from '../services/api'
-import {
-  signInWithPassword,
-  signOut,
-  getSession,
-  getUser,
-  onAuthStateChange,
-} from '../services/supabase'
+import { supabase, getSession, onAuthStateChange } from '../services/supabase'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -64,7 +59,7 @@ export const useAuthStore = defineStore('auth', {
     async init() {
       this.loading = true
       try {
-        // Écouter les changements de session (rafraîchissement automatique, déconnexion, etc.)
+        // Écouter les changements de session (rafraîchissement, déconnexion, etc.)
         onAuthStateChange((event, session) => {
           if (session?.access_token) {
             this.token = session.access_token
@@ -98,7 +93,7 @@ export const useAuthStore = defineStore('auth', {
      * @returns {Promise<Object>} Données de l'utilisateur connecté.
      */
     async login(email, password) {
-      const { data, error } = await signInWithPassword(email, password)
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
 
       if (!data?.session?.access_token) {
@@ -137,7 +132,7 @@ export const useAuthStore = defineStore('auth', {
     async logout() {
       this.token = ''
       this.user = null
-      await signOut()
+      await supabase.auth.signOut()
     },
   },
 })

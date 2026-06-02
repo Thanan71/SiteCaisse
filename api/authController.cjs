@@ -6,7 +6,7 @@
  */
 const express = require('express')
 const { getSupabase } = require('./db.cjs')
-const { findUserById } = require('./models.cjs')
+const { findUserById, findUserByEmail } = require('./models.cjs')
 const { logAction, logError } = require('./services/loggerService.cjs')
 
 const router = express.Router()
@@ -43,7 +43,8 @@ async function authMiddleware(req, res, next) {
       return res.status(401).json({ error: 'Token invalide ou expiré' })
     }
 
-    // Récupérer les infos utilisateur de notre base (id, nom, email, role)
+    // Récupérer les infos utilisateur dans notre table users
+    // via le user_id stocké dans user_metadata
     const userId = authUser.user_metadata?.user_id
     if (userId) {
       const user = await findUserById(userId)
@@ -54,15 +55,15 @@ async function authMiddleware(req, res, next) {
       }
     }
 
-    // Fallback : créer un objet minimal avec les infos Supabase
-    req.user = {
-      id: authUser.user_metadata?.user_id || null,
-      auth_id: authUser.id,
-      email: authUser.email,
-      nom: authUser.user_metadata?.nom || authUser.email,
-      role: authUser.user_metadata?.role || 'permanent',
+    // Fallback : chercher par email
+    const userByEmail = await findUserByEmail(authUser.email)
+    if (userByEmail) {
+      req.user = userByEmail
+      next()
+      return
     }
-    next()
+
+    return res.status(401).json({ error: 'Utilisateur non trouvé' })
   } catch (err) {
     void logError({
       err,
@@ -84,15 +85,6 @@ async function authMiddleware(req, res, next) {
  */
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    // Si nous avons un userId valide, chercher en base
-    if (req.user.id) {
-      const user = await findUserById(req.user.id)
-      if (user) {
-        res.json(user)
-        return
-      }
-    }
-    // Sinon retourner les infos du token Supabase
     res.json(req.user)
   } catch (err) {
     console.error('Me error:', err)
