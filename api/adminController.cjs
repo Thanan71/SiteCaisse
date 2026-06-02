@@ -136,13 +136,15 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
       nom: data.nom,
       password: req.body.password,
       req,
-    }).then((sent) => {
-      if (sent) {
-        console.log(`✅ Email de bienvenue envoyé à ${data.email}`)
-      }
-    }).catch(() => {
-      // Déjà logué dans sendAccountCreated, on ne fait rien de plus
     })
+      .then((sent) => {
+        if (sent) {
+          console.log(`✅ Email de bienvenue envoyé à ${data.email}`)
+        }
+      })
+      .catch(() => {
+        // Déjà logué dans sendAccountCreated, on ne fait rien de plus
+      })
 
     res.status(201).json(data)
   } catch (err) {
