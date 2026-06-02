@@ -5,45 +5,40 @@
  * pour protéger l'accès aux pages nécessitant une authentification.
  */
 import { createRouter, createWebHistory } from 'vue-router'
-import AdminView from '../views/AdminView.vue'
-import ChangePasswordView from '../views/ChangePasswordView.vue'
-import LoginView from '../views/LoginView.vue'
-import RapportsView from '../views/RapportsView.vue'
-import VentesView from '../views/VentesView.vue'
 
 const routes = [
   {
     path: '/login',
     name: 'Login',
-    component: LoginView,
+    component: () => import('../views/LoginView.vue'),
     /** @property {boolean} meta.requiresAuth - false = page publique. */
     meta: { requiresAuth: false },
   },
   {
     path: '/change-password',
     name: 'ChangePassword',
-    component: ChangePasswordView,
+    component: () => import('../views/ChangePasswordView.vue'),
     /** @property {boolean} meta.requiresAuth - true = page protégée. */
     meta: { requiresAuth: true },
   },
   {
     path: '/',
     name: 'Ventes',
-    component: VentesView,
+    component: () => import('../views/VentesView.vue'),
     /** @property {boolean} meta.requiresAuth - true = page protégée. */
     meta: { requiresAuth: true },
   },
   {
     path: '/rapports',
     name: 'Rapports',
-    component: RapportsView,
+    component: () => import('../views/RapportsView.vue'),
     /** @property {boolean} meta.requiresAuth - true = page protégée. */
     meta: { requiresAuth: true },
   },
   {
     path: '/admin',
     name: 'Admin',
-    component: AdminView,
+    component: () => import('../views/AdminView.vue'),
     /** @property {boolean} meta.requiresAuth - true = page protégée. */
     /** @property {boolean} meta.requiresAdmin - true = page réservée aux admins. */
     meta: { requiresAuth: true, requiresAdmin: true },
