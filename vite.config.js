@@ -26,7 +26,11 @@ export default defineConfig({
           if (id.includes('node_modules/@supabase/supabase-js')) {
             return 'vendor-supabase'
           }
-          if (id.includes('node_modules/vue') || id.includes('node_modules/vue-router') || id.includes('node_modules/pinia')) {
+          if (
+            id.includes('node_modules/vue') ||
+            id.includes('node_modules/vue-router') ||
+            id.includes('node_modules/pinia')
+          ) {
             return 'vendor-vue'
           }
         },
