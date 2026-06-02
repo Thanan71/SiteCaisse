@@ -6,7 +6,6 @@
  * Protégé par le middleware d'authentification + vérification du rôle admin.
  */
 const express = require('express')
-const bcrypt = require('bcryptjs')
 const { authMiddleware } = require('./authController.cjs')
 const { getSupabase } = require('./db.cjs')
 const { getAllParametres, updateParametre } = require('./services/parametresService.cjs')
@@ -59,7 +58,7 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
 
 /**
  * POST /api/admin/users
- * Crée un nouvel utilisateur.
+ * Crée un nouvel utilisateur dans Supabase Auth ET dans la table users.
  * @param {string} req.body.nom - Nom de l'utilisateur.
  * @param {string} req.body.email - Email de l'utilisateur.
  * @param {string} req.body.password - Mot de passe de l'utilisateur.
@@ -95,7 +94,7 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
 
     const supabase = getSupabase()
 
-    // Vérifier si l'email existe déjà
+    // Vérifier si l'email existe déjà dans notre base
     const { data: existing } = await supabase
       .from('users')
       .select('id')
@@ -106,9 +105,75 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
       return res.status(409).json({ error: 'Un utilisateur avec cet email existe déjà' })
     }
 
-    const password_hash = bcrypt.hashSync(password, 10)
+    // 1. Créer l'utilisateur dans Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        nom,
+        role,
+        user_id: null, // sera mis à jour après insertion dans notre table
+      },
+    })
 
-    const userData = { nom, email, password_hash, role }
+    if (authError) {
+      // Si l'utilisateur existe déjà dans Supabase Auth, essayer de le récupérer
+      if (authError.status === 409) {
+        const { data: existingAuth } = await supabase.auth.admin.listUsers()
+        const existingUser = existingAuth?.users?.find((u) => u.email === email)
+        if (!existingUser) {
+          throw authError
+        }
+        // Lier notre utilisateur à ce compte Auth existant
+        const authId = existingUser.id
+        const { data, error } = await supabase
+          .from('users')
+          .insert({
+            nom,
+            email,
+            auth_id: authId,
+            password_hash: '',
+            role,
+            ...(date_fin ? { date_fin } : {}),
+          })
+          .select('id, nom, email, role, est_actif, date_fin, created_at')
+          .single()
+
+        if (error) throw error
+
+        // Mettre à jour user_metadata avec le bon user_id
+        await supabase.auth.admin.updateUserById(authId, {
+          user_metadata: { nom, role, user_id: data.id },
+        })
+
+        await logAction({
+          user: req.user,
+          action: 'user.create',
+          cible_type: 'user',
+          cible_id: data.id,
+          details: { nom: data.nom, email: data.email, role: data.role, date_fin: data.date_fin },
+          req,
+        })
+        res.status(201).json(data)
+        return
+      }
+      throw authError
+    }
+
+    const authId = authData?.user?.id
+    if (!authId) {
+      throw new Error('Aucun ID utilisateur Auth créé')
+    }
+
+    // 2. Créer l'utilisateur dans notre table users avec l'auth_id
+    const userData = {
+      nom,
+      email,
+      auth_id: authId,
+      password_hash: '',
+      role,
+    }
     if (date_fin) {
       userData.date_fin = date_fin
     }
@@ -120,6 +185,12 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
       .single()
 
     if (error) throw error
+
+    // 3. Mettre à jour user_metadata avec le bon user_id
+    await supabase.auth.admin.updateUserById(authId, {
+      user_metadata: { nom, role, user_id: data.id },
+    })
+
     await logAction({
       user: req.user,
       action: 'user.create',

@@ -1,27 +1,26 @@
 /**
  * @module authController
  * @description Contrôleur d'authentification.
- * Gère la connexion des utilisateurs, la vérification des tokens JWT
+ * Gère la vérification des tokens Supabase Auth JWT
  * et la récupération du profil de l'utilisateur connecté.
  */
 const express = require('express')
-const bcrypt = require('bcryptjs')
-const jwt = require('jsonwebtoken')
-const { findUserByEmail, findUserById } = require('./models.cjs')
+const { getSupabase } = require('./db.cjs')
+const { findUserById } = require('./models.cjs')
 const { logAction, logError } = require('./services/loggerService.cjs')
 
 const router = express.Router()
-const JWT_SECRET = process.env.JWT_SECRET || 'sitecaisse-secret-key-2024'
 
 /**
- * Middleware de vérification du token JWT.
- * Extrait et vérifie le token depuis l'en-tête Authorization (Bearer).
+ * Middleware de vérification du token JWT Supabase.
+ * Extrait et vérifie le token depuis l'en-tête Authorization (Bearer)
+ * via l'API Supabase Auth (auth.getUser).
  * @param {import('express').Request} req - Requête Express.
  * @param {import('express').Response} res - Réponse Express.
  * @param {import('express').NextFunction} next - Fonction suivante dans la chaîne de middleware.
  * @returns {void}
  */
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization
   if (!authHeader?.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Token manquant' })
@@ -29,126 +28,52 @@ function authMiddleware(req, res, next) {
 
   const token = authHeader.split(' ')[1]
   try {
-    const decoded = jwt.verify(token, JWT_SECRET)
-    req.user = decoded
+    const supabase = getSupabase()
+    // Vérifier le token via Supabase Auth
+    const { data: { user: authUser }, error } = await supabase.auth.getUser(token)
+
+    if (error || !authUser) {
+      await logError({
+        err: error || new Error('User not found'),
+        context: 'auth.middleware',
+        cible_type: 'auth',
+        details: { reason: 'invalid_or_expired_token' },
+        req,
+      })
+      return res.status(401).json({ error: 'Token invalide ou expiré' })
+    }
+
+    // Récupérer les infos utilisateur de notre base (id, nom, email, role)
+    const userId = authUser.user_metadata?.user_id
+    if (userId) {
+      const user = await findUserById(userId)
+      if (user) {
+        req.user = user
+        next()
+        return
+      }
+    }
+
+    // Fallback : créer un objet minimal avec les infos Supabase
+    req.user = {
+      id: authUser.user_metadata?.user_id || null,
+      auth_id: authUser.id,
+      email: authUser.email,
+      nom: authUser.user_metadata?.nom || authUser.email,
+      role: authUser.user_metadata?.role || 'permanent',
+    }
     next()
   } catch (err) {
     void logError({
       err,
       context: 'auth.middleware',
       cible_type: 'auth',
-      details: { reason: 'invalid_or_expired_token' },
+      details: { reason: 'verification_error' },
       req,
     })
     return res.status(401).json({ error: 'Token invalide ou expiré' })
   }
 }
-
-/**
- * Route de connexion : authentifie un utilisateur avec email et mot de passe.
- * @route POST /api/auth/login
- * @param {string} req.body.email - Adresse email de l'utilisateur.
- * @param {string} req.body.password - Mot de passe de l'utilisateur.
- * @returns {Object} Token JWT et informations utilisateur (id, nom, email, role).
- * @throws {400} Si email ou mot de passe manquant.
- * @throws {401} Si email ou mot de passe incorrect.
- * @throws {403} Si le compte est désactivé.
- */
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body
-
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email et mot de passe requis' })
-    }
-
-    const user = await findUserByEmail(email)
-    if (!user) {
-      await logAction({
-        action: 'auth.login_failed',
-        cible_type: 'auth',
-        details: { email, reason: 'unknown_email' },
-        req,
-      })
-      return res.status(401).json({ error: 'Email ou mot de passe incorrect' })
-    }
-
-    if (!user.est_actif) {
-      await logAction({
-        user,
-        action: 'auth.login_failed',
-        cible_type: 'auth',
-        cible_id: user.id,
-        details: { reason: 'inactive_account' },
-        req,
-      })
-      return res.status(403).json({ error: 'Compte désactivé' })
-    }
-
-    // Vérifier si l'utilisateur temporaire a une date de fin dépassée
-    if (user.role === 'temporaire' && user.date_fin) {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const dateFin = new Date(`${user.date_fin}T00:00:00`)
-      if (dateFin < today) {
-        await logAction({
-          user,
-          action: 'auth.login_failed',
-          cible_type: 'auth',
-          cible_id: user.id,
-          details: { reason: 'expired_access', date_fin: user.date_fin },
-          req,
-        })
-        return res.status(403).json({ error: 'Votre accès a expiré. Contactez un administrateur.' })
-      }
-    }
-
-    const validPassword = bcrypt.compareSync(password, user.password_hash)
-    if (!validPassword) {
-      await logAction({
-        action: 'auth.login_failed',
-        cible_type: 'auth',
-        details: { email, reason: 'invalid_password' },
-        req,
-      })
-      return res.status(401).json({ error: 'Email ou mot de passe incorrect' })
-    }
-
-    const token = jwt.sign(
-      { id: user.id, nom: user.nom, email: user.email, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '24h' },
-    )
-
-    await logAction({
-      user,
-      action: 'auth.login_success',
-      cible_type: 'auth',
-      cible_id: user.id,
-      req,
-    })
-
-    res.json({
-      token,
-      user: {
-        id: user.id,
-        nom: user.nom,
-        email: user.email,
-        role: user.role,
-      },
-    })
-  } catch (err) {
-    console.error('Login error:', err)
-    await logError({
-      err,
-      context: 'auth.login',
-      cible_type: 'auth',
-      details: { email: req.body?.email || null },
-      req,
-    })
-    res.status(500).json({ error: 'Erreur serveur' })
-  }
-})
 
 /**
  * Route de vérification du profil utilisateur connecté.
@@ -159,11 +84,16 @@ router.post('/login', async (req, res) => {
  */
 router.get('/me', authMiddleware, async (req, res) => {
   try {
-    const user = await findUserById(req.user.id)
-    if (!user) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' })
+    // Si nous avons un userId valide, chercher en base
+    if (req.user.id) {
+      const user = await findUserById(req.user.id)
+      if (user) {
+        res.json(user)
+        return
+      }
     }
-    res.json(user)
+    // Sinon retourner les infos du token Supabase
+    res.json(req.user)
   } catch (err) {
     console.error('Me error:', err)
     await logError({

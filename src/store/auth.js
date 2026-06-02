@@ -1,17 +1,26 @@
 /**
  * @module store/auth
  * @description Store d'authentification Pinia.
- * Gère la connexion, la déconnexion et la vérification du token JWT.
+ * Gère la connexion et la déconnexion via Supabase Auth.
  */
 import { defineStore } from 'pinia'
 import api from '../services/api'
+import {
+  signInWithPassword,
+  signOut,
+  getSession,
+  getUser,
+  onAuthStateChange,
+} from '../services/supabase'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     /** @property {Object|null} user - Données de l'utilisateur connecté (null si déconnecté). */
-    user: JSON.parse(localStorage.getItem('user') || 'null'),
-    /** @property {string} token - Jeton d'authentification JWT. */
-    token: localStorage.getItem('token') || '',
+    user: null,
+    /** @property {string} token - Jeton d'authentification Supabase (access_token). */
+    token: '',
+    /** @property {boolean} loading - Indique si une vérification de session est en cours. */
+    loading: true,
   }),
 
   getters: {
@@ -38,55 +47,97 @@ export const useAuthStore = defineStore('auth', {
      * @returns {string} Nom de l'utilisateur ou chaîne vide si non connecté.
      */
     userName: (state) => state.user?.nom || '',
+
+    /**
+     * Retourne l'email de l'utilisateur connecté.
+     * @returns {string} Email de l'utilisateur ou chaîne vide si non connecté.
+     */
+    userEmail: (state) => state.user?.email || '',
   },
 
   actions: {
     /**
-     * Connecte un utilisateur avec ses identifiants.
-     * Enregistre le token et les données utilisateur dans le store et le localStorage.
+     * Initialise le store en vérifiant la session Supabase existante.
+     * Appelée au démarrage de l'application.
+     * @returns {Promise<void>}
+     */
+    async init() {
+      this.loading = true
+      try {
+        // Écouter les changements de session (rafraîchissement automatique, déconnexion, etc.)
+        onAuthStateChange((event, session) => {
+          if (session?.access_token) {
+            this.token = session.access_token
+          } else {
+            this.token = ''
+            this.user = null
+          }
+        })
+
+        // Vérifier s'il y a une session active stockée par Supabase
+        const { data: sessionData } = await getSession()
+        if (sessionData?.session?.access_token) {
+          this.token = sessionData.session.access_token
+          // Récupérer les infos utilisateur depuis le backend
+          await this.fetchUser()
+        }
+      } catch (error) {
+        console.error('Auth init error:', error)
+        this.token = ''
+        this.user = null
+      } finally {
+        this.loading = false
+      }
+    },
+
+    /**
+     * Connecte un utilisateur avec ses identifiants via Supabase Auth.
+     * Récupère ensuite les informations utilisateur depuis le backend.
      * @param {string} email - Adresse email de l'utilisateur.
      * @param {string} password - Mot de passe de l'utilisateur.
      * @returns {Promise<Object>} Données de l'utilisateur connecté.
      */
     async login(email, password) {
-      const response = await api.post('/api/auth/login', { email, password })
-      const { token, user } = response.data
+      const { data, error } = await signInWithPassword(email, password)
+      if (error) throw error
 
-      this.token = token
-      this.user = user
+      if (!data?.session?.access_token) {
+        throw new Error('Aucune session créée')
+      }
 
-      localStorage.setItem('token', token)
-      localStorage.setItem('user', JSON.stringify(user))
+      this.token = data.session.access_token
 
+      // Récupérer les infos utilisateur depuis le backend
+      const user = await this.fetchUser()
       return user
     },
 
     /**
-     * Vérifie la validité du token JWT auprès du serveur.
-     * Met à jour les informations utilisateur. Déconnecte automatiquement en cas d'échec.
-     * @returns {Promise<void>}
+     * Récupère les informations utilisateur depuis le backend
+     * en utilisant le token Supabase (JWT) pour l'authentification.
+     * Déconnecte automatiquement en cas d'échec.
+     * @returns {Promise<Object>} Données de l'utilisateur.
      */
     async fetchUser() {
       try {
         const response = await api.get('/api/auth/me')
         this.user = response.data
-        localStorage.setItem('user', JSON.stringify(this.user))
+        return this.user
       } catch (error) {
-        this.logout()
+        await this.logout()
         throw error
       }
     },
 
     /**
-     * Déconnecte l'utilisateur.
-     * Vide le store et supprime le token et les données du localStorage.
-     * @returns {void}
+     * Déconnecte l'utilisateur via Supabase Auth.
+     * Vide le store et supprime la session.
+     * @returns {Promise<void>}
      */
-    logout() {
+    async logout() {
       this.token = ''
       this.user = null
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
+      await signOut()
     },
   },
 })

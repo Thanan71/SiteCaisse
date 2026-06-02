@@ -17,12 +17,8 @@ import { useAuthStore } from './store/auth'
 const authStore = useAuthStore()
 
 onMounted(() => {
-  // Si un token existe au chargement, vérifier qu'il est toujours valide
-  if (authStore.token) {
-    authStore.fetchUser().catch(() => {
-      // Token invalide - logout déjà fait dans le catch
-    })
-  }
+  // Initialiser le store : vérifier si une session Supabase existe
+  authStore.init()
 })
 </script>
 

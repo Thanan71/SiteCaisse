@@ -3,12 +3,12 @@
  * Contient les fonctions de CRUD pour les utilisateurs et les ventes.
  * @module models
  */
-const bcrypt = require('bcryptjs')
 const { getSupabase } = require('./db.cjs')
 
 /**
  * Vérifie si des utilisateurs existent dans la table users.
- * Si la table est vide, insère 5 utilisateurs de démonstration avec le mot de passe "password123".
+ * Si la table est vide, insère 6 utilisateurs de démonstration
+ * et les crée dans Supabase Auth.
  * @returns {Promise<void>}
  */
 async function seedIfEmpty() {
@@ -31,23 +31,91 @@ async function seedIfEmpty() {
     return
   }
 
-  const hash = bcrypt.hashSync('password123', 10)
-
+  const defaultPassword = 'password123'
   const users = [
-    { nom: 'Admin', email: 'admin@sitecaisse.fr', password_hash: hash, role: 'admin' },
-    { nom: 'Marcel', email: 'marcel@artisan.fr', password_hash: hash, role: 'permanent' },
-    { nom: 'Sophie', email: 'sophie@artisan.fr', password_hash: hash, role: 'permanent' },
-    { nom: 'Jean', email: 'jean@artisan.fr', password_hash: hash, role: 'permanent' },
-    { nom: 'Lucas', email: 'lucas@artisan.fr', password_hash: hash, role: 'temporaire' },
-    { nom: 'Emma', email: 'emma@artisan.fr', password_hash: hash, role: 'temporaire' },
+    { nom: 'Admin', email: 'admin@sitecaisse.fr', role: 'admin' },
+    { nom: 'Marcel', email: 'marcel@artisan.fr', role: 'permanent' },
+    { nom: 'Sophie', email: 'sophie@artisan.fr', role: 'permanent' },
+    { nom: 'Jean', email: 'jean@artisan.fr', role: 'permanent' },
+    { nom: 'Lucas', email: 'lucas@artisan.fr', role: 'temporaire' },
+    { nom: 'Emma', email: 'emma@artisan.fr', role: 'temporaire' },
   ]
 
   for (const user of users) {
-    const { error } = await supabase.from('users').insert(user)
-    if (error) {
-      console.error(`❌ Erreur insertion ${user.nom}:`, error.message)
-    } else {
-      console.log(`✅ Utilisateur ${user.nom} créé`)
+    try {
+      // 1. Créer l'utilisateur dans Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: user.email,
+        password: defaultPassword,
+        email_confirm: true,
+        user_metadata: {
+          nom: user.nom,
+          role: user.role,
+          user_id: null, // sera mis à jour après insertion dans notre table
+        },
+      })
+
+      let authId
+      if (authError) {
+        // Si l'utilisateur existe déjà dans Auth, le récupérer
+        if (authError.status === 409) {
+          console.log(`👤 ${user.nom} existe déjà dans Auth, récupération...`)
+          const { data: existingAuth } = await supabase.auth.admin.listUsers()
+          const existingUser = existingAuth?.users?.find((u) => u.email === user.email)
+          if (existingUser) {
+            authId = existingUser.id
+            // Mettre à jour le mot de passe
+            await supabase.auth.admin.updateUserById(authId, {
+              password: defaultPassword,
+              user_metadata: { nom: user.nom, role: user.role, user_id: null },
+            })
+          } else {
+            console.error(`❌ Erreur création ${user.nom} dans Auth:`, authError.message)
+            continue
+          }
+        } else {
+          console.error(`❌ Erreur création ${user.nom} dans Auth:`, authError.message)
+          continue
+        }
+      } else {
+        authId = authData?.user?.id
+      }
+
+      if (!authId) {
+        console.error(`❌ Aucun authId pour ${user.nom}`)
+        continue
+      }
+
+      // 2. Insérer dans notre table users
+      const { error: insertError } = await supabase.from('users').insert({
+        nom: user.nom,
+        email: user.email,
+        role: user.role,
+        auth_id: authId,
+        password_hash: '',
+      })
+
+      if (insertError) {
+        console.error(`❌ Erreur insertion ${user.nom}:`, insertError.message)
+        continue
+      }
+
+      // 3. Récupérer l'ID de notre table pour mettre à jour user_metadata
+      const { data: insertedUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', user.email)
+        .maybeSingle()
+
+      if (insertedUser) {
+        await supabase.auth.admin.updateUserById(authId, {
+          user_metadata: { nom: user.nom, role: user.role, user_id: insertedUser.id },
+        })
+      }
+
+      console.log(`✅ Utilisateur ${user.nom} créé (email: ${user.email}, mdp: ${defaultPassword})`)
+    } catch (err) {
+      console.error(`❌ Erreur seed ${user.nom}:`, err.message)
     }
   }
 
@@ -435,44 +503,106 @@ async function deleteVente(id) {
 
 /**
  * Vérifie si un compte administrateur existe, le crée si nécessaire,
- * ou met à jour le mot de passe si le hash actuel est invalide.
+ * ou met à jour le mot de passe si besoin.
  * @returns {Promise<void>}
  */
 async function seedAdminIfMissing() {
   const supabase = getSupabase()
 
-  const hash = bcrypt.hashSync('password123', 10)
+  const defaultPassword = 'password123'
 
   const { data: existingAdmin } = await supabase
+    .from('users')
+    .select('id, email, auth_id')
+    .eq('email', 'admin@sitecaisse.fr')
+    .maybeSingle()
+
+  if (existingAdmin) {
+    // Mettre à jour le mot de passe dans Supabase Auth si l'auth_id existe
+    if (existingAdmin.auth_id) {
+      await supabase.auth.admin.updateUserById(existingAdmin.auth_id, {
+        password: defaultPassword,
+        user_metadata: {
+          nom: 'Admin',
+          role: 'admin',
+          user_id: existingAdmin.id,
+        },
+      })
+      console.log('✅ Mot de passe admin vérifié et mis à jour')
+    } else {
+      // Créer un compte Auth pour cet admin existant
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: 'admin@sitecaisse.fr',
+        password: defaultPassword,
+        email_confirm: true,
+        user_metadata: {
+          nom: 'Admin',
+          role: 'admin',
+          user_id: existingAdmin.id,
+        },
+      })
+
+      if (authError && authError.status !== 409) {
+        console.error('❌ Erreur création compte Auth admin:', authError.message)
+      } else if (authData?.user?.id) {
+        // Lier le compte Auth à notre utilisateur
+        await supabase
+          .from('users')
+          .update({ auth_id: authData.user.id })
+          .eq('id', existingAdmin.id)
+        console.log('✅ Compte Auth lié à admin existant')
+      }
+    }
+    return
+  }
+
+  // Créer l'admin complet (Auth + table)
+  const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    email: 'admin@sitecaisse.fr',
+    password: defaultPassword,
+    email_confirm: true,
+    user_metadata: {
+      nom: 'Admin',
+      role: 'admin',
+      user_id: null,
+    },
+  })
+
+  if (authError) {
+    console.error('❌ Erreur création admin dans Auth:', authError.message)
+    return
+  }
+
+  const authId = authData?.user?.id
+  if (!authId) return
+
+  const { error } = await supabase.from('users').insert({
+    nom: 'Admin',
+    email: 'admin@sitecaisse.fr',
+    password_hash: '',
+    role: 'admin',
+    auth_id: authId,
+  })
+
+  if (error) {
+    console.error('❌ Erreur création compte admin en base:', error.message)
+    return
+  }
+
+  // Mettre à jour user_metadata
+  const { data: inserted } = await supabase
     .from('users')
     .select('id')
     .eq('email', 'admin@sitecaisse.fr')
     .maybeSingle()
 
-  if (existingAdmin) {
-    // Mettre à jour le mot de passe pour garantir qu'il soit valide
-    const { error: updateError } = await supabase
-      .from('users')
-      .update({ password_hash: hash })
-      .eq('id', existingAdmin.id)
-
-    if (updateError) {
-      console.error('❌ Erreur mise à jour mot de passe admin:', updateError.message)
-    } else {
-      console.log('✅ Mot de passe admin vérifié et mis à jour')
-    }
-    return
+  if (inserted) {
+    await supabase.auth.admin.updateUserById(authId, {
+      user_metadata: { nom: 'Admin', role: 'admin', user_id: inserted.id },
+    })
   }
 
-  const { error } = await supabase
-    .from('users')
-    .insert({ nom: 'Admin', email: 'admin@sitecaisse.fr', password_hash: hash, role: 'admin' })
-
-  if (error) {
-    console.error('❌ Erreur création compte admin:', error.message)
-  } else {
-    console.log('✅ Compte admin créé (admin@sitecaisse.fr / password123)')
-  }
+  console.log('✅ Compte admin créé (admin@sitecaisse.fr / password123)')
 }
 
 module.exports = {

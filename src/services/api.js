@@ -2,7 +2,7 @@
  * @module services/api
  * @description Service de configuration Axios.
  * Centralise la configuration du client HTTP et les intercepteurs
- * pour l'authentification JWT et la gestion des erreurs 401.
+ * pour l'authentification via token Supabase et la gestion des erreurs 401.
  *
  * Ce service exporte une instance Axios dédiée plutôt que de
  * modifier le module global, respectant ainsi le principe
@@ -20,13 +20,31 @@ const api = axios.create({
 })
 
 /**
- * Intercepteur de requête : ajoute automatiquement le token JWT
+ * Récupère le token d'accès Supabase depuis le localStorage.
+ * Supabase stocke la session dans localStorage avec la clé 'sitecaisse-auth'.
+ * @returns {string|null} Le token d'accès ou null si non connecté.
+ */
+function getSupabaseToken() {
+  try {
+    const authStorage = localStorage.getItem('sitecaisse-auth')
+    if (authStorage) {
+      const parsed = JSON.parse(authStorage)
+      return parsed?.access_token || null
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Intercepteur de requête : ajoute automatiquement le token Supabase
  * à chaque requête sortante.
  * @param {import('axios').InternalAxiosRequestConfig} config - Configuration de la requête.
  * @returns {import('axios').InternalAxiosRequestConfig} Configuration modifiée avec le token.
  */
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  const token = getSupabaseToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
@@ -48,8 +66,7 @@ api.interceptors.response.use(
       // Ne pas rediriger si on est déjà sur la page de login
       // (évite un rechargement qui efface le message d'erreur)
       if (window.location.pathname !== '/login') {
-        localStorage.removeItem('token')
-        localStorage.removeItem('user')
+        localStorage.removeItem('sitecaisse-auth')
         window.location.href = '/login'
       }
     }
