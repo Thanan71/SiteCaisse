@@ -191,15 +191,23 @@
                 <td>{{ user.date_fin ? formatDateSimple(user.date_fin) : '—' }}</td>
                 <td>{{ formatDate(user.created_at) }}</td>
                 <td>
-                  <button
-                    v-if="user.role !== 'admin'"
-                    @click="handleDeleteUser(user)"
-                    class="btn btn-danger btn-sm"
-                    :disabled="deletingId === user.id"
-                  >
-                    {{ deletingId === user.id ? 'Suppression...' : 'Supprimer' }}
-                  </button>
-                  <span v-else class="text-muted">—</span>
+                  <div class="actions-cell">
+                    <button
+                      v-if="user.role !== 'admin'"
+                      @click="handleDeleteUser(user)"
+                      class="btn btn-danger btn-sm"
+                      :disabled="deletingId === user.id"
+                    >
+                      {{ deletingId === user.id ? 'Suppression...' : 'Supprimer' }}
+                    </button>
+                    <button
+                      @click="handleResetPassword(user)"
+                      class="btn btn-warning btn-sm"
+                      :disabled="resettingId === user.id"
+                    >
+                      {{ resettingId === user.id ? 'Envoi...' : 'Reset MDP' }}
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -343,6 +351,9 @@ const loading = ref(true)
 const showDeleteModal = ref(false)
 const userToDelete = ref(null)
 const deletingId = ref(null)
+
+// État de la réinitialisation de mot de passe
+const resettingId = ref(null)
 
 // État des commissions CB
 const commissionPermanent = ref('')
@@ -517,6 +528,28 @@ async function handleCreateUser() {
     createError.value = err.response?.data?.error || 'Erreur lors de la création'
   } finally {
     creating.value = false
+  }
+}
+
+/**
+ * Réinitialise le mot de passe d'un utilisateur.
+ * @param {Object} user - Utilisateur dont le mot de passe est à réinitialiser.
+ * @returns {Promise<void>}
+ */
+async function handleResetPassword(user) {
+  if (!window.confirm(`Confirmer la réinitialisation du mot de passe pour ${user.nom} (${user.email}) ?\n\nUn nouveau mot de passe sera généré et envoyé par email. L'utilisateur devra changer son mot de passe à la prochaine connexion.`)) {
+    return
+  }
+
+  resettingId.value = user.id
+
+  try {
+    const response = await api.post(`/api/admin/users/${user.id}/reset-password`)
+    alert(response.data.message || 'Mot de passe réinitialisé avec succès.')
+  } catch (err) {
+    alert(err.response?.data?.error || 'Erreur lors de la réinitialisation du mot de passe')
+  } finally {
+    resettingId.value = null
   }
 }
 
@@ -907,6 +940,21 @@ onMounted(() => {
 
 .btn-danger:hover:not(:disabled) {
   background: #dc2626;
+}
+
+.btn-warning {
+  background: #f59e0b;
+  color: white;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: #d97706;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 
 .btn-sm {

@@ -11,7 +11,8 @@ const { authMiddleware } = require('./authController.cjs')
 const { getSupabase } = require('./db.cjs')
 const { getAllParametres, updateParametre } = require('./services/parametresService.cjs')
 const { logAction, logError, getActionLogs } = require('./services/loggerService.cjs')
-const { sendAccountCreated } = require('./services/mailService.cjs')
+const { sendAccountCreated, sendPasswordReset } = require('./services/mailService.cjs')
+const { resetUserPassword } = require('./models.cjs')
 
 const router = express.Router()
 
@@ -322,6 +323,78 @@ router.get('/logs', authMiddleware, adminMiddleware, async (req, res) => {
       req,
     })
     res.status(500).json({ error: 'Erreur lors de la récupération des logs' })
+  }
+})
+
+/**
+ * POST /api/admin/users/:id/reset-password
+ * Réinitialise le mot de passe d'un utilisateur.
+ * Génère un nouveau mot de passe aléatoire, l'envoie par email,
+ * et force le changement de mot de passe à la prochaine connexion.
+ * @param {number} req.params.id - ID de l'utilisateur.
+ * @returns {Object} Message de confirmation.
+ */
+router.post('/users/:id/reset-password', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10)
+
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'ID utilisateur invalide' })
+    }
+
+    const supabase = getSupabase()
+
+    // Vérifier que l'utilisateur existe
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, nom, email')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' })
+    }
+
+    // Générer un nouveau mot de passe et le stocker en base (avec password_change_required = 1)
+    const newPassword = await resetUserPassword(userId)
+
+    // Envoi de l'email avec le nouveau mot de passe (non bloquant)
+    sendPasswordReset({
+      email: user.email,
+      nom: user.nom,
+      newPassword,
+      req,
+    })
+      .then((sent) => {
+        if (sent) {
+          console.log(`✅ Email de réinitialisation envoyé à ${user.email}`)
+        }
+      })
+      .catch(() => {
+        // Déjà logué dans sendPasswordReset
+      })
+
+    await logAction({
+      user: req.user,
+      action: 'user.password_reset',
+      cible_type: 'user',
+      cible_id: userId,
+      details: { nom: user.nom, email: user.email },
+      req,
+    })
+
+    res.json({ message: 'Mot de passe réinitialisé avec succès. Un email a été envoyé à l\'utilisateur.' })
+  } catch (err) {
+    console.error('Admin reset password error:', err)
+    await logError({
+      user: req.user,
+      err,
+      context: 'admin.users.reset_password',
+      cible_type: 'user',
+      cible_id: req.params.id,
+      req,
+    })
+    res.status(500).json({ error: "Erreur lors de la réinitialisation du mot de passe" })
   }
 })
 

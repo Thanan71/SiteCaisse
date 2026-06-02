@@ -451,6 +451,32 @@ async function deleteVente(id) {
 }
 
 /**
+ * Réinitialise le mot de passe d'un utilisateur : génère un nouveau mot de passe aléatoire,
+ * le hache, le stocke en base et force le changement au prochain login.
+ * @param {number} id - ID de l'utilisateur.
+ * @returns {Promise<string>} Le nouveau mot de passe en clair (pour l'envoyer par email).
+ */
+async function resetUserPassword(id) {
+  const supabase = getSupabase()
+
+  // Générer un mot de passe aléatoire de 12 caractères
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$%'
+  let newPassword = ''
+  for (let i = 0; i < 12; i++) {
+    newPassword += chars.charAt(Math.floor(Math.random() * chars.length))
+  }
+
+  const password_hash = bcrypt.hashSync(newPassword, 10)
+  const { error } = await supabase
+    .from('users')
+    .update({ password_hash, password_change_required: 1 })
+    .eq('id', id)
+
+  if (error) throw error
+  return newPassword
+}
+
+/**
  * Vérifie si un compte administrateur existe, le crée si nécessaire,
  * ou met à jour le mot de passe si le hash actuel est invalide.
  * @returns {Promise<void>}
@@ -498,6 +524,7 @@ module.exports = {
   findUserByEmail,
   findUserById,
   updatePassword,
+  resetUserPassword,
   getAllArtisans,
   createVente,
   getAllVentes,
