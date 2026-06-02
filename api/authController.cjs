@@ -191,16 +191,10 @@ router.get('/me', authMiddleware, async (req, res) => {
  */
 router.post('/change-password', authMiddleware, async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body
+    const { newPassword, currentPassword } = req.body
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: 'Mot de passe actuel et nouveau mot de passe requis' })
-    }
-
-    if (currentPassword === newPassword) {
-      return res
-        .status(400)
-        .json({ error: 'Le nouveau mot de passe doit être différent du mot de passe actuel' })
+    if (!newPassword) {
+      return res.status(400).json({ error: 'Nouveau mot de passe requis' })
     }
 
     if (newPassword.length < 4) {
@@ -214,9 +208,22 @@ router.post('/change-password', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Utilisateur non trouvé' })
     }
 
-    const validPassword = bcrypt.compareSync(currentPassword, user.password_hash)
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Mot de passe actuel incorrect' })
+    // Si l'utilisateur n'est pas en changement obligatoire, vérifier l'ancien mot de passe
+    if (user.password_change_required !== 1) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Mot de passe actuel requis' })
+      }
+
+      if (currentPassword === newPassword) {
+        return res
+          .status(400)
+          .json({ error: 'Le nouveau mot de passe doit être différent du mot de passe actuel' })
+      }
+
+      const validPassword = bcrypt.compareSync(currentPassword, user.password_hash)
+      if (!validPassword) {
+        return res.status(401).json({ error: 'Mot de passe actuel incorrect' })
+      }
     }
 
     await updatePassword(req.user.id, newPassword)

@@ -11,18 +11,6 @@
 
       <form @submit.prevent="handleChangePassword" class="change-password-form">
         <div class="form-group">
-          <label for="current-password">Mot de passe actuel</label>
-          <input
-            id="current-password"
-            v-model="currentPassword"
-            type="password"
-            placeholder="Mot de passe actuel"
-            required
-            autocomplete="current-password"
-          />
-        </div>
-
-        <div class="form-group">
           <label for="new-password">Nouveau mot de passe</label>
           <input
             id="new-password"
@@ -72,7 +60,6 @@ import { useAuthStore } from '../store/auth'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const currentPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const loading = ref(false)
@@ -93,15 +80,10 @@ async function handleChangePassword() {
     return
   }
 
-  if (currentPassword.value === newPassword.value) {
-    error.value = 'Le nouveau mot de passe doit être différent du mot de passe actuel'
-    return
-  }
-
   loading.value = true
 
   try {
-    await authStore.changePassword(currentPassword.value, newPassword.value)
+    await authStore.changePassword(newPassword.value)
     success.value = 'Mot de passe modifié avec succès !'
     setTimeout(() => {
       router.push('/')
