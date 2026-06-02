@@ -187,6 +187,20 @@
       @close="editingVente = null"
       @saved="editingVente = null"
     />
+
+    <!-- Modal de confirmation de suppression -->
+    <ConfirmModal
+      :show="showDeleteModal"
+      title="Supprimer la vente"
+      message="Êtes-vous sûr de vouloir supprimer cette vente ?"
+      warning="Cette action est irréversible."
+      confirmText="Supprimer"
+      variant="danger"
+      :loading="deleting"
+      loadingText="Suppression en cours..."
+      @confirm="confirmDelete"
+      @cancel="closeDeleteModal"
+    />
   </div>
 </template>
 
@@ -194,6 +208,7 @@
 import { computed, onMounted, ref } from 'vue'
 import PaymentBadge from '../components/PaymentBadge.vue'
 import VenteFormModal from '../components/VenteFormModal.vue'
+import ConfirmModal from '../components/ConfirmModal.vue'
 import { useExpandableRows } from '../composables/useExpandableRows'
 import { useVentesStore } from '../store/ventes'
 import { formatDate, formatPrice, getPaymentLabel } from '../utils/formatters'
@@ -202,6 +217,11 @@ const ventesStore = useVentesStore()
 const showModal = ref(false)
 const editingVente = ref(null)
 const { getVisibleItems, isExpanded, toggleExpanded } = useExpandableRows()
+
+// État de la suppression
+const showDeleteModal = ref(false)
+const deletingId = ref(null)
+const deleting = ref(false)
 
 // État local pour les filtres (copie avant application)
 const localFilters = ref({
@@ -243,13 +263,29 @@ function openEdit(vente) {
   editingVente.value = { ...vente }
 }
 
-async function handleDelete(id) {
-  if (confirm('Êtes-vous sûr de vouloir supprimer cette vente ?')) {
-    try {
-      await ventesStore.deleteVente(id)
-    } catch (err) {
-      alert('Erreur lors de la suppression')
-    }
+function handleDelete(id) {
+  deletingId.value = id
+  showDeleteModal.value = true
+}
+
+function closeDeleteModal() {
+  showDeleteModal.value = false
+  deletingId.value = null
+}
+
+async function confirmDelete() {
+  if (!deletingId.value) return
+
+  deleting.value = true
+
+  try {
+    await ventesStore.deleteVente(deletingId.value)
+    closeDeleteModal()
+  } catch (err) {
+    closeDeleteModal()
+    alert('Erreur lors de la suppression')
+  } finally {
+    deleting.value = false
   }
 }
 </script>

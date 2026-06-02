@@ -321,12 +321,27 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal de confirmation de réinitialisation de mot de passe -->
+    <ConfirmModal
+      :show="showResetModal"
+      title="Réinitialiser le mot de passe"
+      :message="resetMessage"
+      warning="Un nouveau mot de passe sera généré et envoyé par email. L'utilisateur devra changer son mot de passe à la prochaine connexion."
+      confirmText="Réinitialiser"
+      variant="warning"
+      :loading="resettingId !== null"
+      loadingText="Envoi en cours..."
+      @confirm="confirmResetPassword"
+      @cancel="closeResetModal"
+    />
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
+import ConfirmModal from '../components/ConfirmModal.vue'
 import { formatDateTime as formatDate, formatDateSimple } from '../utils/formatters'
 
 const activePanel = ref('users')
@@ -353,6 +368,9 @@ const userToDelete = ref(null)
 const deletingId = ref(null)
 
 // État de la réinitialisation de mot de passe
+const showResetModal = ref(false)
+const userToReset = ref(null)
+const resetMessage = ref('')
 const resettingId = ref(null)
 
 // État des commissions CB
@@ -532,21 +550,38 @@ async function handleCreateUser() {
 }
 
 /**
- * Réinitialise le mot de passe d'un utilisateur.
+ * Ouvre la modale de confirmation de réinitialisation de mot de passe.
  * @param {Object} user - Utilisateur dont le mot de passe est à réinitialiser.
+ */
+function handleResetPassword(user) {
+  userToReset.value = user
+  resetMessage.value = `Confirmer la réinitialisation du mot de passe pour ${user.nom} (${user.email}) ?`
+  showResetModal.value = true
+}
+
+/**
+ * Ferme la modale de réinitialisation.
+ */
+function closeResetModal() {
+  showResetModal.value = false
+  userToReset.value = null
+}
+
+/**
+ * Confirme et exécute la réinitialisation du mot de passe.
  * @returns {Promise<void>}
  */
-async function handleResetPassword(user) {
-  if (!window.confirm(`Confirmer la réinitialisation du mot de passe pour ${user.nom} (${user.email}) ?\n\nUn nouveau mot de passe sera généré et envoyé par email. L'utilisateur devra changer son mot de passe à la prochaine connexion.`)) {
-    return
-  }
+async function confirmResetPassword() {
+  if (!userToReset.value) return
 
-  resettingId.value = user.id
+  resettingId.value = userToReset.value.id
 
   try {
-    const response = await api.post(`/api/admin/users/${user.id}/reset-password`)
+    const response = await api.post(`/api/admin/users/${userToReset.value.id}/reset-password`)
+    closeResetModal()
     alert(response.data.message || 'Mot de passe réinitialisé avec succès.')
   } catch (err) {
+    closeResetModal()
     alert(err.response?.data?.error || 'Erreur lors de la réinitialisation du mot de passe')
   } finally {
     resettingId.value = null
