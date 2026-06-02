@@ -108,7 +108,7 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
 
     const password_hash = bcrypt.hashSync(password, 10)
 
-    const userData = { nom, email, password_hash, role }
+    const userData = { nom, email, password_hash, role, password_change_required: 1 }
     if (date_fin) {
       userData.date_fin = date_fin
     }
@@ -116,7 +116,7 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
     const { data, error } = await supabase
       .from('users')
       .insert(userData)
-      .select('id, nom, email, role, est_actif, date_fin, created_at')
+      .select('id, nom, email, role, est_actif, date_fin, created_at, password_change_required')
       .single()
 
     if (error) throw error

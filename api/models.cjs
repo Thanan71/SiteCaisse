@@ -86,11 +86,28 @@ async function findUserById(id) {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('users')
-    .select('id, nom, email, role, est_actif, date_fin')
+    .select('id, nom, email, role, est_actif, date_fin, password_hash, password_change_required')
     .eq('id', id)
     .single()
   if (error && error.code !== 'PGRST116') throw error
   return data || null
+}
+
+/**
+ * Met à jour le mot de passe d'un utilisateur.
+ * @param {number} id - ID de l'utilisateur.
+ * @param {string} newPassword - Nouveau mot de passe en clair.
+ * @returns {Promise<boolean>} true si la mise à jour a réussi.
+ */
+async function updatePassword(id, newPassword) {
+  const supabase = getSupabase()
+  const password_hash = bcrypt.hashSync(newPassword, 10)
+  const { error } = await supabase
+    .from('users')
+    .update({ password_hash, password_change_required: 0 })
+    .eq('id', id)
+  if (error) throw error
+  return true
 }
 
 /**
@@ -480,6 +497,7 @@ module.exports = {
   seedAdminIfMissing,
   findUserByEmail,
   findUserById,
+  updatePassword,
   getAllArtisans,
   createVente,
   getAllVentes,

@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
   password_hash TEXT NOT NULL,
   role TEXT DEFAULT 'permanent' CHECK(role IN ('permanent', 'temporaire')),
   est_actif INTEGER DEFAULT 1,
+  password_change_required INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -7,7 +7,7 @@
 const express = require('express')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
-const { findUserByEmail, findUserById } = require('./models.cjs')
+const { findUserByEmail, findUserById, updatePassword } = require('./models.cjs')
 const { logAction, logError } = require('./services/loggerService.cjs')
 
 const router = express.Router()
@@ -130,11 +130,13 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
+      password_change_required: user.password_change_required === 1,
       user: {
         id: user.id,
         nom: user.nom,
         email: user.email,
         role: user.role,
+        password_change_required: user.password_change_required === 1,
       },
     })
   } catch (err) {
@@ -175,6 +177,70 @@ router.get('/me', authMiddleware, async (req, res) => {
       req,
     })
     res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+/**
+ * Route de changement de mot de passe.
+ * @route POST /api/auth/change-password
+ * @param {string} req.body.currentPassword - Mot de passe actuel.
+ * @param {string} req.body.newPassword - Nouveau mot de passe.
+ * @returns {Object} Message de confirmation.
+ * @throws {400} Si les mots de passe sont manquants ou identiques.
+ * @throws {401} Si le mot de passe actuel est incorrect.
+ */
+router.post('/change-password', authMiddleware, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Mot de passe actuel et nouveau mot de passe requis' })
+    }
+
+    if (currentPassword === newPassword) {
+      return res
+        .status(400)
+        .json({ error: 'Le nouveau mot de passe doit être différent du mot de passe actuel' })
+    }
+
+    if (newPassword.length < 4) {
+      return res
+        .status(400)
+        .json({ error: 'Le nouveau mot de passe doit contenir au moins 4 caractères' })
+    }
+
+    const user = await findUserById(req.user.id)
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' })
+    }
+
+    const validPassword = bcrypt.compareSync(currentPassword, user.password_hash)
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Mot de passe actuel incorrect' })
+    }
+
+    await updatePassword(req.user.id, newPassword)
+
+    await logAction({
+      user: { id: req.user.id, nom: req.user.nom, email: req.user.email },
+      action: 'auth.password_changed',
+      cible_type: 'auth',
+      cible_id: req.user.id,
+      req,
+    })
+
+    res.json({ message: 'Mot de passe modifié avec succès' })
+  } catch (err) {
+    console.error('Change password error:', err)
+    await logError({
+      user: req.user,
+      err,
+      context: 'auth.change_password',
+      cible_type: 'auth',
+      cible_id: req.user?.id || null,
+      req,
+    })
+    res.status(500).json({ error: 'Erreur lors du changement de mot de passe' })
   }
 })
 

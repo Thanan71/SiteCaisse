@@ -6,6 +6,7 @@
  */
 import { createRouter, createWebHistory } from 'vue-router'
 import AdminView from '../views/AdminView.vue'
+import ChangePasswordView from '../views/ChangePasswordView.vue'
 import LoginView from '../views/LoginView.vue'
 import RapportsView from '../views/RapportsView.vue'
 import VentesView from '../views/VentesView.vue'
@@ -17,6 +18,13 @@ const routes = [
     component: LoginView,
     /** @property {boolean} meta.requiresAuth - false = page publique. */
     meta: { requiresAuth: false },
+  },
+  {
+    path: '/change-password',
+    name: 'ChangePassword',
+    component: ChangePasswordView,
+    /** @property {boolean} meta.requiresAuth - true = page protégée. */
+    meta: { requiresAuth: true },
   },
   {
     path: '/',

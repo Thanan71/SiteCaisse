@@ -74,8 +74,12 @@ async function handleLogin() {
   error.value = null
 
   try {
-    await authStore.login(email.value, password.value)
-    router.push('/')
+    const result = await authStore.login(email.value, password.value)
+    if (result.password_change_required) {
+      router.push({ name: 'ChangePassword' })
+    } else {
+      router.push('/')
+    }
   } catch (err) {
     error.value = err.response?.data?.error || 'Erreur de connexion'
   } finally {
