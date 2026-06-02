@@ -11,6 +11,7 @@ const { authMiddleware } = require('./authController.cjs')
 const { getSupabase } = require('./db.cjs')
 const { getAllParametres, updateParametre } = require('./services/parametresService.cjs')
 const { logAction, logError, getActionLogs } = require('./services/loggerService.cjs')
+const { sendAccountCreated } = require('./services/mailService.cjs')
 
 const router = express.Router()
 
@@ -128,6 +129,21 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
       details: { nom: data.nom, email: data.email, role: data.role, date_fin: data.date_fin },
       req,
     })
+
+    // Envoi d'un email de notification de création de compte (non bloquant)
+    sendAccountCreated({
+      email: data.email,
+      nom: data.nom,
+      password: req.body.password,
+      req,
+    }).then((sent) => {
+      if (sent) {
+        console.log(`✅ Email de bienvenue envoyé à ${data.email}`)
+      }
+    }).catch(() => {
+      // Déjà logué dans sendAccountCreated, on ne fait rien de plus
+    })
+
     res.status(201).json(data)
   } catch (err) {
     console.error('Admin create user error:', err)
