@@ -3,10 +3,11 @@
  * @description Contrôleur d'authentification.
  * Gère la vérification des tokens Supabase Auth JWT
  * et la récupération du profil de l'utilisateur connecté.
+ * Lie automatiquement l'auth_id lors du premier login.
  */
 const express = require('express')
 const { getSupabase } = require('./db.cjs')
-const { findUserById, findUserByEmail } = require('./models.cjs')
+const { findUserByEmail } = require('./models.cjs')
 const { logAction, logError } = require('./services/loggerService.cjs')
 
 const router = express.Router()
@@ -15,10 +16,7 @@ const router = express.Router()
  * Middleware de vérification du token JWT Supabase.
  * Extrait et vérifie le token depuis l'en-tête Authorization (Bearer)
  * via l'API Supabase Auth (auth.getUser).
- * @param {import('express').Request} req - Requête Express.
- * @param {import('express').Response} res - Réponse Express.
- * @param {import('express').NextFunction} next - Fonction suivante dans la chaîne de middleware.
- * @returns {void}
+ * Lie automatiquement l'auth_id au premier appel.
  */
 async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization
@@ -28,9 +26,10 @@ async function authMiddleware(req, res, next) {
 
   const token = authHeader.split(' ')[1]
   try {
-    const supabase = getSupabase()
+    const sb = getSupabase()
+
     // Vérifier le token via Supabase Auth
-    const { data: { user: authUser }, error } = await supabase.auth.getUser(token)
+    const { data: { user: authUser }, error } = await sb.auth.getUser(token)
 
     if (error || !authUser) {
       await logError({
@@ -43,21 +42,29 @@ async function authMiddleware(req, res, next) {
       return res.status(401).json({ error: 'Token invalide ou expiré' })
     }
 
-    // Récupérer les infos utilisateur dans notre table users
-    // via le user_id stocké dans user_metadata
-    const userId = authUser.user_metadata?.user_id
-    if (userId) {
-      const user = await findUserById(userId)
-      if (user) {
-        req.user = user
-        next()
-        return
-      }
+    // 1. Chercher l'utilisateur par auth_id (liaison déjà existante)
+    const { data: userByAuthId } = await sb
+      .from('users')
+      .select('*')
+      .eq('auth_id', authUser.id)
+      .maybeSingle()
+
+    if (userByAuthId) {
+      req.user = userByAuthId
+      next()
+      return
     }
 
-    // Fallback : chercher par email
+    // 2. Chercher par email (première connexion)
     const userByEmail = await findUserByEmail(authUser.email)
     if (userByEmail) {
+      // Lier l'auth_id automatiquement
+      await sb
+        .from('users')
+        .update({ auth_id: authUser.id })
+        .eq('id', userByEmail.id)
+
+      userByEmail.auth_id = authUser.id
       req.user = userByEmail
       next()
       return
@@ -80,8 +87,6 @@ async function authMiddleware(req, res, next) {
  * Route de vérification du profil utilisateur connecté.
  * @route GET /api/auth/me
  * @returns {Object} Informations de l'utilisateur connecté (id, nom, email, role, est_actif).
- * @throws {401} Si le token est manquant ou invalide (via authMiddleware).
- * @throws {404} Si l'utilisateur n'est pas trouvé en base de données.
  */
 router.get('/me', authMiddleware, async (req, res) => {
   try {
