@@ -201,7 +201,7 @@ onMounted(() => {
 })
 
 function onArtisanChange() {
-  activeTab.value = 'graphiques'
+  activeTab.value = 'ventes'
   if (selectedArtisanId.value) {
     rapportsStore.fetchVentesByArtisan(selectedArtisanId.value)
   }
