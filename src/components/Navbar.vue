@@ -40,8 +40,8 @@ import { useAuthStore } from '../store/auth'
 const router = useRouter()
 const authStore = useAuthStore()
 
-async function handleLogout() {
-  await authStore.logout()
+function handleLogout() {
+  authStore.logout()
   router.push('/login')
 }
 </script>

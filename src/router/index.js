@@ -52,39 +52,8 @@ const router = createRouter({
 })
 
 /**
- * Vérifie si une session Supabase est active dans le localStorage.
- * @returns {boolean} true si un token d'accès Supabase est présent.
- */
-function hasSupabaseSession() {
-  try {
-    const authStorage = localStorage.getItem('sitecaisse-auth')
-    if (!authStorage) return false
-    const parsed = JSON.parse(authStorage)
-    return !!parsed?.access_token
-  } catch {
-    return false
-  }
-}
-
-/**
- * Vérifie le rôle admin depuis la session Supabase stockée.
- * Les métadonnées utilisateur (user_metadata) sont incluses dans la session.
- * @returns {string|null} Le rôle de l'utilisateur ou null si non connecté.
- */
-function getUserRoleFromSession() {
-  try {
-    const authStorage = localStorage.getItem('sitecaisse-auth')
-    if (!authStorage) return null
-    const parsed = JSON.parse(authStorage)
-    return parsed?.user?.user_metadata?.role || null
-  } catch {
-    return null
-  }
-}
-
-/**
  * Guard de navigation : protège les routes nécessitant une authentification.
- * Redirige vers la page de connexion si l'utilisateur n'a pas de session Supabase.
+ * Redirige vers la page de connexion si l'utilisateur n'a pas de token.
  * Redirige vers la page des ventes si l'utilisateur déjà connecté tente d'accéder à /login.
  * @param {import('vue-router').RouteRecordNormalized} to - Route de destination.
  * @param {import('vue-router').RouteRecordNormalized} from - Route d'origine.
@@ -92,18 +61,23 @@ function getUserRoleFromSession() {
  * @returns {void}
  */
 router.beforeEach((to, _from, next) => {
-  const hasSession = hasSupabaseSession()
+  const token = localStorage.getItem('token')
 
-  if (to.meta.requiresAuth && !hasSession) {
+  if (to.meta.requiresAuth && !token) {
     next({ name: 'Login' })
-  } else if (to.name === 'Login' && hasSession) {
+  } else if (to.name === 'Login' && token) {
     next({ name: 'Ventes' })
   } else if (to.meta.requiresAdmin) {
-    const role = getUserRoleFromSession()
-    if (role !== 'admin') {
+    // Vérifier le rôle admin depuis le localStorage
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || 'null')
+      if (user?.role !== 'admin') {
+        next({ name: 'Ventes' })
+      } else {
+        next()
+      }
+    } catch {
       next({ name: 'Ventes' })
-    } else {
-      next()
     }
   } else {
     next()
