@@ -6,7 +6,13 @@
  * Toutes les routes sont protégées par le middleware d'authentification JWT.
  */
 const express = require('express')
-const { getAllArtisans, getVentesByArtisan, getAllVentesGroupedByArtisan, getAllVentesGroupedByMonth, getVentesByMonth } = require('./models.cjs')
+const {
+  getAllArtisans,
+  getVentesByArtisan,
+  getAllVentesGroupedByArtisan,
+  getAllVentesGroupedByMonth,
+  getVentesByMonth,
+} = require('./models.cjs')
 const { authMiddleware } = require('./authController.cjs')
 const {
   ajouterCommissionsAuxGroupes,
@@ -70,10 +76,7 @@ router.get('/', async (req, res) => {
  */
 router.get('/mensuel', async (req, res) => {
   try {
-    const [data, parametres] = await Promise.all([
-      getAllVentesGroupedByMonth(),
-      getAllParametres(),
-    ])
+    const [data, parametres] = await Promise.all([getAllVentesGroupedByMonth(), getAllParametres()])
 
     const tauxPermanent = parseFloat(parametres.commission_cb_permanent) || 0
     const tauxTemporaire = parseFloat(parametres.commission_cb_temporaire) || 0
@@ -146,10 +149,7 @@ router.get('/mensuel/:mois', async (req, res) => {
       return res.status(400).json({ error: 'Format de mois invalide. Utilisez YYYY-MM' })
     }
 
-    const [data, parametres] = await Promise.all([
-      getVentesByMonth(mois),
-      getAllParametres(),
-    ])
+    const [data, parametres] = await Promise.all([getVentesByMonth(mois), getAllParametres()])
 
     const tauxPermanent = parseFloat(parametres.commission_cb_permanent) || 0
     const tauxTemporaire = parseFloat(parametres.commission_cb_temporaire) || 0

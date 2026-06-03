@@ -6,6 +6,7 @@
 
 import { saveAs } from 'file-saver'
 import * as XLSX from 'xlsx'
+import { formatMonthLabel } from '../utils/formatters'
 
 /**
  * Exporte un tableau de ventes au format Excel (pour un artisan spécifique).
@@ -116,12 +117,7 @@ export function exportMonthToExcel(groupes, total, parametres, mois) {
   // Générer le fichier
   const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
   const blob = new Blob([excelBuffer], { type: 'application/octet-stream' })
-  const [annee, moisNum] = mois.split('-')
-  const moisNoms = [
-    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
-  ]
-  const fileName = `Rapport_mensuel_${moisNoms[parseInt(moisNum, 10) - 1]}_${annee}.xlsx`
+  const fileName = `Rapport_mensuel_${formatMonthLabel(mois).replace(' ', '_')}.xlsx`
 
   saveAs(blob, fileName)
 }

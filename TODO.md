@@ -26,7 +26,8 @@ SiteCaisse/
 │   │   └── RapportsView.vue    # Rapports
 │   └── components/             # Composants
 │       ├── Navbar.vue          # Navigation
-│       ├── ModalAjoutVente.vue # Modal ajout
+│       ├── VenteFormModal.vue  # Modal ajout/modification
+│       ├── VentesTable.vue     # Table de ventes réutilisable
 │       └── GraphiquesRapports.vue # Graphiques statistiques
 ├── vercel.json                 # Config déploiement
 ├── vite.config.js              # Config Vite

@@ -29,10 +29,6 @@ export const useVentesStore = defineStore('ventes', {
       date_fin: '',
       type_paiement: '',
     },
-    /** @property {Array} ventesMensuel - Ventes groupées par mois. */
-    ventesMensuel: [],
-    /** @property {boolean} loadingMensuel - Indicateur de chargement mensuel. */
-    loadingMensuel: false,
   }),
 
   getters: {
@@ -183,24 +179,6 @@ export const useVentesStore = defineStore('ventes', {
         throw error
       } finally {
         this.loading = false
-      }
-    },
-
-    /**
-     * Récupère les ventes groupées par mois.
-     * @returns {Promise<void>}
-     */
-    async fetchVentesMensuel() {
-      this.loadingMensuel = true
-      this.error = null
-      try {
-        const response = await api.get('/api/rapports/mensuel')
-        this.ventesMensuel = response.data.mois
-      } catch (error) {
-        this.error = error.response?.data?.error || 'Erreur lors du chargement des ventes mensuelles'
-        throw error
-      } finally {
-        this.loadingMensuel = false
       }
     },
 

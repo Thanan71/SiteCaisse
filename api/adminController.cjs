@@ -383,7 +383,9 @@ router.post('/users/:id/reset-password', authMiddleware, adminMiddleware, async 
       req,
     })
 
-    res.json({ message: 'Mot de passe réinitialisé avec succès. Un email a été envoyé à l\'utilisateur.' })
+    res.json({
+      message: "Mot de passe réinitialisé avec succès. Un email a été envoyé à l'utilisateur.",
+    })
   } catch (err) {
     console.error('Admin reset password error:', err)
     await logError({
@@ -394,7 +396,7 @@ router.post('/users/:id/reset-password', authMiddleware, adminMiddleware, async 
       cible_id: req.params.id,
       req,
     })
-    res.status(500).json({ error: "Erreur lors de la réinitialisation du mot de passe" })
+    res.status(500).json({ error: 'Erreur lors de la réinitialisation du mot de passe' })
   }
 })
 
@@ -432,14 +434,18 @@ router.patch('/users/:id/extend', authMiddleware, adminMiddleware, async (req, r
     }
 
     if (user.role !== 'temporaire') {
-      return res.status(400).json({ error: 'Seuls les utilisateurs temporaires peuvent être prolongés' })
+      return res
+        .status(400)
+        .json({ error: 'Seuls les utilisateurs temporaires peuvent être prolongés' })
     }
 
     // Valider que la nouvelle date est postérieure à l'ancienne
     const oldDate = new Date(user.date_fin)
     const newDate = new Date(date_fin)
     if (newDate <= oldDate) {
-      return res.status(400).json({ error: 'La nouvelle date de fin doit être postérieure à la date actuelle' })
+      return res
+        .status(400)
+        .json({ error: 'La nouvelle date de fin doit être postérieure à la date actuelle' })
     }
 
     await extendUserDateFin(userId, date_fin)
@@ -449,7 +455,12 @@ router.patch('/users/:id/extend', authMiddleware, adminMiddleware, async (req, r
       action: 'user.extend',
       cible_type: 'user',
       cible_id: userId,
-      details: { nom: user.nom, email: user.email, ancienne_date: user.date_fin, nouvelle_date: date_fin },
+      details: {
+        nom: user.nom,
+        email: user.email,
+        ancienne_date: user.date_fin,
+        nouvelle_date: date_fin,
+      },
       req,
     })
 

@@ -4,6 +4,21 @@ const paymentLabels = {
   Cheque: 'Chèque',
 }
 
+const monthLabels = [
+  'Janvier',
+  'Février',
+  'Mars',
+  'Avril',
+  'Mai',
+  'Juin',
+  'Juillet',
+  'Août',
+  'Septembre',
+  'Octobre',
+  'Novembre',
+  'Décembre',
+]
+
 export function formatDate(dateStr, fallback = '-') {
   if (!dateStr) return fallback
   const date = new Date(dateStr)
@@ -41,4 +56,11 @@ export function formatPrice(price) {
 
 export function getPaymentLabel(type) {
   return paymentLabels[type] || type
+}
+
+export function formatMonthLabel(monthStr) {
+  if (!monthStr) return ''
+  const [year, month] = monthStr.split('-')
+  const monthIndex = parseInt(month, 10) - 1
+  return `${monthLabels[monthIndex] || month} ${year}`
 }

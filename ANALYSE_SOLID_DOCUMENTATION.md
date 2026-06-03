@@ -41,8 +41,8 @@
 | `src/views/RapportsView.vue` | Affichage des rapports | ✅ | Utilise le store artisans dédié |
 | `src/views/AdminView.vue` | Administration | ✅ | Responsabilité unique |
 | `src/components/Navbar.vue` | Barre de navigation | ✅ | Responsabilité unique |
-| `src/components/ModalAjoutVente.vue` | Formulaire d'ajout de vente | ✅ | Utilise le store artisans |
-| `src/components/ModalEditVente.vue` | Formulaire d'édition de vente | ✅ | Utilise le store artisans |
+| `src/components/VenteFormModal.vue` | Formulaire d'ajout/modification de vente | ✅ | Utilise le store artisans |
+| `src/components/VentesTable.vue` | Table de ventes réutilisable | ✅ | Centralise l'affichage des ventes |
 
 **Constat SRP : ✅ Nettement amélioré. `models.cjs` a été allégé (paramètres extraits). La logique de commission CB a été extraite vers `commissionService.cjs`.**
 
@@ -89,8 +89,8 @@
 | Stores Pinia séparés | ✅ | `auth.js`, `ventes.js`, `rapports.js`, `artisans.js` exposent uniquement ce dont chaque vue a besoin |
 | Contrôleurs séparés | ✅ | `authController`, `ventesController`, `rapportsController` ont des routes distinctes |
 | `RapportsView.vue` utilise `artisansStore` | ✅ | Ségrégation améliorée : les artisans ne sont plus dans le store rapports |
-| `ModalAjoutVente.vue` utilise `artisansStore` | ✅ | N'appelle plus l'API directement, utilise l'abstraction du store |
-| `ModalEditVente.vue` utilise `artisansStore` | ✅ | Même amélioration que ModalAjoutVente |
+| `VenteFormModal.vue` utilise `artisansStore` | ✅ | N'appelle plus l'API directement, utilise l'abstraction du store |
+| `VentesTable.vue` reçoit des props ciblées | ✅ | Les vues ne dépendent que des colonnes/actions utiles |
 | Props des composants | ✅ | Définies avec `defineProps`, explicites et minimales |
 
 **Constat ISP : ✅ Bonne ségrégation complète. Les interfaces sont bien découpées par domaine fonctionnel.**
@@ -451,25 +451,24 @@
 
 ---
 
-#### `src/components/ModalAjoutVente.vue`
+#### `src/components/VenteFormModal.vue`
 
 | Élément | Signature JSDoc |
 |---------|----------------|
-| **Props** | `@prop {boolean} show - Contrôle l'affichage de la modale.` |
-| **Events** | `@emit close - Ferme la modale.` |
-| `watch(show)` | `/** * À l'ouverture : charge les artisans si nécessaire. * À la fermeture : réinitialise le formulaire. * @param {boolean} newVal - Nouvel état d'affichage. * @returns {Promise<void>} */` |
-| `handleSubmit()` | `/** * Soumet le formulaire d'ajout de vente. * @returns {Promise<void>} */` |
+| **Props** | `@prop {boolean} show - Contrôle l'affichage.` `@prop {string} mode - Mode create/edit.` `@prop {Object} vente - Données de la vente à modifier.` |
+| **Events** | `@emit close - Ferme la modale.` `@emit saved - Vente créée ou modifiée avec succès.` |
+| `hydrateForm()` | `/** * Pré-remplit le formulaire avec les données de la vente en édition. * @returns {void} */` |
+| `handleSubmit()` | `/** * Soumet le formulaire d'ajout ou de modification de vente. * @returns {Promise<void>} */` |
 
 ---
 
-#### `src/components/ModalEditVente.vue`
+#### `src/components/VentesTable.vue`
 
 | Élément | Signature JSDoc |
 |---------|----------------|
-| **Props** | `@prop {boolean} show - Contrôle l'affichage.` `@prop {Object} vente - Données de la vente à modifier.` |
-| **Events** | `@emit close - Ferme la modale.` `@emit saved - Vente modifiée avec succès.` |
-| `watch(vente)` | `/** * Pré-remplit le formulaire avec les données de la vente. * @param {Object} newVente - Nouvelles données. * @returns {void} */` |
-| `handleSubmit()` | `/** * Soumet les modifications de la vente. * @returns {Promise<void>} */` |
+| **Props** | `@prop {Array} ventes - Ventes à afficher.` `@prop {Object} summary - Résumé optionnel.` `@prop {boolean} showActions - Affiche les actions édition/suppression.` |
+| **Events** | `@emit edit - Demande l'édition d'une vente.` `@emit delete - Demande la suppression d'une vente.` |
+| `rowKey(vente)` | `/** * Construit une clé stable pour l'expansion des articles. * @param {Object} vente - Vente affichée. * @returns {string} */` |
 
 ---
 
@@ -539,8 +538,8 @@ SiteCaisse/
 │   │   └── RapportsView.vue      # Page des rapports par artisan
 │   └── components/
 │       ├── Navbar.vue            # Barre de navigation
-│       ├── ModalAjoutVente.vue   # Modale d'ajout de vente
-│       └── ModalEditVente.vue    # Modale d'édition de vente
+│       ├── VenteFormModal.vue    # Modale d'ajout/modification de vente
+│       └── VentesTable.vue       # Table de ventes réutilisable
 ├── data/                         # Base de données locale SQLite
 ├── public/                       # Assets statiques (favicon, icons)
 ├── supabase-schema.sql           # Schéma de base Supabase

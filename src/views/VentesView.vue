@@ -109,57 +109,15 @@
         <p>Commencez par ajouter une vente</p>
       </div>
 
-      <div v-else class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Articles</th>
-              <th>Artisan</th>
-              <th>Total articles</th>
-              <th>Montant total</th>
-              <th>Paiement</th>
-              <th>Vendeur</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="vente in ventesStore.ventes" :key="vente.id">
-              <td>{{ formatDate(vente.date_vente) }}</td>
-              <td class="articles-cell">
-                <div class="article-line" v-for="(art, artIdx) in getVisibleItems(vente.articles, vente.id)" :key="art.id || artIdx">
-                  <span class="article-name">{{ art.article }}</span>
-                  <span class="article-details">
-                    {{ art.quantite }} &times; {{ formatPrice(art.prix) }}
-                    <span class="article-subtotal">= {{ formatPrice(art.prix * art.quantite) }}</span>
-                  </span>
-                </div>
-                <button
-                  v-if="vente.articles && vente.articles.length > 1"
-                  class="btn-expand"
-                  @click="toggleExpanded(vente.id)"
-                >
-                  {{ isExpanded(vente.id) ? '▲ Moins' : `▼ +${vente.articles.length - 1} autre(s)` }}
-                </button>
-              </td>
-              <td>{{ vente.artisan_nom }}</td>
-              <td class="text-center">{{ vente.total_articles }}</td>
-              <td class="text-right total-price">{{ formatPrice(vente.total_montant) }}</td>
-              <td>
-                <PaymentBadge :type="vente.type_paiement" />
-              </td>
-              <td>{{ vente.vendeur_nom }}</td>
-              <td>
-                <button class="btn-icon" title="Modifier" @click="openEdit(vente)">
-                  ✏️
-                </button>
-                <button class="btn-icon" title="Supprimer" @click="handleDelete(vente.id)">
-                  🗑️
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div v-else>
+        <VentesTable
+          :ventes="ventesStore.ventes"
+          show-artisan
+          show-vendeur
+          show-actions
+          @edit="openEdit"
+          @delete="handleDelete"
+        />
 
         <!-- Pagination -->
         <div v-if="ventesStore.pagination.totalPages > 1" class="pagination-bar">
@@ -212,12 +170,12 @@
         </div>
       </div>
 
-      <div v-if="loadingMois" class="loading-state">
+      <div v-if="rapportsStore.loadingMois" class="loading-state">
         <div class="spinner"></div>
         <p>Chargement des ventes du mois...</p>
       </div>
 
-      <div v-else-if="!rapportMoisData" class="empty-state">
+      <div v-else-if="!rapportsStore.rapportMois" class="empty-state">
         <div class="empty-icon">📅</div>
         <h3>Sélectionnez un mois</h3>
         <p>Choisissez un mois dans le sélecteur ci-dessus</p>
@@ -225,59 +183,18 @@
 
       <template v-else>
         <div class="month-block">
-          <h2 class="month-title">{{ formatMois(selectedMonth) }}</h2>
+          <h2 class="month-title">{{ formatMonthLabel(selectedMonth) }}</h2>
 
-          <div v-if="rapportMoisData.groupes.length" class="table-container month-table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Articles</th>
-                  <th>Artisan</th>
-                  <th>Total articles</th>
-                  <th>Montant total</th>
-                  <th>Paiement</th>
-                  <th>Vendeur</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="vente in flattenGroupVentes(rapportMoisData.groupes)" :key="vente.id">
-                  <td>{{ formatDate(vente.date_vente) }}</td>
-                  <td class="articles-cell">
-                    <div class="article-line" v-for="(art, artIdx) in getVisibleItems(vente.articles, 'mens-' + vente.id)" :key="art.id || artIdx">
-                      <span class="article-name">{{ art.article }}</span>
-                      <span class="article-details">
-                        {{ art.quantite }} &times; {{ formatPrice(art.prix) }}
-                        <span class="article-subtotal">= {{ formatPrice(art.prix * art.quantite) }}</span>
-                      </span>
-                    </div>
-                    <button
-                      v-if="vente.articles && vente.articles.length > 1"
-                      class="btn-expand"
-                      @click="toggleExpanded('mens-' + vente.id)"
-                    >
-                      {{ isExpanded('mens-' + vente.id) ? '▲ Moins' : `▼ +${vente.articles.length - 1} autre(s)` }}
-                    </button>
-                  </td>
-                  <td>{{ vente.artisan_nom }}</td>
-                  <td class="text-center">{{ vente.total_articles }}</td>
-                  <td class="text-right total-price">{{ formatPrice(vente.total_montant) }}</td>
-                  <td>
-                    <PaymentBadge :type="vente.type_paiement" />
-                  </td>
-                  <td>{{ vente.vendeur_nom }}</td>
-                  <td class="actions-cell">
-                    <button class="btn-icon" title="Modifier" @click="openEdit(vente)">
-                      ✏️
-                    </button>
-                    <button class="btn-icon" title="Supprimer" @click="handleDelete(vente.id)">
-                      🗑️
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          <div v-if="rapportsStore.rapportMois.groupes.length" class="month-table-container">
+            <VentesTable
+              :ventes="monthlyVentes"
+              row-key-prefix="mens-"
+              show-artisan
+              show-vendeur
+              show-actions
+              @edit="openEdit"
+              @delete="handleDelete"
+            />
           </div>
 
           <div v-else class="empty-state">
@@ -291,24 +208,24 @@
             <div class="global-summary-stats">
               <div class="stat">
                 <span class="stat-label">Total articles</span>
-                <span class="stat-value">{{ rapportMoisData.total.total_articles }}</span>
+                <span class="stat-value">{{ rapportsStore.rapportMois.total.total_articles }}</span>
               </div>
               <div class="stat">
                 <span class="stat-label">Total montant</span>
-                <span class="stat-value stat-value-amount">{{ formatPrice(rapportMoisData.total.total_montant) }}</span>
+                <span class="stat-value stat-value-amount">{{ formatPrice(rapportsStore.rapportMois.total.total_montant) }}</span>
               </div>
-              <div v-if="rapportMoisData.total.total_cb > 0" class="stat">
+              <div v-if="rapportsStore.rapportMois.total.total_cb > 0" class="stat">
                 <span class="stat-label">Total CB</span>
-                <span class="stat-value stat-value-cb">{{ formatPrice(rapportMoisData.total.total_cb) }}</span>
+                <span class="stat-value stat-value-cb">{{ formatPrice(rapportsStore.rapportMois.total.total_cb) }}</span>
               </div>
-              <div v-if="rapportMoisData.total.total_commission > 0" class="stat">
+              <div v-if="rapportsStore.rapportMois.total.total_commission > 0" class="stat">
                 <span class="stat-label">Commission CB</span>
-                <span class="stat-value stat-value-commission">{{ formatPrice(rapportMoisData.total.total_commission) }}</span>
+                <span class="stat-value stat-value-commission">{{ formatPrice(rapportsStore.rapportMois.total.total_commission) }}</span>
               </div>
             </div>
-            <div v-if="rapportMoisData.total.total_commission > 0" class="commission-detail">
-              <span v-if="rapportMoisData.parametres">
-                Taux : Permanent {{ rapportMoisData.parametres.commission_cb_permanent }}% / Temporaire {{ rapportMoisData.parametres.commission_cb_temporaire }}%
+            <div v-if="rapportsStore.rapportMois.total.total_commission > 0" class="commission-detail">
+              <span v-if="rapportsStore.rapportMois.parametres">
+                Taux : Permanent {{ rapportsStore.rapportMois.parametres.commission_cb_permanent }}% / Temporaire {{ rapportsStore.rapportMois.parametres.commission_cb_temporaire }}%
               </span>
             </div>
           </div>
@@ -347,19 +264,18 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import PaymentBadge from '../components/PaymentBadge.vue'
-import VenteFormModal from '../components/VenteFormModal.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
-import { useExpandableRows } from '../composables/useExpandableRows'
+import VenteFormModal from '../components/VenteFormModal.vue'
+import VentesTable from '../components/VentesTable.vue'
+import { useRapportsStore } from '../store/rapports'
 import { useVentesStore } from '../store/ventes'
-import { formatDate, formatPrice, getPaymentLabel } from '../utils/formatters'
-import api from '../services/api'
+import { formatDate, formatMonthLabel, formatPrice, getPaymentLabel } from '../utils/formatters'
 
 const ventesStore = useVentesStore()
+const rapportsStore = useRapportsStore()
 const showModal = ref(false)
 const editingVente = ref(null)
 const activeTab = ref('mensuel')
-const { getVisibleItems, isExpanded, toggleExpanded } = useExpandableRows()
 
 // État de la suppression
 const showDeleteModal = ref(false)
@@ -378,43 +294,15 @@ const now = new Date()
 const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 const selectedMonth = ref(currentMonth)
 
-// Données du rapport mensuel
-const rapportMoisData = ref(null)
-const loadingMois = ref(false)
-
 onMounted(() => {
   ventesStore.fetchVentes()
-  fetchRapportByMonth(currentMonth)
+  rapportsStore.fetchRapportByMonth(currentMonth)
 })
-
-async function fetchRapportByMonth(mois) {
-  if (!mois) return
-  loadingMois.value = true
-  try {
-    const response = await api.get(`/api/rapports/mensuel/${mois}`)
-    rapportMoisData.value = response.data
-  } catch (error) {
-    console.error('Erreur chargement rapport mensuel:', error)
-    rapportMoisData.value = null
-  } finally {
-    loadingMois.value = false
-  }
-}
 
 function onMonthChange() {
   if (selectedMonth.value) {
-    fetchRapportByMonth(selectedMonth.value)
+    rapportsStore.fetchRapportByMonth(selectedMonth.value)
   }
-}
-
-function formatMois(moisStr) {
-  if (!moisStr) return ''
-  const [annee, mois] = moisStr.split('-')
-  const moisNoms = [
-    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
-  ]
-  return `${moisNoms[parseInt(mois, 10) - 1]} ${annee}`
 }
 
 /**
@@ -432,6 +320,8 @@ const displayedPages = computed(() => {
   if (end === totalPages) start = Math.max(1, totalPages - 4)
   return Array.from({ length: end - start + 1 }, (_, i) => start + i)
 })
+
+const monthlyVentes = computed(() => flattenGroupVentes(rapportsStore.rapportMois?.groupes || []))
 
 function applyFilters() {
   ventesStore.applyFilters({ ...localFilters.value })
@@ -478,7 +368,7 @@ async function confirmDelete() {
     await ventesStore.deleteVente(deletingId.value)
     closeDeleteModal()
     if (activeTab.value === 'mensuel' && selectedMonth.value) {
-      fetchRapportByMonth(selectedMonth.value)
+      await rapportsStore.fetchRapportByMonth(selectedMonth.value)
     }
   } catch (err) {
     closeDeleteModal()
@@ -605,80 +495,6 @@ async function confirmDelete() {
 .empty-state p {
   color: #64748b;
   margin: 0;
-}
-
-tbody td {
-  vertical-align: top;
-}
-
-.articles-cell {
-  min-width: 220px;
-}
-
-.article-line {
-  display: flex;
-  flex-direction: column;
-  padding: 4px 0;
-}
-
-.article-line + .article-line {
-  border-top: 1px dashed #e2e8f0;
-  margin-top: 4px;
-  padding-top: 8px;
-}
-
-.article-name {
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: #1e293b;
-}
-
-.article-details {
-  font-size: 0.8rem;
-  color: #64748b;
-  margin-top: 2px;
-}
-
-.article-subtotal {
-  font-weight: 600;
-  color: #059669;
-}
-
-.total-price {
-  font-weight: 600;
-  color: #059669;
-  white-space: nowrap;
-}
-
-.btn-expand {
-  background: none;
-  border: 1px solid #e2e8f0;
-  color: #4f46e5;
-  cursor: pointer;
-  font-size: 0.75rem;
-  padding: 3px 10px;
-  border-radius: 6px;
-  margin-top: 6px;
-  transition: background 0.2s, border-color 0.2s;
-}
-
-.btn-expand:hover {
-  background: #f1f5f9;
-  border-color: #4f46e5;
-}
-
-.btn-icon {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 4px 8px;
-  border-radius: 6px;
-  transition: background 0.2s;
-}
-
-.btn-icon:hover {
-  background: #f1f5f9;
 }
 
 .btn {

@@ -162,13 +162,13 @@
 
         <div v-else-if="!rapportsStore.rapportMois || !rapportsStore.rapportMois.groupes.length" class="empty-state">
           <div class="empty-icon">📅</div>
-          <h3>Aucune donnée pour {{ formatMois(selectedMonth) }}</h3>
+          <h3>Aucune donnée pour {{ formatMonthLabel(selectedMonth) }}</h3>
           <p>Aucune vente enregistrée pour ce mois</p>
         </div>
 
         <template v-else>
           <div class="month-block">
-            <h2 class="month-title">{{ formatMois(selectedMonth) }}</h2>
+            <h2 class="month-title">{{ formatMonthLabel(selectedMonth) }}</h2>
 
             <RapportVentesTable
               v-for="groupe in rapportsStore.rapportMois.groupes"
@@ -252,12 +252,12 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { formatPrice } from '../utils/formatters'
 import GraphiquesRapports from '../components/GraphiquesRapports.vue'
 import RapportVentesTable from '../components/RapportVentesTable.vue'
 import { exportAllRapportsToExcel, exportMonthToExcel } from '../services/excelService'
 import { useArtisansStore } from '../store/artisans'
 import { useRapportsStore } from '../store/rapports'
+import { formatMonthLabel, formatPrice } from '../utils/formatters'
 
 const rapportsStore = useRapportsStore()
 const artisansStore = useArtisansStore()
@@ -291,16 +291,6 @@ onMounted(() => {
   // Charger les données du mois courant pour l'onglet mensuel
   rapportsStore.fetchRapportByMonth(currentMonth)
 })
-
-function formatMois(moisStr) {
-  if (!moisStr) return ''
-  const [annee, mois] = moisStr.split('-')
-  const moisNoms = [
-    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
-  ]
-  return `${moisNoms[parseInt(mois, 10) - 1]} ${annee}`
-}
 
 function onArtisanChange() {
   activeTab.value = 'ventes'

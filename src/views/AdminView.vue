@@ -217,27 +217,50 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import api from '../services/api'
 import ConfirmModal from '../components/ConfirmModal.vue'
-import UserTable from '../components/UserTable.vue'
-import ParametresCommissions from '../components/ParametresCommissions.vue'
 import LogsViewer from '../components/LogsViewer.vue'
-import { formatDateTime as formatDate, formatDateSimple } from '../utils/formatters'
+import ParametresCommissions from '../components/ParametresCommissions.vue'
+import UserTable from '../components/UserTable.vue'
 import { useUsers } from '../composables/useUsers'
+import api from '../services/api'
+import { formatDateTime as formatDate, formatDateSimple } from '../utils/formatters'
 
 const activePanel = ref('users')
 
 // Utilisateurs : toute la logique métier extraite dans le composable
 const {
-  users, loading, creating, createError, createSuccess, newUser,
-  deletingId, showDeleteModal, userToDelete,
-  showExtendModal, userToExtend, extendDateFin, extendError, extendingId,
-  showResetModal, userToReset, resetMessage, resettingId,
-  fetchUsers, handleCreateUser, onRoleChange,
-  openDeleteModal, closeDeleteModal, confirmDeleteUser,
-  openExtendModal, closeExtendModal, confirmExtendUser,
-  openResetModal, closeResetModal, confirmResetPassword,
-  getStatusClass, getStatusLabel,
+  users,
+  loading,
+  creating,
+  createError,
+  createSuccess,
+  newUser,
+  deletingId,
+  showDeleteModal,
+  userToDelete,
+  showExtendModal,
+  userToExtend,
+  extendDateFin,
+  extendError,
+  extendingId,
+  showResetModal,
+  userToReset,
+  resetMessage,
+  resettingId,
+  fetchUsers,
+  handleCreateUser,
+  onRoleChange,
+  openDeleteModal,
+  closeDeleteModal,
+  confirmDeleteUser,
+  openExtendModal,
+  closeExtendModal,
+  confirmExtendUser,
+  openResetModal,
+  closeResetModal,
+  confirmResetPassword,
+  getStatusClass,
+  getStatusLabel,
 } = useUsers()
 
 // État des commissions CB
@@ -290,7 +313,9 @@ async function handleSaveCommissions() {
       valeur: commissionTemporaire.value,
     })
     commissionsSuccess.value = 'Commissions CB mises à jour avec succès !'
-    setTimeout(() => { commissionsSuccess.value = '' }, 3000)
+    setTimeout(() => {
+      commissionsSuccess.value = ''
+    }, 3000)
   } catch (err) {
     commissionsError.value = err.response?.data?.error || "Erreur lors de l'enregistrement"
   } finally {
@@ -320,7 +345,9 @@ async function fetchLogs(page = logsPagination.value.page) {
   }
 }
 
-function applyLogFilters() { fetchLogs(1) }
+function applyLogFilters() {
+  fetchLogs(1)
+}
 
 function changeLogsPage(page) {
   if (page < 1 || page > logsPagination.value.totalPages) return

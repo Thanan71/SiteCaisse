@@ -368,7 +368,9 @@ async function getAllVentesUnpaginated() {
  * @returns {Promise<{groupes: Array, total: {total_articles: number, total_montant: number}}>}
  */
 async function getAllVentesGroupedByArtisan(options = {}) {
-  const result = options.page ? await getAllVentes(options) : { ventes: await getAllVentesUnpaginated(), pagination: null }
+  const result = options.page
+    ? await getAllVentes(options)
+    : { ventes: await getAllVentesUnpaginated(), pagination: null }
   const allVentes = result.ventes
 
   // Grouper par artisan_id
@@ -610,10 +612,7 @@ async function deleteVente(id) {
  */
 async function extendUserDateFin(id, newDateFin) {
   const supabase = getSupabase()
-  const { error } = await supabase
-    .from('users')
-    .update({ date_fin: newDateFin })
-    .eq('id', id)
+  const { error } = await supabase.from('users').update({ date_fin: newDateFin }).eq('id', id)
 
   if (error) throw error
   return true

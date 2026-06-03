@@ -40,7 +40,7 @@ async function sendAccountCreated({ email, nom, password, req } = {}) {
   if (!client) return false
 
   try {
-    const { data, error } = await client.emails.send({
+    const { error } = await client.emails.send({
       from: 'SiteCaisse <noreply@resend.dev>',
       to: [email],
       subject: 'Bienvenue sur SiteCaisse - Votre compte a été créé',
@@ -128,7 +128,7 @@ async function sendPasswordReset({ email, nom, newPassword, req } = {}) {
   if (!client) return false
 
   try {
-    const { data, error } = await client.emails.send({
+    const { error } = await client.emails.send({
       from: 'SiteCaisse <noreply@resend.dev>',
       to: [email],
       subject: 'SiteCaisse - Votre mot de passe a été réinitialisé',

@@ -85,7 +85,7 @@ export function useUsers() {
         createSuccess.value = ''
       }, 3000)
     } catch (err) {
-      createError.value = err.response?.data?.error || "Erreur lors de la création"
+      createError.value = err.response?.data?.error || 'Erreur lors de la création'
     } finally {
       creating.value = false
     }
@@ -133,7 +133,7 @@ export function useUsers() {
       await fetchUsers()
     } catch (err) {
       console.error('Erreur suppression:', err)
-      alert(err.response?.data?.error || "Erreur lors de la suppression")
+      alert(err.response?.data?.error || 'Erreur lors de la suppression')
     } finally {
       deletingId.value = null
     }
@@ -178,7 +178,7 @@ export function useUsers() {
       closeExtendModal()
       await fetchUsers()
     } catch (err) {
-      extendError.value = err.response?.data?.error || "Erreur lors de la prolongation"
+      extendError.value = err.response?.data?.error || 'Erreur lors de la prolongation'
     } finally {
       extendingId.value = null
     }
@@ -218,7 +218,7 @@ export function useUsers() {
       alert(response.data.message || 'Mot de passe réinitialisé avec succès.')
     } catch (err) {
       closeResetModal()
-      alert(err.response?.data?.error || "Erreur lors de la réinitialisation du mot de passe")
+      alert(err.response?.data?.error || 'Erreur lors de la réinitialisation du mot de passe')
     } finally {
       resettingId.value = null
     }
