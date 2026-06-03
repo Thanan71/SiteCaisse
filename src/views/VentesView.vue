@@ -216,14 +216,64 @@
           class="month-block"
         >
           <h2 class="month-title">{{ formatMois(moisItem.mois) }}</h2>
-          <RapportVentesTable
-            v-for="groupe in moisItem.groupes"
-            :key="'mois-' + moisItem.mois + '-groupe-' + groupe.artisan_id"
-            :title="groupe.artisan_nom"
-            :ventes="groupe.ventes"
-            :summary="groupe.summary"
-            :total-label="`TOTAL ${groupe.artisan_nom.toUpperCase()}`"
-          />
+
+          <div v-if="moisItem.groupes.length" class="table-container month-table-container">
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Articles</th>
+                  <th>Artisan</th>
+                  <th>Total articles</th>
+                  <th>Montant total</th>
+                  <th>Paiement</th>
+                  <th>Vendeur</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="vente in flattenGroupVentes(moisItem.groupes)" :key="vente.id">
+                  <td>{{ formatDate(vente.date_vente) }}</td>
+                  <td class="articles-cell">
+                    <div class="article-line" v-for="(art, artIdx) in getVisibleItems(vente.articles, 'mens-' + vente.id)" :key="art.id || artIdx">
+                      <span class="article-name">{{ art.article }}</span>
+                      <span class="article-details">
+                        {{ art.quantite }} &times; {{ formatPrice(art.prix) }}
+                        <span class="article-subtotal">= {{ formatPrice(art.prix * art.quantite) }}</span>
+                      </span>
+                    </div>
+                    <button
+                      v-if="vente.articles && vente.articles.length > 1"
+                      class="btn-expand"
+                      @click="toggleExpanded('mens-' + vente.id)"
+                    >
+                      {{ isExpanded('mens-' + vente.id) ? '▲ Moins' : `▼ +${vente.articles.length - 1} autre(s)` }}
+                    </button>
+                  </td>
+                  <td>{{ vente.artisan_nom }}</td>
+                  <td class="text-center">{{ vente.total_articles }}</td>
+                  <td class="text-right total-price">{{ formatPrice(vente.total_montant) }}</td>
+                  <td>
+                    <PaymentBadge :type="vente.type_paiement" />
+                  </td>
+                  <td>{{ vente.vendeur_nom }}</td>
+                  <td class="actions-cell">
+                    <button class="btn-icon" title="Modifier" @click="openEdit(vente)">
+                      ✏️
+                    </button>
+                    <button class="btn-icon" title="Supprimer" @click="handleDelete(vente.id)">
+                      🗑️
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div v-else class="empty-state">
+            <div class="empty-icon">📭</div>
+            <p>Aucune vente pour ce mois</p>
+          </div>
 
           <!-- Résumé du mois -->
           <div class="global-summary-card month-summary-card">
@@ -301,7 +351,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import PaymentBadge from '../components/PaymentBadge.vue'
-import RapportVentesTable from '../components/RapportVentesTable.vue'
 import VenteFormModal from '../components/VenteFormModal.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
 import { useExpandableRows } from '../composables/useExpandableRows'
@@ -395,6 +444,19 @@ function handleDelete(id) {
 function closeDeleteModal() {
   showDeleteModal.value = false
   deletingId.value = null
+}
+
+function flattenGroupVentes(groupes) {
+  const ventes = []
+  for (const groupe of groupes) {
+    for (const vente of groupe.ventes) {
+      ventes.push({
+        ...vente,
+        artisan_nom: groupe.artisan_nom,
+      })
+    }
+  }
+  return ventes
 }
 
 async function confirmDelete() {
@@ -636,6 +698,146 @@ tbody td {
 
 .btn-secondary:hover {
   background: #e2e8f0;
+}
+
+/* Sous-navigation */
+.sub-nav {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  background: white;
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.sub-nav-btn {
+  flex: 1;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  color: #64748b;
+  transition: all 0.2s;
+}
+
+.sub-nav-btn:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.sub-nav-btn.active {
+  background: #4f46e5;
+  color: white;
+}
+
+/* Bloc mensuel */
+.month-block {
+  margin-bottom: 48px;
+  padding-bottom: 32px;
+  border-bottom: 3px solid #e2e8f0;
+}
+
+.month-block:last-of-type {
+  border-bottom: none;
+  margin-bottom: 32px;
+}
+
+.month-title {
+  font-size: 1.4rem;
+  color: #4f46e5;
+  margin: 0 0 24px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #4f46e5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.month-title::before {
+  content: '📅';
+  font-size: 1.3rem;
+}
+
+.month-table-container {
+  margin-bottom: 24px;
+}
+
+.month-table-container .actions-cell {
+  white-space: nowrap;
+}
+
+.month-summary-card {
+  border-color: #f59e0b;
+  margin-top: 24px;
+}
+
+.global-final-card {
+  border-color: #059669;
+  margin-top: 24px;
+}
+
+/* Carte résumé global */
+.global-summary-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 24px;
+  border: 2px solid #4f46e5;
+}
+
+.global-summary-card h3 {
+  margin: 0 0 16px;
+  font-size: 1.1rem;
+  color: #1e293b;
+}
+
+.global-summary-stats {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.stat-value-amount {
+  color: #059669;
+}
+
+.stat-value-cb {
+  color: #2563eb;
+}
+
+.stat-value-commission {
+  color: #ef4444;
+}
+
+.commission-detail {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.8rem;
+  color: #64748b;
 }
 
 /* Pagination */
