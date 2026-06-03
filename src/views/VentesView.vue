@@ -85,7 +85,7 @@
       <button
         class="sub-nav-btn"
         :class="{ active: activeTab === 'mensuel' }"
-        @click="activeTab = 'mensuel'; loadMensuel()"
+        @click="activeTab = 'mensuel'"
       >
         📅 Par mois
       </button>
@@ -198,26 +198,36 @@
 
     <!-- Onglet : Par mois -->
     <div v-if="activeTab === 'mensuel'">
-      <div v-if="ventesStore.loadingMensuel" class="loading-state">
-        <div class="spinner"></div>
-        <p>Chargement des ventes mensuelles...</p>
+      <!-- Sélecteur de mois avec mois courant par défaut -->
+      <div class="month-selector-card">
+        <div class="month-selector-row">
+          <label for="month-select">Sélectionner un mois :</label>
+          <input
+            id="month-select"
+            type="month"
+            v-model="selectedMonth"
+            @change="onMonthChange"
+            class="month-input"
+          />
+        </div>
       </div>
 
-      <div v-else-if="!ventesStore.ventesMensuel.length" class="empty-state">
+      <div v-if="loadingMois" class="loading-state">
+        <div class="spinner"></div>
+        <p>Chargement des ventes du mois...</p>
+      </div>
+
+      <div v-else-if="!rapportMoisData" class="empty-state">
         <div class="empty-icon">📅</div>
-        <h3>Aucune donnée mensuelle</h3>
-        <p>Aucune vente enregistrée pour le moment</p>
+        <h3>Sélectionnez un mois</h3>
+        <p>Choisissez un mois dans le sélecteur ci-dessus</p>
       </div>
 
       <template v-else>
-        <div
-          v-for="moisItem in ventesStore.ventesMensuel"
-          :key="'mois-' + moisItem.mois"
-          class="month-block"
-        >
-          <h2 class="month-title">{{ formatMois(moisItem.mois) }}</h2>
+        <div class="month-block">
+          <h2 class="month-title">{{ formatMois(selectedMonth) }}</h2>
 
-          <div v-if="moisItem.groupes.length" class="table-container month-table-container">
+          <div v-if="rapportMoisData.groupes.length" class="table-container month-table-container">
             <table>
               <thead>
                 <tr>
@@ -232,7 +242,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="vente in flattenGroupVentes(moisItem.groupes)" :key="vente.id">
+                <tr v-for="vente in flattenGroupVentes(rapportMoisData.groupes)" :key="vente.id">
                   <td>{{ formatDate(vente.date_vente) }}</td>
                   <td class="articles-cell">
                     <div class="article-line" v-for="(art, artIdx) in getVisibleItems(vente.articles, 'mens-' + vente.id)" :key="art.id || artIdx">
@@ -281,38 +291,25 @@
             <div class="global-summary-stats">
               <div class="stat">
                 <span class="stat-label">Total articles</span>
-                <span class="stat-value">{{ moisItem.total.total_articles }}</span>
+                <span class="stat-value">{{ rapportMoisData.total.total_articles }}</span>
               </div>
               <div class="stat">
                 <span class="stat-label">Total montant</span>
-                <span class="stat-value stat-value-amount">{{ formatPrice(moisItem.total.total_montant) }}</span>
+                <span class="stat-value stat-value-amount">{{ formatPrice(rapportMoisData.total.total_montant) }}</span>
               </div>
-              <div v-if="moisItem.total.total_cb > 0" class="stat">
+              <div v-if="rapportMoisData.total.total_cb > 0" class="stat">
                 <span class="stat-label">Total CB</span>
-                <span class="stat-value stat-value-cb">{{ formatPrice(moisItem.total.total_cb) }}</span>
+                <span class="stat-value stat-value-cb">{{ formatPrice(rapportMoisData.total.total_cb) }}</span>
               </div>
-              <div v-if="moisItem.total.total_commission > 0" class="stat">
+              <div v-if="rapportMoisData.total.total_commission > 0" class="stat">
                 <span class="stat-label">Commission CB</span>
-                <span class="stat-value stat-value-commission">{{ formatPrice(moisItem.total.total_commission) }}</span>
+                <span class="stat-value stat-value-commission">{{ formatPrice(rapportMoisData.total.total_commission) }}</span>
               </div>
             </div>
-            <div v-if="moisItem.total.total_commission > 0" class="commission-detail">
-              <span>Taux : Permanent {{ parametresMensuel.commission_cb_permanent }}% / Temporaire {{ parametresMensuel.commission_cb_temporaire }}%</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Résumé global -->
-        <div class="global-summary-card global-final-card">
-          <h3>Résumé global (toutes périodes)</h3>
-          <div class="global-summary-stats">
-            <div class="stat">
-              <span class="stat-label">Total articles</span>
-              <span class="stat-value">{{ ventesStore.ventes.reduce((sum, v) => sum + v.total_articles, 0) }}</span>
-            </div>
-            <div class="stat">
-              <span class="stat-label">Total montant</span>
-              <span class="stat-value stat-value-amount">{{ formatPrice(ventesStore.ventes.reduce((sum, v) => sum + v.total_montant, 0)) }}</span>
+            <div v-if="rapportMoisData.total.total_commission > 0" class="commission-detail">
+              <span v-if="rapportMoisData.parametres">
+                Taux : Permanent {{ rapportMoisData.parametres.commission_cb_permanent }}% / Temporaire {{ rapportMoisData.parametres.commission_cb_temporaire }}%
+              </span>
             </div>
           </div>
         </div>
@@ -356,11 +353,12 @@ import ConfirmModal from '../components/ConfirmModal.vue'
 import { useExpandableRows } from '../composables/useExpandableRows'
 import { useVentesStore } from '../store/ventes'
 import { formatDate, formatPrice, getPaymentLabel } from '../utils/formatters'
+import api from '../services/api'
 
 const ventesStore = useVentesStore()
 const showModal = ref(false)
 const editingVente = ref(null)
-const activeTab = ref('toutes')
+const activeTab = ref('mensuel')
 const { getVisibleItems, isExpanded, toggleExpanded } = useExpandableRows()
 
 // État de la suppression
@@ -375,30 +373,42 @@ const localFilters = ref({
   type_paiement: '',
 })
 
-const parametresMensuel = computed(() => {
-  // Prend les paramètres depuis la première entrée mensuelle qui a des commissions
-  for (const mois of ventesStore.ventesMensuel) {
-    if (mois.groupes.length > 0 && mois.groupes[0].summary.taux_commission) {
-      return {
-        commission_cb_permanent: mois.groupes[0].summary.taux_commission,
-        commission_cb_temporaire: mois.groupes[0].summary.taux_commission,
-      }
-    }
-  }
-  return { commission_cb_permanent: 0, commission_cb_temporaire: 0 }
-})
+// Mois courant au format YYYY-MM
+const now = new Date()
+const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+const selectedMonth = ref(currentMonth)
+
+// Données du rapport mensuel
+const rapportMoisData = ref(null)
+const loadingMois = ref(false)
 
 onMounted(() => {
   ventesStore.fetchVentes()
+  fetchRapportByMonth(currentMonth)
 })
 
-function loadMensuel() {
-  if (!ventesStore.ventesMensuel.length) {
-    ventesStore.fetchVentesMensuel()
+async function fetchRapportByMonth(mois) {
+  if (!mois) return
+  loadingMois.value = true
+  try {
+    const response = await api.get(`/api/rapports/mensuel/${mois}`)
+    rapportMoisData.value = response.data
+  } catch (error) {
+    console.error('Erreur chargement rapport mensuel:', error)
+    rapportMoisData.value = null
+  } finally {
+    loadingMois.value = false
+  }
+}
+
+function onMonthChange() {
+  if (selectedMonth.value) {
+    fetchRapportByMonth(selectedMonth.value)
   }
 }
 
 function formatMois(moisStr) {
+  if (!moisStr) return ''
   const [annee, mois] = moisStr.split('-')
   const moisNoms = [
     'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -467,6 +477,9 @@ async function confirmDelete() {
   try {
     await ventesStore.deleteVente(deletingId.value)
     closeDeleteModal()
+    if (activeTab.value === 'mensuel' && selectedMonth.value) {
+      fetchRapportByMonth(selectedMonth.value)
+    }
   } catch (err) {
     closeDeleteModal()
     alert('Erreur lors de la suppression')
@@ -732,6 +745,44 @@ tbody td {
 .sub-nav-btn.active {
   background: #4f46e5;
   color: white;
+}
+
+/* Sélecteur de mois */
+.month-selector-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 24px;
+}
+
+.month-selector-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.month-selector-row label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.month-input {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.month-input:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
 /* Bloc mensuel */
