@@ -88,40 +88,42 @@
 
       <!-- Onglet : Liste des ventes (vue globale) -->
       <div v-if="activeTab === 'global' && rapportsStore.allRapports.length">
-        <RapportVentesTable
-          v-for="groupe in rapportsStore.allRapports"
-          :key="'groupe-' + groupe.artisan_id"
-          :title="groupe.artisan_nom"
-          :ventes="groupe.ventes"
-          :summary="groupe.summary"
-          :total-label="`TOTAL ${groupe.artisan_nom.toUpperCase()}`"
-        />
+        <div class="rapport-list-wrapper">
+          <RapportVentesTable
+            v-for="groupe in rapportsStore.allRapports"
+            :key="'groupe-' + groupe.artisan_id"
+            :title="groupe.artisan_nom"
+            :ventes="groupe.ventes"
+            :summary="groupe.summary"
+            :total-label="`TOTAL ${groupe.artisan_nom.toUpperCase()}`"
+          />
 
-        <!-- Résumé global -->
-        <div class="global-summary-card">
-          <h3>Résumé global</h3>
-          <div class="global-summary-stats">
-            <div class="stat">
-              <span class="stat-label">Total articles</span>
-              <span class="stat-value">{{ rapportsStore.totalGlobal.total_articles }}</span>
+          <!-- Résumé global -->
+          <div class="global-summary-card">
+            <h3>Résumé global</h3>
+            <div class="global-summary-stats">
+              <div class="stat">
+                <span class="stat-label">Total articles</span>
+                <span class="stat-value">{{ rapportsStore.totalGlobal.total_articles }}</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Total montant</span>
+                <span class="stat-value stat-value-amount">{{ formatPrice(rapportsStore.totalGlobal.total_montant) }}</span>
+              </div>
+              <div v-if="rapportsStore.totalGlobal.total_cb > 0" class="stat">
+                <span class="stat-label">Total CB</span>
+                <span class="stat-value stat-value-cb">{{ formatPrice(rapportsStore.totalGlobal.total_cb) }}</span>
+              </div>
+              <div v-if="rapportsStore.totalGlobal.total_commission > 0" class="stat">
+                <span class="stat-label">Commission CB totale</span>
+                <span class="stat-value stat-value-commission">{{ formatPrice(rapportsStore.totalGlobal.total_commission) }}</span>
+              </div>
             </div>
-            <div class="stat">
-              <span class="stat-label">Total montant</span>
-              <span class="stat-value stat-value-amount">{{ formatPrice(rapportsStore.totalGlobal.total_montant) }}</span>
+            <div v-if="rapportsStore.totalGlobal.total_commission > 0" class="commission-detail">
+              <span v-if="rapportsStore.totalAllParams">
+                Taux : Permanent {{ rapportsStore.totalAllParams.commission_cb_permanent }}% / Temporaire {{ rapportsStore.totalAllParams.commission_cb_temporaire }}%
+              </span>
             </div>
-            <div v-if="rapportsStore.totalGlobal.total_cb > 0" class="stat">
-              <span class="stat-label">Total CB</span>
-              <span class="stat-value stat-value-cb">{{ formatPrice(rapportsStore.totalGlobal.total_cb) }}</span>
-            </div>
-            <div v-if="rapportsStore.totalGlobal.total_commission > 0" class="stat">
-              <span class="stat-label">Commission CB totale</span>
-              <span class="stat-value stat-value-commission">{{ formatPrice(rapportsStore.totalGlobal.total_commission) }}</span>
-            </div>
-          </div>
-          <div v-if="rapportsStore.totalGlobal.total_commission > 0" class="commission-detail">
-            <span v-if="rapportsStore.totalAllParams">
-              Taux : Permanent {{ rapportsStore.totalAllParams.commission_cb_permanent }}% / Temporaire {{ rapportsStore.totalAllParams.commission_cb_temporaire }}%
-            </span>
           </div>
         </div>
 
@@ -170,16 +172,17 @@
           <div class="month-block">
             <h2 class="month-title">{{ formatMonthLabel(selectedMonth) }}</h2>
 
-            <RapportVentesTable
-              v-for="groupe in rapportsStore.rapportMois.groupes"
-              :key="'groupe-' + groupe.artisan_id"
-              :title="groupe.artisan_nom"
-              :ventes="groupe.ventes"
-              :summary="groupe.summary"
-              :total-label="`TOTAL ${groupe.artisan_nom.toUpperCase()}`"
-            />
+            <div class="rapport-list-wrapper">
+              <RapportVentesTable
+                v-for="groupe in rapportsStore.rapportMois.groupes"
+                :key="'groupe-' + groupe.artisan_id"
+                :title="groupe.artisan_nom"
+                :ventes="groupe.ventes"
+                :summary="groupe.summary"
+                :total-label="`TOTAL ${groupe.artisan_nom.toUpperCase()}`"
+              />
 
-            <!-- Résumé du mois -->
+              <!-- Résumé du mois -->
             <div class="global-summary-card month-summary-card">
               <h3>Résumé du mois</h3>
               <div class="global-summary-stats">
@@ -207,6 +210,7 @@
               </div>
             </div>
           </div>
+        </div>
         </template>
       </div>
     </div>
@@ -234,11 +238,13 @@
 
       <!-- Onglet : Liste des ventes (artisan spécifique) -->
       <div v-if="activeTab === 'ventes' && rapportsStore.ventesArtisan.length">
-        <RapportVentesTable
-          :ventes="rapportsStore.ventesArtisan"
-          :summary="rapportsStore.summary"
-          total-label="TOTAL"
-        />
+        <div class="rapport-list-wrapper">
+          <RapportVentesTable
+            :ventes="rapportsStore.ventesArtisan"
+            :summary="rapportsStore.summary"
+            total-label="TOTAL"
+          />
+        </div>
 
         <div class="export-section">
           <button class="btn btn-success" @click="rapportsStore.exportToExcel(artisansStore.artisans)">
@@ -467,12 +473,26 @@ function exportMonthToExcelFn() {
     justify-content: flex-end;
   }
 
-  /* Bloc mensuel */
-  .month-block {
-    margin-bottom: 48px;
-    padding-bottom: 32px;
-    border-bottom: 3px solid #e2e8f0;
+  .rapport-list-wrapper {
+    max-height: min(64vh, 720px);
+    overflow-y: auto;
+    padding-right: 8px;
+    margin-bottom: 24px;
   }
+
+  .rapport-list-wrapper::-webkit-scrollbar {
+    width: 10px;
+  }
+
+  .rapport-list-wrapper::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.6);
+    border-radius: 999px;
+  }
+
+  .rapport-list-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
 
   .month-block:last-of-type {
     border-bottom: none;
