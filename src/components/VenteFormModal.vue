@@ -249,6 +249,7 @@ async function handleSubmit() {
       emit('saved')
     } else {
       await ventesStore.addVente(buildPayload())
+      emit('saved')
       emit('close')
     }
   } catch (err) {

@@ -234,7 +234,7 @@
     </div>
 
     <!-- Modal d'ajout -->
-    <VenteFormModal mode="create" :show="showModal" @close="showModal = false" />
+    <VenteFormModal mode="create" :show="showModal" @close="showModal = false" @saved="handleVenteSaved" />
 
     <!-- Modal de modification -->
     <VenteFormModal
@@ -243,7 +243,7 @@
       :show="!!editingVente"
       :vente="editingVente"
       @close="editingVente = null"
-      @saved="editingVente = null"
+      @saved="handleVenteSaved"
     />
 
     <!-- Modal de confirmation de suppression -->
@@ -330,6 +330,13 @@ function applyFilters() {
 function resetFilters() {
   localFilters.value = { date_debut: '', date_fin: '', type_paiement: '' }
   ventesStore.resetFilters()
+}
+
+async function handleVenteSaved() {
+  editingVente.value = null
+  if (activeTab.value === 'mensuel' && selectedMonth.value) {
+    await rapportsStore.fetchRapportByMonth(selectedMonth.value)
+  }
 }
 
 function openEdit(vente) {
