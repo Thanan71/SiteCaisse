@@ -339,11 +339,36 @@ async function getVentesByArtisan(artisan_id) {
 }
 
 /**
+ * Récupère toutes les ventes sans pagination (pour les rapports).
+ * @returns {Promise<Array>} Liste complète des ventes formatées.
+ */
+async function getAllVentesUnpaginated() {
+  const supabase = getSupabase()
+
+  const { data: ventes, error: ventesError } = await supabase
+    .from('ventes')
+    .select(`
+      *,
+      artisan:artisan_id (nom, role),
+      vendeur:vendeur_id (nom)
+    `)
+    .order('date_vente', { ascending: false })
+    .order('id', { ascending: false })
+
+  if (ventesError) throw ventesError
+
+  if (!ventes || ventes.length === 0) return []
+
+  return await formatVentesWithArticles(supabase, ventes)
+}
+
+/**
  * Récupère les ventes de tous les artisans groupées par artisan, avec un résumé global.
+ * @param {Object} [options] - Options de pagination.
  * @returns {Promise<{groupes: Array, total: {total_articles: number, total_montant: number}}>}
  */
 async function getAllVentesGroupedByArtisan(options = {}) {
-  const result = await getAllVentes(options)
+  const result = options.page ? await getAllVentes(options) : { ventes: await getAllVentesUnpaginated(), pagination: null }
   const allVentes = result.ventes
 
   // Grouper par artisan_id
@@ -387,6 +412,71 @@ async function getAllVentesGroupedByArtisan(options = {}) {
     total,
     pagination: result.pagination,
   }
+}
+
+/**
+ * Récupère les ventes groupées par mois puis par artisan.
+ * @returns {Promise<{mois: Array, total: {total_articles: number, total_montant: number}}>}
+ */
+async function getAllVentesGroupedByMonth() {
+  const allVentes = await getAllVentesUnpaginated()
+
+  if (!allVentes.length) {
+    return { mois: [], total: { total_articles: 0, total_montant: 0 } }
+  }
+
+  // Grouper par mois (YYYY-MM) puis par artisan
+  const byMonth = {}
+  for (const vente of allVentes) {
+    const mois = vente.date_vente.substring(0, 7) // "2024-01"
+    if (!byMonth[mois]) {
+      byMonth[mois] = {
+        mois,
+        groupes: {},
+      }
+    }
+    if (!byMonth[mois].groupes[vente.artisan_id]) {
+      byMonth[mois].groupes[vente.artisan_id] = {
+        artisan_id: vente.artisan_id,
+        artisan_nom: vente.artisan_nom,
+        ventes: [],
+      }
+    }
+    byMonth[mois].groupes[vente.artisan_id].ventes.push(vente)
+  }
+
+  // Convertir en tableau trié (du plus récent au plus ancien) avec résumés
+  const moisArray = Object.entries(byMonth)
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([moisKey, monthData]) => {
+      const groupes = Object.values(monthData.groupes)
+        .map((g) => ({
+          artisan_id: g.artisan_id,
+          artisan_nom: g.artisan_nom,
+          ventes: g.ventes,
+          summary: summarizeVentes(g.ventes),
+        }))
+        .sort((a, b) => (a.artisan_nom || '').localeCompare(b.artisan_nom || ''))
+
+      const totalMois = groupes.reduce(
+        (acc, g) => ({
+          total_articles: acc.total_articles + g.summary.total_articles,
+          total_montant: acc.total_montant + g.summary.total_montant,
+        }),
+        { total_articles: 0, total_montant: 0 },
+      )
+
+      return {
+        mois: moisKey,
+        groupes,
+        total: totalMois,
+      }
+    })
+
+  // Résumé global toutes périodes confondues
+  const total = summarizeVentes(allVentes)
+
+  return { mois: moisArray, total }
 }
 
 /**
@@ -540,8 +630,10 @@ module.exports = {
   getAllArtisans,
   createVente,
   getAllVentes,
+  getAllVentesUnpaginated,
   getVentesByArtisan,
   getAllVentesGroupedByArtisan,
+  getAllVentesGroupedByMonth,
   updateVente,
   deleteVente,
 }

@@ -28,6 +28,10 @@ export const useRapportsStore = defineStore('rapports', {
     loadingAll: false,
     /** @property {Object|null} totalAllParams - Paramètres des commissions. */
     totalAllParams: null,
+    /** @property {Array} rapportsMensuel - Rapports groupés par mois. */
+    rapportsMensuel: [],
+    /** @property {boolean} loadingMensuel - Indicateur de chargement pour les rapports mensuels. */
+    loadingMensuel: false,
   }),
 
   actions: {
@@ -69,6 +73,26 @@ export const useRapportsStore = defineStore('rapports', {
         throw error
       } finally {
         this.loading = false
+      }
+    },
+
+    /**
+     * Récupère les ventes groupées par mois.
+     * @returns {Promise<void>}
+     */
+    async fetchRapportsMensuel() {
+      this.loadingMensuel = true
+      this.error = null
+      try {
+        const response = await api.get('/api/rapports/mensuel')
+        this.rapportsMensuel = response.data.mois
+        this.totalGlobal = response.data.total
+        this.totalAllParams = response.data.parametres || null
+      } catch (error) {
+        this.error = error.response?.data?.error || 'Erreur lors du chargement des rapports mensuels'
+        throw error
+      } finally {
+        this.loadingMensuel = false
       }
     },
 

@@ -6,7 +6,7 @@
  * Toutes les routes sont protégées par le middleware d'authentification JWT.
  */
 const express = require('express')
-const { getAllArtisans, getVentesByArtisan, getAllVentesGroupedByArtisan } = require('./models.cjs')
+const { getAllArtisans, getVentesByArtisan, getAllVentesGroupedByArtisan, getAllVentesGroupedByMonth } = require('./models.cjs')
 const { authMiddleware } = require('./authController.cjs')
 const {
   ajouterCommissionsAuxGroupes,
@@ -56,6 +56,53 @@ router.get('/', async (req, res) => {
       user: req.user,
       err,
       context: 'rapports.list',
+      cible_type: 'rapport',
+      req,
+    })
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
+
+/**
+ * Récupère les ventes groupées par mois puis par artisan.
+ * @route GET /api/rapports/mensuel
+ * @returns {Object} Ventes groupées par mois avec résumé global.
+ */
+router.get('/mensuel', async (req, res) => {
+  try {
+    const [data, parametres] = await Promise.all([
+      getAllVentesGroupedByMonth(),
+      getAllParametres(),
+    ])
+
+    const tauxPermanent = parseFloat(parametres.commission_cb_permanent) || 0
+    const tauxTemporaire = parseFloat(parametres.commission_cb_temporaire) || 0
+
+    // Ajouter les commissions à chaque groupe de chaque mois
+    for (const mois of data.mois) {
+      const { groupesAvecCommissions, totalGlobalCB, totalGlobalCommission } =
+        ajouterCommissionsAuxGroupes(mois.groupes, tauxPermanent, tauxTemporaire)
+      mois.groupes = groupesAvecCommissions
+      mois.total.total_cb = totalGlobalCB
+      mois.total.total_commission = totalGlobalCommission
+    }
+
+    res.json({
+      mois: data.mois,
+      total: {
+        ...data.total,
+      },
+      parametres: {
+        commission_cb_permanent: tauxPermanent,
+        commission_cb_temporaire: tauxTemporaire,
+      },
+    })
+  } catch (err) {
+    console.error('GET rapports mensuel error:', err)
+    await logError({
+      user: req.user,
+      err,
+      context: 'rapports.mensuel',
       cible_type: 'rapport',
       req,
     })

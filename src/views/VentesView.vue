@@ -73,106 +73,200 @@
       </div>
     </div>
 
-    <div v-if="ventesStore.loading && !ventesStore.ventes.length" class="loading-state">
-      <div class="spinner"></div>
-      <p>Chargement des ventes...</p>
+    <!-- Sous-navigation -->
+    <div class="sub-nav">
+      <button
+        class="sub-nav-btn"
+        :class="{ active: activeTab === 'toutes' }"
+        @click="activeTab = 'toutes'"
+      >
+        📋 Toutes les ventes
+      </button>
+      <button
+        class="sub-nav-btn"
+        :class="{ active: activeTab === 'mensuel' }"
+        @click="activeTab = 'mensuel'; loadMensuel()"
+      >
+        📅 Par mois
+      </button>
     </div>
 
-    <div v-else-if="ventesStore.error" class="error-state">
-      <p>{{ ventesStore.error }}</p>
-      <button class="btn btn-secondary" @click="ventesStore.fetchVentes()">Réessayer</button>
-    </div>
+    <!-- Onglet : Toutes les ventes -->
+    <div v-if="activeTab === 'toutes'">
+      <div v-if="ventesStore.loading && !ventesStore.ventes.length" class="loading-state">
+        <div class="spinner"></div>
+        <p>Chargement des ventes...</p>
+      </div>
 
-    <div v-else-if="!ventesStore.ventes.length" class="empty-state">
-      <div class="empty-icon">📋</div>
-      <h3>Aucune vente</h3>
-      <p>Commencez par ajouter une vente</p>
-    </div>
+      <div v-else-if="ventesStore.error" class="error-state">
+        <p>{{ ventesStore.error }}</p>
+        <button class="btn btn-secondary" @click="ventesStore.fetchVentes()">Réessayer</button>
+      </div>
 
-    <div v-else class="table-container">
-      <table>
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Articles</th>
-            <th>Artisan</th>
-            <th>Total articles</th>
-            <th>Montant total</th>
-            <th>Paiement</th>
-            <th>Vendeur</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="vente in ventesStore.ventes" :key="vente.id">
-            <td>{{ formatDate(vente.date_vente) }}</td>
-            <td class="articles-cell">
-              <div class="article-line" v-for="(art, artIdx) in getVisibleItems(vente.articles, vente.id)" :key="art.id || artIdx">
-                <span class="article-name">{{ art.article }}</span>
-                <span class="article-details">
-                  {{ art.quantite }} &times; {{ formatPrice(art.prix) }}
-                  <span class="article-subtotal">= {{ formatPrice(art.prix * art.quantite) }}</span>
-                </span>
-              </div>
-              <button
-                v-if="vente.articles && vente.articles.length > 1"
-                class="btn-expand"
-                @click="toggleExpanded(vente.id)"
-              >
-                {{ isExpanded(vente.id) ? '▲ Moins' : `▼ +${vente.articles.length - 1} autre(s)` }}
-              </button>
-            </td>
-            <td>{{ vente.artisan_nom }}</td>
-            <td class="text-center">{{ vente.total_articles }}</td>
-            <td class="text-right total-price">{{ formatPrice(vente.total_montant) }}</td>
-            <td>
-              <PaymentBadge :type="vente.type_paiement" />
-            </td>
-            <td>{{ vente.vendeur_nom }}</td>
-            <td>
-              <button class="btn-icon" title="Modifier" @click="openEdit(vente)">
-                ✏️
-              </button>
-              <button class="btn-icon" title="Supprimer" @click="handleDelete(vente.id)">
-                🗑️
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div v-else-if="!ventesStore.ventes.length" class="empty-state">
+        <div class="empty-icon">📋</div>
+        <h3>Aucune vente</h3>
+        <p>Commencez par ajouter une vente</p>
+      </div>
 
-      <!-- Pagination -->
-      <div v-if="ventesStore.pagination.totalPages > 1" class="pagination-bar">
-        <div class="pagination-info">
-          Page {{ ventesStore.pagination.page }} / {{ ventesStore.pagination.totalPages }}
-          ({{ ventesStore.pagination.total }} ventes)
-        </div>
-        <div class="pagination-controls">
-          <button
-            class="btn btn-pagination"
-            :disabled="!ventesStore.hasPrevPage"
-            @click="ventesStore.prevPage()"
-          >
-            ◀ Précédent
-          </button>
-          <button
-            v-for="p in displayedPages"
-            :key="p"
-            class="btn btn-pagination"
-            :class="{ active: p === ventesStore.pagination.page }"
-            @click="ventesStore.goToPage(p)"
-          >
-            {{ p }}
-          </button>
-          <button
-            class="btn btn-pagination"
-            :disabled="!ventesStore.hasNextPage"
-            @click="ventesStore.nextPage()"
-          >
-            Suivant ▶
-          </button>
+      <div v-else class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Articles</th>
+              <th>Artisan</th>
+              <th>Total articles</th>
+              <th>Montant total</th>
+              <th>Paiement</th>
+              <th>Vendeur</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="vente in ventesStore.ventes" :key="vente.id">
+              <td>{{ formatDate(vente.date_vente) }}</td>
+              <td class="articles-cell">
+                <div class="article-line" v-for="(art, artIdx) in getVisibleItems(vente.articles, vente.id)" :key="art.id || artIdx">
+                  <span class="article-name">{{ art.article }}</span>
+                  <span class="article-details">
+                    {{ art.quantite }} &times; {{ formatPrice(art.prix) }}
+                    <span class="article-subtotal">= {{ formatPrice(art.prix * art.quantite) }}</span>
+                  </span>
+                </div>
+                <button
+                  v-if="vente.articles && vente.articles.length > 1"
+                  class="btn-expand"
+                  @click="toggleExpanded(vente.id)"
+                >
+                  {{ isExpanded(vente.id) ? '▲ Moins' : `▼ +${vente.articles.length - 1} autre(s)` }}
+                </button>
+              </td>
+              <td>{{ vente.artisan_nom }}</td>
+              <td class="text-center">{{ vente.total_articles }}</td>
+              <td class="text-right total-price">{{ formatPrice(vente.total_montant) }}</td>
+              <td>
+                <PaymentBadge :type="vente.type_paiement" />
+              </td>
+              <td>{{ vente.vendeur_nom }}</td>
+              <td>
+                <button class="btn-icon" title="Modifier" @click="openEdit(vente)">
+                  ✏️
+                </button>
+                <button class="btn-icon" title="Supprimer" @click="handleDelete(vente.id)">
+                  🗑️
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Pagination -->
+        <div v-if="ventesStore.pagination.totalPages > 1" class="pagination-bar">
+          <div class="pagination-info">
+            Page {{ ventesStore.pagination.page }} / {{ ventesStore.pagination.totalPages }}
+            ({{ ventesStore.pagination.total }} ventes)
+          </div>
+          <div class="pagination-controls">
+            <button
+              class="btn btn-pagination"
+              :disabled="!ventesStore.hasPrevPage"
+              @click="ventesStore.prevPage()"
+            >
+              ◀ Précédent
+            </button>
+            <button
+              v-for="p in displayedPages"
+              :key="p"
+              class="btn btn-pagination"
+              :class="{ active: p === ventesStore.pagination.page }"
+              @click="ventesStore.goToPage(p)"
+            >
+              {{ p }}
+            </button>
+            <button
+              class="btn btn-pagination"
+              :disabled="!ventesStore.hasNextPage"
+              @click="ventesStore.nextPage()"
+            >
+              Suivant ▶
+            </button>
+          </div>
         </div>
       </div>
+    </div>
+
+    <!-- Onglet : Par mois -->
+    <div v-if="activeTab === 'mensuel'">
+      <div v-if="ventesStore.loadingMensuel" class="loading-state">
+        <div class="spinner"></div>
+        <p>Chargement des ventes mensuelles...</p>
+      </div>
+
+      <div v-else-if="!ventesStore.ventesMensuel.length" class="empty-state">
+        <div class="empty-icon">📅</div>
+        <h3>Aucune donnée mensuelle</h3>
+        <p>Aucune vente enregistrée pour le moment</p>
+      </div>
+
+      <template v-else>
+        <div
+          v-for="moisItem in ventesStore.ventesMensuel"
+          :key="'mois-' + moisItem.mois"
+          class="month-block"
+        >
+          <h2 class="month-title">{{ formatMois(moisItem.mois) }}</h2>
+          <RapportVentesTable
+            v-for="groupe in moisItem.groupes"
+            :key="'mois-' + moisItem.mois + '-groupe-' + groupe.artisan_id"
+            :title="groupe.artisan_nom"
+            :ventes="groupe.ventes"
+            :summary="groupe.summary"
+            :total-label="`TOTAL ${groupe.artisan_nom.toUpperCase()}`"
+          />
+
+          <!-- Résumé du mois -->
+          <div class="global-summary-card month-summary-card">
+            <h3>Résumé du mois</h3>
+            <div class="global-summary-stats">
+              <div class="stat">
+                <span class="stat-label">Total articles</span>
+                <span class="stat-value">{{ moisItem.total.total_articles }}</span>
+              </div>
+              <div class="stat">
+                <span class="stat-label">Total montant</span>
+                <span class="stat-value stat-value-amount">{{ formatPrice(moisItem.total.total_montant) }}</span>
+              </div>
+              <div v-if="moisItem.total.total_cb > 0" class="stat">
+                <span class="stat-label">Total CB</span>
+                <span class="stat-value stat-value-cb">{{ formatPrice(moisItem.total.total_cb) }}</span>
+              </div>
+              <div v-if="moisItem.total.total_commission > 0" class="stat">
+                <span class="stat-label">Commission CB</span>
+                <span class="stat-value stat-value-commission">{{ formatPrice(moisItem.total.total_commission) }}</span>
+              </div>
+            </div>
+            <div v-if="moisItem.total.total_commission > 0" class="commission-detail">
+              <span>Taux : Permanent {{ parametresMensuel.commission_cb_permanent }}% / Temporaire {{ parametresMensuel.commission_cb_temporaire }}%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Résumé global -->
+        <div class="global-summary-card global-final-card">
+          <h3>Résumé global (toutes périodes)</h3>
+          <div class="global-summary-stats">
+            <div class="stat">
+              <span class="stat-label">Total articles</span>
+              <span class="stat-value">{{ ventesStore.ventes.reduce((sum, v) => sum + v.total_articles, 0) }}</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Total montant</span>
+              <span class="stat-value stat-value-amount">{{ formatPrice(ventesStore.ventes.reduce((sum, v) => sum + v.total_montant, 0)) }}</span>
+            </div>
+          </div>
+        </div>
+      </template>
     </div>
 
     <!-- Modal d'ajout -->
@@ -207,6 +301,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import PaymentBadge from '../components/PaymentBadge.vue'
+import RapportVentesTable from '../components/RapportVentesTable.vue'
 import VenteFormModal from '../components/VenteFormModal.vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
 import { useExpandableRows } from '../composables/useExpandableRows'
@@ -216,6 +311,7 @@ import { formatDate, formatPrice, getPaymentLabel } from '../utils/formatters'
 const ventesStore = useVentesStore()
 const showModal = ref(false)
 const editingVente = ref(null)
+const activeTab = ref('toutes')
 const { getVisibleItems, isExpanded, toggleExpanded } = useExpandableRows()
 
 // État de la suppression
@@ -230,9 +326,37 @@ const localFilters = ref({
   type_paiement: '',
 })
 
+const parametresMensuel = computed(() => {
+  // Prend les paramètres depuis la première entrée mensuelle qui a des commissions
+  for (const mois of ventesStore.ventesMensuel) {
+    if (mois.groupes.length > 0 && mois.groupes[0].summary.taux_commission) {
+      return {
+        commission_cb_permanent: mois.groupes[0].summary.taux_commission,
+        commission_cb_temporaire: mois.groupes[0].summary.taux_commission,
+      }
+    }
+  }
+  return { commission_cb_permanent: 0, commission_cb_temporaire: 0 }
+})
+
 onMounted(() => {
   ventesStore.fetchVentes()
 })
+
+function loadMensuel() {
+  if (!ventesStore.ventesMensuel.length) {
+    ventesStore.fetchVentesMensuel()
+  }
+}
+
+function formatMois(moisStr) {
+  const [annee, mois] = moisStr.split('-')
+  const moisNoms = [
+    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+  ]
+  return `${moisNoms[parseInt(mois, 10) - 1]} ${annee}`
+}
 
 /**
  * Calcule les pages à afficher dans la pagination.
