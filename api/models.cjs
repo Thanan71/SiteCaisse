@@ -480,6 +480,68 @@ async function getAllVentesGroupedByMonth() {
 }
 
 /**
+ * Récupère les ventes pour un mois spécifique (format YYYY-MM), groupées par artisan.
+ * @param {string} mois - Le mois au format "YYYY-MM".
+ * @returns {Promise<{groupes: Array, total: {total_articles: number, total_montant: number}}>}
+ */
+async function getVentesByMonth(mois) {
+  const supabase = getSupabase()
+
+  const { data: ventes, error: ventesError } = await supabase
+    .from('ventes')
+    .select(`
+      *,
+      artisan:artisan_id (nom, role),
+      vendeur:vendeur_id (nom)
+    `)
+    .gte('date_vente', `${mois}-01`)
+    .lt('date_vente', `${mois}-99`)
+    .order('date_vente', { ascending: false })
+    .order('id', { ascending: false })
+
+  if (ventesError) throw ventesError
+
+  if (!ventes || ventes.length === 0) {
+    return { groupes: [], total: { total_articles: 0, total_montant: 0 } }
+  }
+
+  const formattedVentes = await formatVentesWithArticles(supabase, ventes)
+
+  // Grouper par artisan
+  const grouped = {}
+  for (const vente of formattedVentes) {
+    const key = vente.artisan_id
+    if (!grouped[key]) {
+      grouped[key] = {
+        artisan_id: vente.artisan_id,
+        artisan_nom: vente.artisan_nom,
+        ventes: [],
+      }
+    }
+    grouped[key].ventes.push(vente)
+  }
+
+  const groupes = Object.values(grouped)
+    .map((g) => ({
+      artisan_id: g.artisan_id,
+      artisan_nom: g.artisan_nom,
+      ventes: g.ventes,
+      summary: summarizeVentes(g.ventes),
+    }))
+    .sort((a, b) => (a.artisan_nom || '').localeCompare(b.artisan_nom || ''))
+
+  const total = groupes.reduce(
+    (acc, g) => ({
+      total_articles: acc.total_articles + g.summary.total_articles,
+      total_montant: acc.total_montant + g.summary.total_montant,
+    }),
+    { total_articles: 0, total_montant: 0 },
+  )
+
+  return { groupes, total }
+}
+
+/**
  * Met à jour une vente existante (en-tête et articles).
  * @param {number} id - ID de la vente à modifier.
  * @param {Object} fields - Objet contenant les champs à mettre à jour.
@@ -634,6 +696,7 @@ module.exports = {
   getVentesByArtisan,
   getAllVentesGroupedByArtisan,
   getAllVentesGroupedByMonth,
+  getVentesByMonth,
   updateVente,
   deleteVente,
 }

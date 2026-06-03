@@ -32,6 +32,10 @@ export const useRapportsStore = defineStore('rapports', {
     rapportsMensuel: [],
     /** @property {boolean} loadingMensuel - Indicateur de chargement pour les rapports mensuels. */
     loadingMensuel: false,
+    /** @property {Object|null} rapportMois - Données du mois sélectionné (groupes + total). */
+    rapportMois: null,
+    /** @property {boolean} loadingMois - Indicateur de chargement pour un mois spécifique. */
+    loadingMois: false,
   }),
 
   actions: {
@@ -104,6 +108,25 @@ export const useRapportsStore = defineStore('rapports', {
      */
     exportToExcel(artisans) {
       exportVentesToExcel(this.ventesArtisan, artisans || [], this.selectedArtisanId, this.summary)
+    },
+
+    /**
+     * Récupère les ventes groupées par artisan pour un mois spécifique.
+     * @param {string} mois - Le mois au format "YYYY-MM".
+     * @returns {Promise<void>}
+     */
+    async fetchRapportByMonth(mois) {
+      this.loadingMois = true
+      this.error = null
+      try {
+        const response = await api.get(`/api/rapports/mensuel/${mois}`)
+        this.rapportMois = response.data
+      } catch (error) {
+        this.error = error.response?.data?.error || 'Erreur lors du chargement du rapport mensuel'
+        throw error
+      } finally {
+        this.loadingMois = false
+      }
     },
   },
 })

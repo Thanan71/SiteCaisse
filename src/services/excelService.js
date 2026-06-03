@@ -34,6 +34,99 @@ export function exportVentesToExcel(ventes, artisans, artisanId, summary) {
 }
 
 /**
+ * Exporte les rapports d'un mois spécifique dans un classeur Excel multi-onglets.
+ * @param {Array} groupes - Liste des groupes (artisan_id, artisan_nom, ventes[], summary).
+ * @param {Object} total - Résumé du mois { total_articles, total_montant, total_cb, total_commission }.
+ * @param {Object} parametres - Paramètres des commissions.
+ * @param {string} mois - Le mois au format "YYYY-MM".
+ * @returns {void}
+ */
+export function exportMonthToExcel(groupes, total, parametres, mois) {
+  if (!groupes || groupes.length === 0) return
+
+  const workbook = XLSX.utils.book_new()
+
+  // Un onglet par artisan
+  for (const groupe of groupes) {
+    const sheetName = groupe.artisan_nom
+      ? `Rapport - ${groupe.artisan_nom}`.substring(0, 31)
+      : `Artisan #${groupe.artisan_id}`
+    const worksheet = buildWorksheet(groupe.ventes, groupe.summary)
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
+  }
+
+  // Onglet récapitulatif du mois
+  const globalRows = groupes.map((g) => ({
+    Artisan: g.artisan_nom || `Artisan #${g.artisan_id}`,
+    'Total articles': g.summary.total_articles,
+    'Total montant (€)': g.summary.total_montant.toFixed(2),
+    'Total CB (€)': (g.summary.total_cb || 0).toFixed(2),
+    'Taux commission (%)': g.summary.taux_commission || 0,
+    'Commission CB (€)': (g.summary.commission_cb || 0).toFixed(2),
+  }))
+
+  globalRows.push({
+    Artisan: 'TOTAL DU MOIS',
+    'Total articles': total.total_articles,
+    'Total montant (€)': total.total_montant.toFixed(2),
+    'Total CB (€)': (total.total_cb || 0).toFixed(2),
+    'Taux commission (%)': '',
+    'Commission CB (€)': (total.total_commission || 0).toFixed(2),
+  })
+
+  if (parametres) {
+    globalRows.push({
+      Artisan: 'Taux appliqués',
+      'Total articles': '',
+      'Total montant (€)': '',
+      'Total CB (€)': '',
+      'Taux commission (%)': '',
+      'Commission CB (€)': '',
+    })
+    globalRows.push({
+      Artisan: 'Permanent',
+      'Total articles': '',
+      'Total montant (€)': '',
+      'Total CB (€)': '',
+      'Taux commission (%)': parametres.commission_cb_permanent || '',
+      'Commission CB (€)': '',
+    })
+    globalRows.push({
+      Artisan: 'Temporaire',
+      'Total articles': '',
+      'Total montant (€)': '',
+      'Total CB (€)': '',
+      'Taux commission (%)': parametres.commission_cb_temporaire || '',
+      'Commission CB (€)': '',
+    })
+  }
+
+  const globalSheet = XLSX.utils.json_to_sheet(globalRows)
+  const globalColWidths = [
+    { wch: 25 },
+    { wch: 15 },
+    { wch: 18 },
+    { wch: 15 },
+    { wch: 18 },
+    { wch: 18 },
+  ]
+  globalSheet['!cols'] = globalColWidths
+  XLSX.utils.book_append_sheet(workbook, globalSheet, 'Résumé du mois')
+
+  // Générer le fichier
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' })
+  const blob = new Blob([excelBuffer], { type: 'application/octet-stream' })
+  const [annee, moisNum] = mois.split('-')
+  const moisNoms = [
+    'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+  ]
+  const fileName = `Rapport_mensuel_${moisNoms[parseInt(moisNum, 10) - 1]}_${annee}.xlsx`
+
+  saveAs(blob, fileName)
+}
+
+/**
  * Exporte les rapports de tous les artisans dans un classeur Excel multi-onglets.
  * Chaque artisan a son propre onglet, et un onglet "Résumé global" est ajouté.
  * @param {Array} groupes - Liste des groupes (artisan_id, artisan_nom, ventes[], summary avec commission_cb).

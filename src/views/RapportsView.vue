@@ -51,7 +51,7 @@
       <button
         class="sub-nav-btn"
         :class="{ active: activeTab === 'mensuel' }"
-        @click="activeTab = 'mensuel'; loadMensuel()"
+        @click="activeTab = 'mensuel'"
       >
         📅 Par mois
       </button>
@@ -134,28 +134,45 @@
 
       <!-- Onglet : Vue mensuelle -->
       <div v-if="activeTab === 'mensuel'">
-        <div v-if="rapportsStore.loadingMensuel" class="loading-state">
-          <div class="spinner"></div>
-          <p>Chargement des rapports mensuels...</p>
+        <!-- Sélecteur de mois avec mois courant par défaut -->
+        <div class="month-selector-card">
+          <div class="month-selector-row">
+            <label for="month-select">Sélectionner un mois :</label>
+            <input
+              id="month-select"
+              type="month"
+              v-model="selectedMonth"
+              @change="onMonthChange"
+              class="month-input"
+            />
+            <button
+              class="btn btn-success"
+              :disabled="!rapportsStore.rapportMois || !rapportsStore.rapportMois.groupes.length"
+              @click="exportMonthToExcelFn"
+            >
+              📥 Télécharger le rapport Excel
+            </button>
+          </div>
         </div>
 
-        <div v-else-if="!rapportsStore.rapportsMensuel.length" class="empty-state">
+        <div v-if="rapportsStore.loadingMois" class="loading-state">
+          <div class="spinner"></div>
+          <p>Chargement du rapport mensuel...</p>
+        </div>
+
+        <div v-else-if="!rapportsStore.rapportMois || !rapportsStore.rapportMois.groupes.length" class="empty-state">
           <div class="empty-icon">📅</div>
-          <h3>Aucune donnée mensuelle</h3>
-          <p>Aucune vente enregistrée pour le moment</p>
+          <h3>Aucune donnée pour {{ formatMois(selectedMonth) }}</h3>
+          <p>Aucune vente enregistrée pour ce mois</p>
         </div>
 
         <template v-else>
-          <div
-            v-for="(moisItem, moisIndex) in rapportsStore.rapportsMensuel"
-            :key="'mois-' + moisItem.mois"
-            class="month-block"
-          >
-            <h2 class="month-title">{{ formatMois(moisItem.mois) }}</h2>
+          <div class="month-block">
+            <h2 class="month-title">{{ formatMois(selectedMonth) }}</h2>
 
             <RapportVentesTable
-              v-for="groupe in moisItem.groupes"
-              :key="'mois-' + moisItem.mois + '-groupe-' + groupe.artisan_id"
+              v-for="groupe in rapportsStore.rapportMois.groupes"
+              :key="'groupe-' + groupe.artisan_id"
               :title="groupe.artisan_nom"
               :ventes="groupe.ventes"
               :summary="groupe.summary"
@@ -168,40 +185,25 @@
               <div class="global-summary-stats">
                 <div class="stat">
                   <span class="stat-label">Total articles</span>
-                  <span class="stat-value">{{ moisItem.total.total_articles }}</span>
+                  <span class="stat-value">{{ rapportsStore.rapportMois.total.total_articles }}</span>
                 </div>
                 <div class="stat">
                   <span class="stat-label">Total montant</span>
-                  <span class="stat-value stat-value-amount">{{ formatPrice(moisItem.total.total_montant) }}</span>
+                  <span class="stat-value stat-value-amount">{{ formatPrice(rapportsStore.rapportMois.total.total_montant) }}</span>
                 </div>
-                <div v-if="moisItem.total.total_cb > 0" class="stat">
+                <div v-if="rapportsStore.rapportMois.total.total_cb > 0" class="stat">
                   <span class="stat-label">Total CB</span>
-                  <span class="stat-value stat-value-cb">{{ formatPrice(moisItem.total.total_cb) }}</span>
+                  <span class="stat-value stat-value-cb">{{ formatPrice(rapportsStore.rapportMois.total.total_cb) }}</span>
                 </div>
-                <div v-if="moisItem.total.total_commission > 0" class="stat">
+                <div v-if="rapportsStore.rapportMois.total.total_commission > 0" class="stat">
                   <span class="stat-label">Commission CB</span>
-                  <span class="stat-value stat-value-commission">{{ formatPrice(moisItem.total.total_commission) }}</span>
+                  <span class="stat-value stat-value-commission">{{ formatPrice(rapportsStore.rapportMois.total.total_commission) }}</span>
                 </div>
               </div>
-              <div v-if="moisItem.total.total_commission > 0" class="commission-detail">
-                <span v-if="rapportsStore.totalAllParams">
-                  Taux : Permanent {{ rapportsStore.totalAllParams.commission_cb_permanent }}% / Temporaire {{ rapportsStore.totalAllParams.commission_cb_temporaire }}%
+              <div v-if="rapportsStore.rapportMois.total.total_commission > 0" class="commission-detail">
+                <span v-if="rapportsStore.rapportMois.parametres">
+                  Taux : Permanent {{ rapportsStore.rapportMois.parametres.commission_cb_permanent }}% / Temporaire {{ rapportsStore.rapportMois.parametres.commission_cb_temporaire }}%
                 </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Résumé global (tous mois confondus) -->
-          <div class="global-summary-card global-final-card">
-            <h3>Résumé global (toutes périodes)</h3>
-            <div class="global-summary-stats">
-              <div class="stat">
-                <span class="stat-label">Total articles</span>
-                <span class="stat-value">{{ rapportsStore.totalGlobal.total_articles }}</span>
-              </div>
-              <div class="stat">
-                <span class="stat-label">Total montant</span>
-                <span class="stat-value stat-value-amount">{{ formatPrice(rapportsStore.totalGlobal.total_montant) }}</span>
               </div>
             </div>
           </div>
@@ -253,7 +255,7 @@ import { computed, onMounted, ref } from 'vue'
 import { formatPrice } from '../utils/formatters'
 import GraphiquesRapports from '../components/GraphiquesRapports.vue'
 import RapportVentesTable from '../components/RapportVentesTable.vue'
-import { exportAllRapportsToExcel } from '../services/excelService'
+import { exportAllRapportsToExcel, exportMonthToExcel } from '../services/excelService'
 import { useArtisansStore } from '../store/artisans'
 import { useRapportsStore } from '../store/rapports'
 
@@ -261,6 +263,11 @@ const rapportsStore = useRapportsStore()
 const artisansStore = useArtisansStore()
 const selectedArtisanId = ref('')
 const activeTab = ref('global')
+
+// Mois courant au format YYYY-MM
+const now = new Date()
+const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+const selectedMonth = ref(currentMonth)
 
 const permanents = computed(() => artisansStore.permanents)
 const temporaires = computed(() => artisansStore.temporaires)
@@ -281,15 +288,12 @@ const allVentesFlat = computed(() => {
 onMounted(() => {
   artisansStore.fetchArtisans()
   rapportsStore.fetchAllRapports()
+  // Charger les données du mois courant pour l'onglet mensuel
+  rapportsStore.fetchRapportByMonth(currentMonth)
 })
 
-function loadMensuel() {
-  if (!rapportsStore.rapportsMensuel.length) {
-    rapportsStore.fetchRapportsMensuel()
-  }
-}
-
 function formatMois(moisStr) {
+  if (!moisStr) return ''
   const [annee, mois] = moisStr.split('-')
   const moisNoms = [
     'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -305,11 +309,27 @@ function onArtisanChange() {
   }
 }
 
+function onMonthChange() {
+  if (selectedMonth.value) {
+    rapportsStore.fetchRapportByMonth(selectedMonth.value)
+  }
+}
+
 function exportAllToExcel() {
   exportAllRapportsToExcel(
     rapportsStore.allRapports,
     rapportsStore.totalGlobal,
     rapportsStore.totalAllParams,
+  )
+}
+
+function exportMonthToExcelFn() {
+  if (!rapportsStore.rapportMois) return
+  exportMonthToExcel(
+    rapportsStore.rapportMois.groupes,
+    rapportsStore.rapportMois.total,
+    rapportsStore.rapportMois.parametres,
+    selectedMonth.value,
   )
 }
 </script>
@@ -413,7 +433,45 @@ function exportAllToExcel() {
   color: white;
 }
 
-  .export-section {
+/* Sélecteur de mois */
+.month-selector-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 24px;
+}
+
+.month-selector-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.month-selector-row label {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.month-input {
+  padding: 8px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: white;
+  transition: border-color 0.2s;
+}
+
+.month-input:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.export-section {
     margin-top: 20px;
     display: flex;
     justify-content: flex-end;
