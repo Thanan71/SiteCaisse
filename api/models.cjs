@@ -226,25 +226,29 @@ async function formatVentesWithArticles(supabase, ventes) {
  * @param {string} date_vente - Date de la vente au format ISO.
  * @returns {Promise<number>} L'ID de la vente créée.
  */
-async function createVente(articles, type_paiement, artisan_id, vendeur_id, date_vente) {
+async function createVente(articles, type_paiement, vendeur_id, date_vente) {
   const supabase = getSupabase()
+
+  // Déterminer un artisan principal pour l'en-tête (compatibilité) : prendre le premier article
+  const vente_artisan_id = articles && articles.length ? articles[0].artisan_id || null : null
 
   // 1. Créer l'en-tête de la vente
   const { data: venteData, error: venteError } = await supabase
     .from('ventes')
-    .insert({ type_paiement, artisan_id, vendeur_id, date_vente })
+    .insert({ type_paiement, artisan_id: vente_artisan_id, vendeur_id, date_vente })
     .select('id')
     .single()
 
   if (venteError) throw venteError
   const venteId = venteData.id
 
-  // 2. Insérer les lignes d'articles
+  // 2. Insérer les lignes d'articles (avec artisan_id par ligne)
   const articlesData = articles.map((a) => ({
     vente_id: venteId,
     article: a.article,
     quantite: a.quantite || 1,
     prix: a.prix,
+    artisan_id: a.artisan_id || null,
   }))
 
   const { error: articlesError } = await supabase.from('vente_articles').insert(articlesData)
@@ -316,24 +320,22 @@ async function getAllVentes(options = {}) {
  * @returns {Promise<{ventes: Array, summary: {total_articles: number, total_montant: number}}>}
  */
 async function getVentesByArtisan(artisan_id) {
-  const supabase = getSupabase()
-  const { data: ventes, error: ventesError } = await supabase
-    .from('ventes')
-    .select(`
-      *,
-      artisan:artisan_id (nom, role),
-      vendeur:vendeur_id (nom)
-    `)
-    .eq('artisan_id', artisan_id)
-    .order('created_at', { ascending: false })
+  // Agréger les ventes pour un artisan en se basant sur les articles
+  const allVentes = await getAllVentesUnpaginated()
 
-  if (ventesError) throw ventesError
+  const ventesFiltered = []
+  for (const vente of allVentes) {
+    const articles = (vente.articles || []).filter((a) => Number(a.artisan_id) === Number(artisan_id))
+    if (articles.length > 0) {
+      const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
+      const total_montant = articles.reduce((s, a) => s + (a.prix * (a.quantite || 0)), 0)
+      ventesFiltered.push({ ...vente, articles, total_articles, total_montant })
+    }
+  }
 
-  if (!ventes || ventes.length === 0)
-    return { ventes: [], summary: { total_articles: 0, total_montant: 0 } }
+  if (!ventesFiltered.length) return { ventes: [], summary: { total_articles: 0, total_montant: 0 } }
 
-  const formattedVentes = await formatVentesWithArticles(supabase, ventes)
-  return { ventes: formattedVentes, summary: summarizeVentes(formattedVentes) }
+  return { ventes: ventesFiltered, summary: summarizeVentes(ventesFiltered) }
 }
 
 /**
@@ -370,29 +372,58 @@ async function getAllVentesGroupedByArtisan(options = {}) {
     : { ventes: await getAllVentesUnpaginated(), pagination: null }
   const allVentes = result.ventes
 
-  // Grouper par artisan_id
+  // Récupérer la liste d'artisans pour nom/role
+  const artisansList = await getAllArtisans()
+  const artisanMap = artisansList.reduce((m, a) => {
+    m[a.id] = a
+    return m
+  }, {})
+
+  // Grouper par artisan_id présent sur chaque ligne d'article
   const grouped = {}
   for (const vente of allVentes) {
-    const key = vente.artisan_id
-    if (!grouped[key]) {
-      grouped[key] = {
-        artisan_id: vente.artisan_id,
-        artisan_nom: vente.artisan_nom,
-        ventes: [],
-      }
+    // pour chaque vente, regrouper ses articles par artisan
+    const byArtisan = {}
+    for (const art of vente.articles || []) {
+      const aid = art.artisan_id || null
+      if (!byArtisan[aid]) byArtisan[aid] = []
+      byArtisan[aid].push(art)
     }
-    grouped[key].ventes.push(vente)
+
+    for (const [aid, articles] of Object.entries(byArtisan)) {
+      const key = aid === 'null' ? null : Number(aid)
+      if (!grouped[key]) {
+        grouped[key] = {
+          artisan_id: key,
+          artisan_nom: artisanMap[key]?.nom || `Artisan #${key}`,
+          artisan_role: artisanMap[key]?.role || null,
+          ventes: [],
+        }
+      }
+
+      // Construire une entrée de vente ne contenant que les articles de cet artisan
+      const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
+      const total_montant = articles.reduce((s, a) => s + (a.prix * (a.quantite || 0)), 0)
+
+      const venteEntry = {
+        ...vente,
+        articles,
+        total_articles,
+        total_montant,
+      }
+
+      grouped[key].ventes.push(venteEntry)
+    }
   }
 
   // Construire le tableau de groupes avec le résumé par artisan
-  const groupes = Object.values(grouped).map((g) => {
-    return {
-      artisan_id: g.artisan_id,
-      artisan_nom: g.artisan_nom,
-      ventes: g.ventes,
-      summary: summarizeVentes(g.ventes),
-    }
-  })
+  const groupes = Object.values(grouped).map((g) => ({
+    artisan_id: g.artisan_id,
+    artisan_nom: g.artisan_nom,
+    artisan_role: g.artisan_role,
+    ventes: g.ventes,
+    summary: summarizeVentes(g.ventes),
+  }))
 
   // Trier les groupes par nom d'artisan
   groupes.sort((a, b) => (a.artisan_nom || '').localeCompare(b.artisan_nom || ''))
@@ -425,23 +456,43 @@ async function getAllVentesGroupedByMonth() {
   }
 
   // Grouper par mois (YYYY-MM) puis par artisan
+  const artisansList = await getAllArtisans()
+  const artisanMap = artisansList.reduce((m, a) => {
+    m[a.id] = a
+    return m
+  }, {})
+
   const byMonth = {}
   for (const vente of allVentes) {
     const mois = vente.date_vente.substring(0, 7) // "2024-01"
     if (!byMonth[mois]) {
-      byMonth[mois] = {
-        mois,
-        groupes: {},
-      }
+      byMonth[mois] = { mois, groupes: {} }
     }
-    if (!byMonth[mois].groupes[vente.artisan_id]) {
-      byMonth[mois].groupes[vente.artisan_id] = {
-        artisan_id: vente.artisan_id,
-        artisan_nom: vente.artisan_nom,
-        ventes: [],
-      }
+
+    // regrouper articles par artisan
+    const byArtisan = {}
+    for (const art of vente.articles || []) {
+      const aid = art.artisan_id || null
+      if (!byArtisan[aid]) byArtisan[aid] = []
+      byArtisan[aid].push(art)
     }
-    byMonth[mois].groupes[vente.artisan_id].ventes.push(vente)
+
+    for (const [aid, articles] of Object.entries(byArtisan)) {
+      const key = aid === 'null' ? null : Number(aid)
+      if (!byMonth[mois].groupes[key]) {
+        byMonth[mois].groupes[key] = {
+          artisan_id: key,
+          artisan_nom: artisanMap[key]?.nom || `Artisan #${key}`,
+          ventes: [],
+        }
+      }
+
+      const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
+      const total_montant = articles.reduce((s, a) => s + (a.prix * (a.quantite || 0)), 0)
+
+      const venteEntry = { ...vente, articles, total_articles, total_montant }
+      byMonth[mois].groupes[key].ventes.push(venteEntry)
+    }
   }
 
   // Convertir en tableau trié (du plus récent au plus ancien) avec résumés
@@ -484,43 +535,46 @@ async function getAllVentesGroupedByMonth() {
  * @returns {Promise<{groupes: Array, total: {total_articles: number, total_montant: number}}>}
  */
 async function getVentesByMonth(mois) {
-  const supabase = getSupabase()
+  // Utiliser les ventes non paginées puis filtrer par mois, puis regrouper par artisan au niveau des articles
+  const allVentes = await getAllVentesUnpaginated()
 
-  const { data: ventes, error: ventesError } = await supabase
-    .from('ventes')
-    .select(`
-      *,
-      artisan:artisan_id (nom, role),
-      vendeur:vendeur_id (nom)
-    `)
-    .gte('date_vente', `${mois}-01`)
-    .lt('date_vente', `${mois}-99`)
-    .order('date_vente', { ascending: false })
-    .order('id', { ascending: false })
+  const artisansList = await getAllArtisans()
+  const artisanMap = artisansList.reduce((m, a) => {
+    m[a.id] = a
+    return m
+  }, {})
 
-  if (ventesError) throw ventesError
+  const groupesMap = {}
+  for (const vente of allVentes) {
+    if (!vente.date_vente || !vente.date_vente.startsWith(mois)) continue
 
-  if (!ventes || ventes.length === 0) {
-    return { groupes: [], total: { total_articles: 0, total_montant: 0 } }
-  }
-
-  const formattedVentes = await formatVentesWithArticles(supabase, ventes)
-
-  // Grouper par artisan
-  const grouped = {}
-  for (const vente of formattedVentes) {
-    const key = vente.artisan_id
-    if (!grouped[key]) {
-      grouped[key] = {
-        artisan_id: vente.artisan_id,
-        artisan_nom: vente.artisan_nom,
-        ventes: [],
-      }
+    // regrouper articles par artisan
+    const byArtisan = {}
+    for (const art of vente.articles || []) {
+      const aid = art.artisan_id || null
+      if (!byArtisan[aid]) byArtisan[aid] = []
+      byArtisan[aid].push(art)
     }
-    grouped[key].ventes.push(vente)
+
+    for (const [aid, articles] of Object.entries(byArtisan)) {
+      const key = aid === 'null' ? null : Number(aid)
+      if (!groupesMap[key]) {
+        groupesMap[key] = {
+          artisan_id: key,
+          artisan_nom: artisanMap[key]?.nom || `Artisan #${key}`,
+          ventes: [],
+        }
+      }
+
+      const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
+      const total_montant = articles.reduce((s, a) => s + (a.prix * (a.quantite || 0)), 0)
+
+      const venteEntry = { ...vente, articles, total_articles, total_montant }
+      groupesMap[key].ventes.push(venteEntry)
+    }
   }
 
-  const groupes = Object.values(grouped)
+  const groupes = Object.values(groupesMap)
     .map((g) => ({
       artisan_id: g.artisan_id,
       artisan_nom: g.artisan_nom,
@@ -578,6 +632,7 @@ async function updateVente(id, fields) {
       article: a.article,
       quantite: a.quantite || 1,
       prix: a.prix,
+      artisan_id: a.artisan_id || null,
     }))
 
     const { error: insertError } = await supabase.from('vente_articles').insert(articlesData)

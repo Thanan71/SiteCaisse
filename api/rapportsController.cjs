@@ -205,8 +205,15 @@ router.get('/:artisan_id', async (req, res) => {
     const tauxPermanent = parseFloat(parametres.commission_cb_permanent) || 0
     const tauxTemporaire = parseFloat(parametres.commission_cb_temporaire) || 0
 
-    // Déterminer le rôle de l'artisan depuis les ventes
-    const role = data.ventes[0]?.artisan_role || 'permanent'
+    // Déterminer le rôle de l'artisan depuis la table users
+    let role = 'permanent'
+    try {
+      const artisan = await getAllArtisans()
+      const found = artisan.find((a) => Number(a.id) === Number(artisan_id))
+      role = found?.role || 'permanent'
+    } catch (e) {
+      // fallback
+    }
 
     // Déléguer le calcul des commissions au service dédié (SRP)
     const resultat = ajouterCommissionAUnArtisan(data, role, tauxPermanent, tauxTemporaire)

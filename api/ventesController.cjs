@@ -63,7 +63,7 @@ router.get('/', async (req, res) => {
  */
 router.post('/', async (req, res) => {
   try {
-    const { articles, type_paiement, artisan_id, date_vente } = req.body
+    const { articles, type_paiement, date_vente } = req.body
 
     if (!articles || !Array.isArray(articles) || articles.length === 0) {
       return res.status(400).json({
@@ -71,9 +71,9 @@ router.post('/', async (req, res) => {
       })
     }
 
-    if (!type_paiement || !artisan_id || !date_vente) {
+    if (!type_paiement || !date_vente) {
       return res.status(400).json({
-        error: 'Champs requis : articles, type_paiement, artisan_id, date_vente',
+        error: 'Champs requis : articles, type_paiement, date_vente',
       })
     }
 
@@ -82,11 +82,11 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Type de paiement invalide (CB, Espece, Cheque)' })
     }
 
-    // Valider chaque article
+    // Valider chaque article (maintenant avec artisan par article)
     for (const [index, article] of articles.entries()) {
-      if (!article.article || !article.prix) {
+      if (!article.article || !article.prix || !article.artisan_id) {
         return res.status(400).json({
-          error: `Article ${index + 1} : le nom et le prix sont requis`,
+          error: `Article ${index + 1} : le nom, le prix et l'artisan sont requis`,
         })
       }
       if (article.prix <= 0) {
@@ -98,14 +98,14 @@ router.post('/', async (req, res) => {
 
     const vendeur_id = req.user.id
 
-    const id = await createVente(articles, type_paiement, artisan_id, vendeur_id, date_vente)
+    const id = await createVente(articles, type_paiement, vendeur_id, date_vente)
 
     await logAction({
       user: req.user,
       action: 'vente.create',
       cible_type: 'vente',
       cible_id: id,
-      details: { articles, type_paiement, artisan_id, date_vente },
+      details: { articles, type_paiement, date_vente },
       req,
     })
 
@@ -119,7 +119,6 @@ router.post('/', async (req, res) => {
       cible_type: 'vente',
       details: {
         type_paiement: req.body?.type_paiement || null,
-        artisan_id: req.body?.artisan_id || null,
         date_vente: req.body?.date_vente || null,
       },
       req,
@@ -141,15 +140,15 @@ router.put('/:id', async (req, res) => {
   try {
     const id = parseInt(req.params.id, 10)
 
-    // Si des articles sont fournis, valider
+    // Si des articles sont fournis, valider (article, prix et artisan_id requis)
     if (req.body.articles) {
       if (!Array.isArray(req.body.articles) || req.body.articles.length === 0) {
         return res.status(400).json({ error: 'La liste des articles est invalide' })
       }
       for (const [index, article] of req.body.articles.entries()) {
-        if (!article.article || !article.prix) {
+        if (!article.article || !article.prix || !article.artisan_id) {
           return res.status(400).json({
-            error: `Article ${index + 1} : le nom et le prix sont requis`,
+            error: `Article ${index + 1} : le nom, le prix et l'artisan sont requis`,
           })
         }
       }

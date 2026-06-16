@@ -13,15 +13,7 @@
             <input :id="fieldId('date')" v-model="form.date_vente" type="date" required />
           </div>
 
-          <div class="form-group">
-            <label :for="fieldId('artisan')">Artisan</label>
-            <select :id="fieldId('artisan')" v-model="form.artisan_id" required>
-              <option value="" disabled>Sélectionner un artisan</option>
-              <option v-for="artisan in artisans" :key="artisan.id" :value="artisan.id">
-                {{ artisan.nom }} ({{ artisan.role === 'permanent' ? 'Permanent' : 'Temporaire' }})
-              </option>
-            </select>
-          </div>
+          <!-- Artisan global retiré: on sélectionne un artisan par article maintenant -->
         </div>
 
         <div class="form-group">
@@ -78,6 +70,19 @@
                 min="1"
                 required
               />
+            </div>
+            <div class="form-group form-group-artisan">
+              <label :for="fieldId(`article-artisan-${index}`)">Artisan</label>
+              <select
+                :id="fieldId(`article-artisan-${index}`)"
+                v-model="article.artisan_id"
+                required
+              >
+                <option value="" disabled>Sélectionner un artisan</option>
+                <option v-for="artisan in artisans" :key="artisan.id" :value="artisan.id">
+                  {{ artisan.nom }} ({{ artisan.role === 'permanent' ? 'Permanent' : 'Temporaire' }})
+                </option>
+              </select>
             </div>
             <div class="form-group form-group-price">
               <label :for="fieldId(`article-price-${index}`)">Prix (€)</label>
@@ -143,11 +148,11 @@ const emptyArticle = () => ({
   article: '',
   quantite: 1,
   prix: '',
+  artisan_id: '',
 })
 
 const defaultForm = () => ({
   date_vente: new Date().toISOString().split('T')[0],
-  artisan_id: '',
   type_paiement: '',
   articles: [{ ...emptyArticle() }],
 })
@@ -182,13 +187,13 @@ function fieldId(name) {
 function hydrateForm() {
   if (props.mode === 'edit' && props.vente) {
     form.date_vente = props.vente.date_vente || ''
-    form.artisan_id = props.vente.artisan_id || ''
     form.type_paiement = props.vente.type_paiement || ''
     form.articles = props.vente.articles?.length
       ? props.vente.articles.map((article) => ({
           article: article.article || '',
           quantite: article.quantite || 1,
           prix: article.prix || '',
+          artisan_id: article.artisan_id || '',
         }))
       : [{ ...emptyArticle() }]
     return
@@ -232,9 +237,9 @@ function buildPayload() {
       article: article.article,
       quantite: article.quantite || 1,
       prix: parseFloat(article.prix),
+      artisan_id: article.artisan_id || null,
     })),
     type_paiement: form.type_paiement,
-    artisan_id: form.artisan_id,
     date_vente: form.date_vente,
   }
 }
@@ -384,7 +389,7 @@ async function handleSubmit() {
 }
 
 .article-fields {
-  grid-template-columns: 1fr 80px 110px;
+  grid-template-columns: 1fr 80px 160px 110px;
 }
 
 .form-group-article,

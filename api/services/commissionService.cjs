@@ -40,7 +40,7 @@ function ajouterCommissionsAuxGroupes(groupes, tauxPermanent, tauxTemporaire) {
   let totalGlobalCommission = 0
 
   const groupesAvecCommissions = groupes.map((g) => {
-    const role = g.ventes[0]?.artisan_role || 'permanent'
+    const role = g.artisan_role || g.ventes[0]?.artisan_role || 'permanent'
     const taux = role === 'temporaire' ? tauxTemporaire : tauxPermanent
 
     const cb = calculerCommissionsCB(g.ventes, taux)
