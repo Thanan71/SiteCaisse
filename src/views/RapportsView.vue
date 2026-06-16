@@ -383,7 +383,7 @@ onMounted(() => {
 })
 
 function onArtisanChange() {
-  activeTab.value = 'ventes'
+  activeTab.value = 'global'
   if (selectedArtisanId.value) {
     rapportsStore.fetchVentesByArtisan(selectedArtisanId.value)
   }
