@@ -77,17 +77,24 @@
     <div class="sub-nav">
       <button
         class="sub-nav-btn"
-        :class="{ active: activeTab === 'toutes' }"
-        @click="activeTab = 'toutes'"
+        :class="{ active: activeTab === 'journalier' }"
+        @click="setActiveTab('journalier')"
       >
-        📋 Toutes les ventes
+        📆 Journalier
       </button>
       <button
         class="sub-nav-btn"
         :class="{ active: activeTab === 'mensuel' }"
-        @click="activeTab = 'mensuel'"
+        @click="setActiveTab('mensuel')"
       >
         📅 Par mois
+      </button>
+      <button
+        class="sub-nav-btn"
+        :class="{ active: activeTab === 'toutes' }"
+        @click="setActiveTab('toutes')"
+      >
+        📋 Toutes les ventes
       </button>
     </div>
 
@@ -155,6 +162,65 @@
     </div>
 
     <!-- Onglet : Par mois -->
+    <!-- Onglet : Journalier -->
+    <div v-if="activeTab === 'journalier'">
+      <div v-if="ventesStore.loading && !ventesStore.ventes.length" class="loading-state">
+        <div class="spinner"></div>
+        <p>Chargement des ventes du jour...</p>
+      </div>
+
+      <div v-else-if="ventesStore.error" class="error-state">
+        <p>{{ ventesStore.error }}</p>
+        <button class="btn btn-secondary" @click="fetchJournalier()">Réessayer</button>
+      </div>
+
+      <div v-else-if="!dailyVentes.length" class="empty-state">
+        <div class="empty-icon">📆</div>
+        <h3>Aucune vente aujourd'hui</h3>
+        <p>Commencez par ajouter une vente</p>
+      </div>
+
+      <div v-else>
+        <VentesTable
+          :ventes="dailyVentes"
+          :summary="dailySummary"
+          totalLabel="Total journée"
+          show-artisan
+          show-vendeur
+          show-actions
+          @edit="openEdit"
+          @delete="handleDelete"
+        />
+
+        <!-- Résumé du jour -->
+        <div class="global-summary-card month-summary-card">
+          <h3>Résumé du jour</h3>
+          <div class="global-summary-stats">
+            <div class="stat">
+              <span class="stat-label">Total articles</span>
+              <span class="stat-value">{{ dailySummary.total_articles }}</span>
+            </div>
+            <div class="stat">
+              <span class="stat-label">Total montant</span>
+              <span class="stat-value stat-value-amount">{{ formatPrice(dailySummary.total_montant) }}</span>
+            </div>
+            <div v-if="dailySummary.total_cb > 0" class="stat">
+              <span class="stat-label">Total CB</span>
+              <span class="stat-value stat-value-cb">{{ formatPrice(dailySummary.total_cb) }}</span>
+            </div>
+            <div v-if="dailySummary.commission_cb > 0" class="stat">
+              <span class="stat-label">Commission CB</span>
+              <span class="stat-value stat-value-commission">{{ formatPrice(dailySummary.commission_cb) }}</span>
+            </div>
+          </div>
+          <div v-if="dailySummary.commission_cb > 0" class="commission-detail">
+            <span>
+              Taux : Permanent {{ dailySummary.taux_commission }}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
     <div v-if="activeTab === 'mensuel'">
       <!-- Sélecteur de mois avec mois courant par défaut -->
       <div class="month-selector-card">
@@ -275,7 +341,7 @@ const ventesStore = useVentesStore()
 const rapportsStore = useRapportsStore()
 const showModal = ref(false)
 const editingVente = ref(null)
-const activeTab = ref('mensuel')
+const activeTab = ref('journalier')
 
 // État de la suppression
 const showDeleteModal = ref(false)
@@ -293,9 +359,12 @@ const localFilters = ref({
 const now = new Date()
 const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 const selectedMonth = ref(currentMonth)
+// Date courante ISO (YYYY-MM-DD)
+const currentDateISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 
 onMounted(() => {
-  ventesStore.fetchVentes()
+  // Par défaut on charge les ventes du jour et le rapport du mois courant
+  fetchJournalier()
   rapportsStore.fetchRapportByMonth(currentMonth)
 })
 
@@ -303,6 +372,21 @@ function onMonthChange() {
   if (selectedMonth.value) {
     rapportsStore.fetchRapportByMonth(selectedMonth.value)
   }
+}
+
+function setActiveTab(tab) {
+  activeTab.value = tab
+  if (tab === 'journalier') {
+    fetchJournalier()
+  } else if (tab === 'toutes') {
+    ventesStore.fetchVentes({ page: 1 })
+  } else if (tab === 'mensuel') {
+    if (selectedMonth.value) rapportsStore.fetchRapportByMonth(selectedMonth.value)
+  }
+}
+
+async function fetchJournalier() {
+  await ventesStore.fetchVentes({ page: 1, limit: 1000, date_debut: currentDateISO, date_fin: currentDateISO })
 }
 
 /**
@@ -337,6 +421,9 @@ async function handleVenteSaved() {
   if (activeTab.value === 'mensuel' && selectedMonth.value) {
     await rapportsStore.fetchRapportByMonth(selectedMonth.value)
   }
+  if (activeTab.value === 'journalier') {
+    await fetchJournalier()
+  }
 }
 
 function openEdit(vente) {
@@ -367,6 +454,31 @@ function flattenGroupVentes(groupes) {
   return ventes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 }
 
+const dailyVentes = computed(() => {
+  const ventes = ventesStore.ventes || []
+  const filtered = ventes.filter((v) => {
+    const dateStr = v.date_vente ? String(v.date_vente).slice(0, 10) : (v.created_at ? new Date(v.created_at).toISOString().slice(0, 10) : '')
+    return dateStr === currentDateISO
+  })
+  return filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+})
+
+const dailySummary = computed(() => {
+  const ventes = dailyVentes.value || []
+  const total_articles = ventes.reduce((s, v) => s + (Number(v.total_articles) || 0), 0)
+  const total_montant = ventes.reduce((s, v) => s + (Number(v.total_montant) || 0), 0)
+  const total_cb = ventes.reduce((s, v) => s + ((v.type_paiement === 'CB' || v.type_paiement === 'Carte Bancaire') ? (Number(v.total_montant) || 0) : 0), 0)
+  const taux_commission = rapportsStore.rapportMois?.parametres?.commission_cb_permanent || 0
+  const commission_cb = 0 // calcul de commission non disponible ici sans règles serveur
+  return {
+    total_articles,
+    total_montant,
+    total_cb,
+    commission_cb,
+    taux_commission,
+  }
+})
+
 async function confirmDelete() {
   if (!deletingId.value) return
 
@@ -377,6 +489,9 @@ async function confirmDelete() {
     closeDeleteModal()
     if (activeTab.value === 'mensuel' && selectedMonth.value) {
       await rapportsStore.fetchRapportByMonth(selectedMonth.value)
+    }
+    if (activeTab.value === 'journalier') {
+      await fetchJournalier()
     }
   } catch (err) {
     closeDeleteModal()
