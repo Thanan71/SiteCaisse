@@ -41,7 +41,7 @@
               {{ isExpanded(rowKey(vente)) ? '▲ Moins' : `▼ +${vente.articles.length - 1} autre(s)` }}
             </button>
           </td>
-          <td v-if="showArtisan">{{ vente.artisan_nom }}</td>
+          <td v-if="showArtisan">{{ getArtisansForVente(vente) }}</td>
           <td class="text-center">{{ vente.total_articles }}</td>
           <td class="text-right total-price">{{ formatPrice(vente.total_montant) }}</td>
           <td>
@@ -83,6 +83,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { useArtisansStore } from '../store/artisans'
 import { useExpandableRows } from '../composables/useExpandableRows'
 import { formatDate, formatDateWithTime, formatPrice } from '../utils/formatters'
 import PaymentBadge from './PaymentBadge.vue'
@@ -129,6 +130,26 @@ const props = defineProps({
 defineEmits(['edit', 'delete'])
 
 const { getVisibleItems, isExpanded, toggleExpanded } = useExpandableRows()
+
+const artisansStore = useArtisansStore()
+
+function getArtisansForVente(vente) {
+  const artisans = []
+  const aList = artisansStore.artisans || []
+
+  if (vente.articles && vente.articles.length) {
+    for (const art of vente.articles) {
+      const aid = art.artisan_id || vente.artisan_id || null
+      const found = aList.find((x) => String(x.id) === String(aid))
+      const name = found ? found.nom : (aid ? `Artisan #${aid}` : null)
+      if (name && !artisans.includes(name)) artisans.push(name)
+    }
+  }
+
+  if (artisans.length) return artisans.join(', ')
+
+  return vente.artisan_nom || ''
+}
 
 const columnCount = computed(() => {
   let count = 5
