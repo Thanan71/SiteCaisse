@@ -236,8 +236,7 @@
         />
       </div>
 
-      <!-- Onglet : Liste des ventes (artisan spécifique) -->
-      <div v-if="activeTab === 'ventes' && rapportsStore.ventesArtisan.length">
+      <div v-if="(activeTab === 'ventes' || activeTab === 'global') && rapportsStore.ventesArtisan.length">
         <div class="rapport-list-wrapper">
           <RapportVentesTable
             :ventes="rapportsStore.ventesArtisan"
@@ -251,6 +250,81 @@
             📥 Télécharger en Excel
           </button>
         </div>
+      </div>
+
+      <div v-if="activeTab === 'mensuel'">
+        <div class="month-selector-card">
+          <div class="month-selector-row">
+            <label for="month-select">Sélectionner un mois :</label>
+            <input
+              id="month-select"
+              type="month"
+              v-model="selectedMonth"
+              @change="onMonthChange"
+              class="month-input"
+            />
+            <button
+              class="btn btn-success"
+              :disabled="!selectedArtisanRapportMoisGroup"
+              @click="exportSelectedArtisanMonthToExcel"
+            >
+              📥 Télécharger le rapport Excel
+            </button>
+          </div>
+        </div>
+
+        <div v-if="rapportsStore.loadingMois" class="loading-state">
+          <div class="spinner"></div>
+          <p>Chargement du rapport mensuel...</p>
+        </div>
+
+        <div v-else-if="!selectedArtisanRapportMoisGroup" class="empty-state">
+          <div class="empty-icon">📅</div>
+          <h3>Aucune donnée pour {{ selectedArtisan?.nom || 'cet artisan' }} en {{ formatMonthLabel(selectedMonth) }}</h3>
+          <p>Aucune vente enregistrée pour ce mois</p>
+        </div>
+
+        <template v-else>
+          <div class="month-block">
+            <h2 class="month-title">Rapport mensuel - {{ selectedArtisan?.nom || 'Artisan' }} ({{ formatMonthLabel(selectedMonth) }})</h2>
+
+            <div class="rapport-list-wrapper">
+              <RapportVentesTable
+                :title="selectedArtisan?.nom"
+                :ventes="selectedArtisanRapportMoisGroup.ventes"
+                :summary="selectedArtisanRapportMoisGroup.summary"
+                :total-label="`TOTAL ${selectedArtisan?.nom?.toUpperCase() || ''}`"
+              />
+
+              <div class="global-summary-card month-summary-card">
+                <h3>Résumé du mois</h3>
+                <div class="global-summary-stats">
+                  <div class="stat">
+                    <span class="stat-label">Total articles</span>
+                    <span class="stat-value">{{ selectedArtisanRapportMoisGroup.summary.total_articles }}</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-label">Total montant</span>
+                    <span class="stat-value stat-value-amount">{{ formatPrice(selectedArtisanRapportMoisGroup.summary.total_montant) }}</span>
+                  </div>
+                  <div v-if="selectedArtisanRapportMoisGroup.summary.total_cb > 0" class="stat">
+                    <span class="stat-label">Total CB</span>
+                    <span class="stat-value stat-value-cb">{{ formatPrice(selectedArtisanRapportMoisGroup.summary.total_cb) }}</span>
+                  </div>
+                  <div v-if="selectedArtisanRapportMoisGroup.summary.total_commission > 0" class="stat">
+                    <span class="stat-label">Commission CB totale</span>
+                    <span class="stat-value stat-value-commission">{{ formatPrice(selectedArtisanRapportMoisGroup.summary.total_commission) }}</span>
+                  </div>
+                </div>
+                <div v-if="selectedArtisanRapportMoisGroup.summary.total_commission > 0" class="commission-detail">
+                  <span v-if="rapportsStore.rapportMois?.parametres">
+                    Taux : Permanent {{ rapportsStore.rapportMois.parametres.commission_cb_permanent }}% / Temporaire {{ rapportsStore.rapportMois.parametres.commission_cb_temporaire }}%
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
       </div>
     </div>
   </div>
@@ -277,6 +351,16 @@ const selectedMonth = ref(currentMonth)
 
 const permanents = computed(() => artisansStore.permanents)
 const temporaires = computed(() => artisansStore.temporaires)
+
+const selectedArtisan = computed(() => {
+  if (!selectedArtisanId.value) return null
+  return artisansStore.artisans.find((a) => String(a.id) === String(selectedArtisanId.value)) || null
+})
+
+const selectedArtisanRapportMoisGroup = computed(() => {
+  if (!selectedArtisanId.value || !rapportsStore.rapportMois?.groupes) return null
+  return rapportsStore.rapportMois.groupes.find((g) => String(g.artisan_id) === String(selectedArtisanId.value)) || null
+})
 
 /**
  * Aplatit toutes les ventes de tous les groupes pour les graphiques en mode global.
@@ -314,13 +398,6 @@ function onMonthChange() {
 function onTabClick(tab) {
   activeTab.value = tab
 
-  if ((tab === 'global' || tab === 'mensuel') && selectedArtisanId.value) {
-    selectedArtisanId.value = ''
-    rapportsStore.selectedArtisanId = null
-    rapportsStore.ventesArtisan = []
-    rapportsStore.summary = { total_articles: 0, total_montant: 0 }
-  }
-
   if (tab === 'mensuel' && selectedMonth.value) {
     rapportsStore.fetchRapportByMonth(selectedMonth.value)
   }
@@ -340,6 +417,16 @@ function exportMonthToExcelFn() {
     rapportsStore.rapportMois.groupes,
     rapportsStore.rapportMois.total,
     rapportsStore.rapportMois.parametres,
+    selectedMonth.value,
+  )
+}
+
+function exportSelectedArtisanMonthToExcel() {
+  if (!selectedArtisanRapportMoisGroup.value) return
+  exportMonthToExcel(
+    [selectedArtisanRapportMoisGroup.value],
+    selectedArtisanRapportMoisGroup.value.summary,
+    rapportsStore.rapportMois?.parametres,
     selectedMonth.value,
   )
 }
