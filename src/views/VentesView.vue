@@ -460,7 +460,7 @@ const dailyVentes = computed(() => {
     const dateStr = v.date_vente ? String(v.date_vente).slice(0, 10) : (v.created_at ? new Date(v.created_at).toISOString().slice(0, 10) : '')
     return dateStr === currentDateISO
   })
-  return filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
+  return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 })
 
 const dailySummary = computed(() => {
