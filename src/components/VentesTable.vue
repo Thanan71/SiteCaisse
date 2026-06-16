@@ -82,7 +82,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, computed, onMounted } from 'vue'
 import { useExpandableRows } from '../composables/useExpandableRows'
 import { useArtisansStore } from '../store/artisans'
 import { formatDate, formatDateWithTime, formatPrice } from '../utils/formatters'
@@ -133,22 +133,27 @@ const { getVisibleItems, isExpanded, toggleExpanded } = useExpandableRows()
 
 const artisansStore = useArtisansStore()
 
+onMounted(() => {
+  if (!artisansStore.artisans || artisansStore.artisans.length === 0) {
+    artisansStore.fetchArtisans().catch(() => {})
+  }
+})
+
 function getArtisansForVente(vente) {
   const artisans = []
-  const aList = artisansStore.artisans || []
 
   if (vente.articles && vente.articles.length) {
     for (const art of vente.articles) {
       const aid = art.artisan_id || vente.artisan_id || null
-      const found = aList.find((x) => String(x.id) === String(aid))
-      const name = found ? found.nom : aid ? `Artisan #${aid}` : null
-      if (name && !artisans.includes(name)) artisans.push(name)
+      const name = artisansStore.getArtisanName(Number(aid))
+      if (name && name !== 'Artisan inconnu' && !artisans.includes(name)) artisans.push(name)
     }
   }
 
   if (artisans.length) return artisans.join(', ')
 
-  return vente.artisan_nom || ''
+  // fallback: try vente.artisan_nom or 'Artisan inconnu'
+  return vente.artisan_nom || artisansStore.getArtisanName(null)
 }
 
 const columnCount = computed(() => {
