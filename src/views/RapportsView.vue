@@ -44,21 +44,21 @@
       <button
         class="sub-nav-btn"
         :class="{ active: activeTab === 'global' }"
-        @click="activeTab = 'global'"
+        @click="onTabClick('global')"
       >
-        📋 Tous les artisans
+        📋 Toutes les ventes
       </button>
       <button
         class="sub-nav-btn"
         :class="{ active: activeTab === 'mensuel' }"
-        @click="activeTab = 'mensuel'"
+        @click="onTabClick('mensuel')"
       >
         📅 Par mois
       </button>
       <button
         class="sub-nav-btn"
         :class="{ active: activeTab === 'graphiques' }"
-        @click="activeTab = 'graphiques'"
+        @click="onTabClick('graphiques')"
       >
         📊 Graphiques
       </button>
@@ -307,6 +307,21 @@ function onArtisanChange() {
 
 function onMonthChange() {
   if (selectedMonth.value) {
+    rapportsStore.fetchRapportByMonth(selectedMonth.value)
+  }
+}
+
+function onTabClick(tab) {
+  activeTab.value = tab
+
+  if ((tab === 'global' || tab === 'mensuel') && selectedArtisanId.value) {
+    selectedArtisanId.value = ''
+    rapportsStore.selectedArtisanId = null
+    rapportsStore.ventesArtisan = []
+    rapportsStore.summary = { total_articles: 0, total_montant: 0 }
+  }
+
+  if (tab === 'mensuel' && selectedMonth.value) {
     rapportsStore.fetchRapportByMonth(selectedMonth.value)
   }
 }
