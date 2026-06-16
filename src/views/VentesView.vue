@@ -363,7 +363,8 @@ function flattenGroupVentes(groupes) {
       })
     }
   }
-  return ventes
+  // Trier par created_at (plus récent en premier)
+  return ventes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 }
 
 async function confirmDelete() {
