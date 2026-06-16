@@ -395,7 +395,7 @@ async function getAllVentesGroupedByArtisan(options = {}) {
       if (!grouped[key]) {
         grouped[key] = {
           artisan_id: key,
-          artisan_nom: artisanMap[key]?.nom || `Artisan #${key}`,
+          artisan_nom: artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
           artisan_role: artisanMap[key]?.role || null,
           ventes: [],
         }
@@ -482,7 +482,7 @@ async function getAllVentesGroupedByMonth() {
       if (!byMonth[mois].groupes[key]) {
         byMonth[mois].groupes[key] = {
           artisan_id: key,
-          artisan_nom: artisanMap[key]?.nom || `Artisan #${key}`,
+          artisan_nom: artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
           ventes: [],
         }
       }
@@ -561,7 +561,7 @@ async function getVentesByMonth(mois) {
       if (!groupesMap[key]) {
         groupesMap[key] = {
           artisan_id: key,
-          artisan_nom: artisanMap[key]?.nom || `Artisan #${key}`,
+          artisan_nom: artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
           ventes: [],
         }
       }

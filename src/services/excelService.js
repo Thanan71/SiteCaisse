@@ -51,14 +51,16 @@ export function exportMonthToExcel(groupes, total, parametres, mois) {
   for (const groupe of groupes) {
     const sheetName = groupe.artisan_nom
       ? `Rapport - ${groupe.artisan_nom}`.substring(0, 31)
-      : `Artisan #${groupe.artisan_id}`
+      : groupe.artisan_id !== null && groupe.artisan_id !== undefined
+      ? `Artisan #${groupe.artisan_id}`
+      : 'Artisan inconnu'
     const worksheet = buildWorksheet(groupe.ventes, groupe.summary)
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
   }
 
   // Onglet récapitulatif du mois
   const globalRows = groupes.map((g) => ({
-    Artisan: g.artisan_nom || `Artisan #${g.artisan_id}`,
+    Artisan: g.artisan_nom || (g.artisan_id !== null && g.artisan_id !== undefined ? `Artisan #${g.artisan_id}` : 'Artisan inconnu'),
     'Total articles': g.summary.total_articles,
     'Total montant (€)': g.summary.total_montant.toFixed(2),
     'Total CB (€)': (g.summary.total_cb || 0).toFixed(2),
@@ -139,14 +141,16 @@ export function exportAllRapportsToExcel(groupes, total, parametres) {
   for (const groupe of groupes) {
     const sheetName = groupe.artisan_nom
       ? `Rapport - ${groupe.artisan_nom}`.substring(0, 31) // limitation Excel 31 caractères
-      : `Artisan #${groupe.artisan_id}`
+      : groupe.artisan_id !== null && groupe.artisan_id !== undefined
+      ? `Artisan #${groupe.artisan_id}`
+      : 'Artisan inconnu'
     const worksheet = buildWorksheet(groupe.ventes, groupe.summary)
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
   }
 
   // Onglet récapitulatif global
   const globalRows = groupes.map((g) => ({
-    Artisan: g.artisan_nom || `Artisan #${g.artisan_id}`,
+    Artisan: g.artisan_nom || (g.artisan_id !== null && g.artisan_id !== undefined ? `Artisan #${g.artisan_id}` : 'Artisan inconnu'),
     'Total articles': g.summary.total_articles,
     'Total montant (€)': g.summary.total_montant.toFixed(2),
     'Total CB (€)': (g.summary.total_cb || 0).toFixed(2),
