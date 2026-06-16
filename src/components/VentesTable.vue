@@ -83,8 +83,8 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useArtisansStore } from '../store/artisans'
 import { useExpandableRows } from '../composables/useExpandableRows'
+import { useArtisansStore } from '../store/artisans'
 import { formatDate, formatDateWithTime, formatPrice } from '../utils/formatters'
 import PaymentBadge from './PaymentBadge.vue'
 
@@ -141,7 +141,7 @@ function getArtisansForVente(vente) {
     for (const art of vente.articles) {
       const aid = art.artisan_id || vente.artisan_id || null
       const found = aList.find((x) => String(x.id) === String(aid))
-      const name = found ? found.nom : (aid ? `Artisan #${aid}` : null)
+      const name = found ? found.nom : aid ? `Artisan #${aid}` : null
       if (name && !artisans.includes(name)) artisans.push(name)
     }
   }
