@@ -82,7 +82,7 @@
 </template>
 
 <script setup>
-import { computed, computed, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useExpandableRows } from '../composables/useExpandableRows'
 import { useArtisansStore } from '../store/artisans'
 import { formatDate, formatDateWithTime, formatPrice } from '../utils/formatters'
