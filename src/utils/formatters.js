@@ -47,6 +47,27 @@ export function formatDateSimple(dateStr, fallback = '—') {
   return `${day}/${month}/${year}`
 }
 
+export function formatDateWithTime(dateStr, timestampStr, fallback = '-') {
+  if (!dateStr) return fallback
+  // Formatter la date
+  const date = new Date(dateStr)
+  const formattedDate = date.toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  })
+  
+  // Extraire l'heure du timestamp
+  if (!timestampStr) return formattedDate
+  const timestamp = new Date(timestampStr)
+  const formattedTime = timestamp.toLocaleTimeString('fr-FR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+  
+  return `${formattedDate} ${formattedTime}`
+}
+
 export function formatPrice(price) {
   return new Intl.NumberFormat('fr-FR', {
     style: 'currency',

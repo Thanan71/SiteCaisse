@@ -15,7 +15,7 @@
       </thead>
       <tbody>
         <tr v-for="vente in ventes" :key="vente.id">
-          <td>{{ formatDate(vente.date_vente) }}</td>
+          <td>{{ formatDateWithTime(vente.date_vente, vente.created_at) }}</td>
           <td class="articles-cell">
             <div
               v-for="(article, articleIndex) in getVisibleItems(vente.articles, rowKey(vente))"
@@ -84,7 +84,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useExpandableRows } from '../composables/useExpandableRows'
-import { formatDate, formatPrice } from '../utils/formatters'
+import { formatDate, formatDateWithTime, formatPrice } from '../utils/formatters'
 import PaymentBadge from './PaymentBadge.vue'
 
 const props = defineProps({

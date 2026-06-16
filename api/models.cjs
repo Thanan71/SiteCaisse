@@ -288,8 +288,7 @@ async function getAllVentes(options = {}) {
         artisan:artisan_id (nom, role),
         vendeur:vendeur_id (nom)
       `)
-      .order('date_vente', { ascending: false })
-      .order('id', { ascending: false })
+      .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1),
     filters,
   )
@@ -326,8 +325,7 @@ async function getVentesByArtisan(artisan_id) {
       vendeur:vendeur_id (nom)
     `)
     .eq('artisan_id', artisan_id)
-    .order('date_vente', { ascending: false })
-    .order('id', { ascending: false })
+    .order('created_at', { ascending: false })
 
   if (ventesError) throw ventesError
 
@@ -352,8 +350,7 @@ async function getAllVentesUnpaginated() {
       artisan:artisan_id (nom, role),
       vendeur:vendeur_id (nom)
     `)
-    .order('date_vente', { ascending: false })
-    .order('id', { ascending: false })
+    .order('created_at', { ascending: false })
 
   if (ventesError) throw ventesError
 
