@@ -266,7 +266,10 @@ const hourlySalesChartData = computed(() => {
   const totals = Array(24).fill(0)
 
   for (const vente of filteredVentesByMonth.value) {
-    const d = new Date(vente.date_vente)
+    const dateSource = vente.created_at || (vente.date_vente ? `${vente.date_vente}T00:00:00` : null)
+    if (!dateSource) continue
+
+    const d = new Date(dateSource)
     const hour = d.getHours()
     totals[hour] += vente.total_montant || 0
   }
