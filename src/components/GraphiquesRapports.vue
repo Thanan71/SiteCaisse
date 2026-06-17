@@ -10,11 +10,39 @@
         </div>
       </div>
 
-      <!-- Graphique : Top articles vendus -->
+      <!-- Graphique : Meilleurs jours de vente par semaine -->
       <div class="chart-card">
-        <h3 class="chart-title">Top articles les plus vendus</h3>
+        <div class="chart-card-header">
+          <h3 class="chart-title">Meilleurs jours de vente</h3>
+          <div class="chart-filter-row">
+            <label for="graph-month-select">Mois :</label>
+            <select id="graph-month-select" v-model="selectedMonth" class="chart-month-select">
+              <option v-for="option in monthOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+        </div>
         <div class="chart-wrapper">
-          <Bar :data="topArticlesChartData" :options="topArticlesChartOptions" />
+          <Bar :data="weekdaySalesChartData" :options="weekdaySalesChartOptions" />
+        </div>
+      </div>
+
+      <!-- Graphique : Meilleurs horaires de vente -->
+      <div class="chart-card">
+        <div class="chart-card-header">
+          <h3 class="chart-title">Meilleurs horaires de vente</h3>
+          <div class="chart-filter-row">
+            <label for="graph-hour-month-select">Mois :</label>
+            <select id="graph-hour-month-select" v-model="selectedMonth" class="chart-month-select">
+              <option v-for="option in monthOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <div class="chart-wrapper">
+          <Bar :data="hourlySalesChartData" :options="hourlySalesChartOptions" />
         </div>
       </div>
 
@@ -51,7 +79,7 @@ import {
   Title,
   Tooltip,
 } from 'chart.js'
-import { computed, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { Bar, Doughnut, Line, Pie } from 'vue-chartjs'
 
 // Enregistrer les composants Chart.js
@@ -154,90 +182,131 @@ const paymentChartOptions = {
   },
 }
 
-/**
- * Calculs pour le top articles vendus.
- */
-const topArticlesChartData = computed(() => {
-  const articleCounts = {}
-  for (const art of allArticles.value) {
-    const name = art.article
-    if (!articleCounts[name]) {
-      articleCounts[name] = { quantite: 0, montant: 0 }
+const monthOptions = [
+  { value: 1, label: 'Janvier' },
+  { value: 2, label: 'Février' },
+  { value: 3, label: 'Mars' },
+  { value: 4, label: 'Avril' },
+  { value: 5, label: 'Mai' },
+  { value: 6, label: 'Juin' },
+  { value: 7, label: 'Juillet' },
+  { value: 8, label: 'Août' },
+  { value: 9, label: 'Septembre' },
+  { value: 10, label: 'Octobre' },
+  { value: 11, label: 'Novembre' },
+  { value: 12, label: 'Décembre' },
+]
+
+const selectedMonth = ref(new Date().getMonth() + 1)
+
+const selectedMonthLabel = computed(() => {
+  const option = monthOptions.find((option) => option.value === selectedMonth.value)
+  return option ? option.label : 'Tous les mois'
+})
+
+const filteredVentesByMonth = computed(() => {
+  return props.ventesData.filter((vente) => {
+    if (!vente.date_vente) {
+      return false
     }
-    articleCounts[name].quantite += art.quantite || 0
-    articleCounts[name].montant += (art.prix || 0) * (art.quantite || 0)
+    const d = new Date(vente.date_vente)
+    return d.getMonth() + 1 === selectedMonth.value
+  })
+})
+
+const weekdaySalesChartData = computed(() => {
+  const weekdays = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche']
+  const totals = Array(7).fill(0)
+
+  for (const vente of filteredVentesByMonth.value) {
+    const d = new Date(vente.date_vente)
+    const dayIndex = (d.getDay() + 6) % 7 // Convertir dimanche=0 en 6
+    totals[dayIndex] += vente.total_montant || 0
   }
 
-  // Trier par quantité décroissante et prendre les 10 premiers
-  const top = Object.entries(articleCounts)
-    .sort((a, b) => b[1].quantite - a[1].quantite)
-    .slice(0, 10)
-
   return {
-    labels: top.map(([name]) => (name.length > 18 ? `${name.substring(0, 16)}…` : name)),
+    labels: weekdays,
     datasets: [
       {
-        label: 'Quantité vendue',
-        data: top.map(([, data]) => data.quantite),
-        backgroundColor: '#4f46e5',
+        label: `Montant des ventes en ${selectedMonthLabel.value}`,
+        data: totals,
+        backgroundColor: '#2563eb',
+        borderRadius: 6,
+      },
+    ],
+  }
+})
+
+const weekdaySalesChartOptions = {
+  responsive: true,
+  maintainAspectRatio: true,
+  plugins: {
+    legend: { display: false },
+    tooltip: {
+      callbacks: {
+        label: (ctx) => `Montant: ${ctx.raw.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`,
+      },
+    },
+  },
+  scales: {
+    x: {
+      ticks: { font: { size: 11 } },
+    },
+    y: {
+      beginAtZero: true,
+      ticks: {
+        callback: (value) => value.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }),
+      },
+    },
+  },
+}
+
+const hourlySalesChartData = computed(() => {
+  const hours = Array.from({ length: 24 }, (_, index) => `${String(index).padStart(2, '0')}h`)
+  const totals = Array(24).fill(0)
+
+  for (const vente of filteredVentesByMonth.value) {
+    const d = new Date(vente.date_vente)
+    const hour = d.getHours()
+    totals[hour] += vente.total_montant || 0
+  }
+
+  return {
+    labels: hours,
+    datasets: [
+      {
+        label: `Montant des ventes en ${selectedMonthLabel.value}`,
+        data: totals,
+        backgroundColor: '#0284c7',
         borderRadius: 4,
       },
     ],
   }
 })
 
-const topArticlesChartOptions = {
+const hourlySalesChartOptions = {
   responsive: true,
   maintainAspectRatio: true,
-  indexAxis: 'y',
   plugins: {
     legend: { display: false },
     tooltip: {
       callbacks: {
-        afterLabel: (ctx) => {
-          const entry = Object.entries(articleCounts)[ctx.dataIndex]
-          if (entry) {
-            return `Montant: ${entry[1].montant.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`
-          }
-          return ''
-        },
+        label: (ctx) => `Montant: ${ctx.raw.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`,
       },
     },
   },
   scales: {
     x: {
-      beginAtZero: true,
-      ticks: {
-        precision: 0,
-        font: { size: 11 },
-      },
+      ticks: { font: { size: 10 }, maxRotation: 0, minRotation: 0 },
     },
     y: {
+      beginAtZero: true,
       ticks: {
-        font: { size: 10 },
+        callback: (value) => value.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' }),
       },
     },
   },
 }
-
-// Stockage temporaire pour le tooltip
-const articleCounts = {}
-
-// Mettre à jour articleCounts pour le tooltip
-watch(
-  allArticles,
-  (articles) => {
-    for (const art of articles) {
-      const name = art.article
-      if (!articleCounts[name]) {
-        articleCounts[name] = { quantite: 0, montant: 0 }
-      }
-      articleCounts[name].quantite += art.quantite || 0
-      articleCounts[name].montant += (art.prix || 0) * (art.quantite || 0)
-    }
-  },
-  { immediate: true },
-)
 
 /**
  * Calculs pour l'évolution mensuelle des ventes.
@@ -446,6 +515,29 @@ const artisanChartOptions = {
   border-radius: 12px;
   padding: 20px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.chart-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.chart-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-month-select {
+  min-width: 140px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: white;
+  color: #0f172a;
 }
 
 .chart-card-wide {
