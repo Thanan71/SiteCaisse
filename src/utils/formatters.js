@@ -26,6 +26,7 @@ export function formatDate(dateStr, fallback = '-') {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: 'Europe/Paris',
   })
 }
 
@@ -38,6 +39,7 @@ export function formatDateTime(dateStr, fallback = '—') {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Europe/Paris',
   })
 }
 
@@ -55,16 +57,18 @@ export function formatDateWithTime(dateStr, timestampStr, fallback = '-') {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: 'Europe/Paris',
   })
-  
+
   // Extraire l'heure du timestamp
   if (!timestampStr) return formattedDate
   const timestamp = new Date(timestampStr)
   const formattedTime = timestamp.toLocaleTimeString('fr-FR', {
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'Europe/Paris',
   })
-  
+
   return `${formattedDate} ${formattedTime}`
 }
 

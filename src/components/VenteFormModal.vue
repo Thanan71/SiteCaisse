@@ -151,8 +151,13 @@ const emptyArticle = () => ({
   artisan_id: '',
 })
 
+function getTodayParisDate() {
+  const now = new Date()
+  return now.toLocaleDateString('fr-CA', { timeZone: 'Europe/Paris' }) // fr-CA donne format YYYY-MM-DD
+}
+
 const defaultForm = () => ({
-  date_vente: new Date().toISOString().split('T')[0],
+  date_vente: getTodayParisDate(),
   type_paiement: '',
   articles: [{ ...emptyArticle() }],
 })

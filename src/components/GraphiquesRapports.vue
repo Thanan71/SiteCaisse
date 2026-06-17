@@ -199,6 +199,43 @@ const monthOptions = [
 
 const selectedMonth = ref(new Date().getMonth() + 1)
 
+const formatParisDatePart = (dateStr, options) => {
+  if (!dateStr) return null
+  try {
+    return new Intl.DateTimeFormat('fr-FR', {
+      timeZone: 'Europe/Paris',
+      ...options,
+    }).format(new Date(dateStr))
+  } catch {
+    return null
+  }
+}
+
+const getParisHour = (dateStr) => {
+  const hour = formatParisDatePart(dateStr, { hour: '2-digit', hourCycle: 'h23' })
+  return hour ? parseInt(hour, 10) : null
+}
+
+const getParisMonth = (dateStr) => {
+  const month = formatParisDatePart(dateStr, { month: 'numeric' })
+  return month ? parseInt(month, 10) : null
+}
+
+const getParisWeekdayIndex = (dateStr) => {
+  const weekday = formatParisDatePart(dateStr, { weekday: 'long' })
+  if (!weekday) return null
+  const mapping = {
+    lundi: 0,
+    mardi: 1,
+    mercredi: 2,
+    jeudi: 3,
+    vendredi: 4,
+    samedi: 5,
+    dimanche: 6,
+  }
+  return mapping[weekday.toLowerCase()] ?? null
+}
+
 const selectedMonthLabel = computed(() => {
   const option = monthOptions.find((option) => option.value === selectedMonth.value)
   return option ? option.label : 'Tous les mois'
@@ -209,8 +246,7 @@ const filteredVentesByMonth = computed(() => {
     if (!vente.date_vente) {
       return false
     }
-    const d = new Date(vente.date_vente)
-    return d.getMonth() + 1 === selectedMonth.value
+    return getParisMonth(vente.date_vente) === selectedMonth.value
   })
 })
 
@@ -219,8 +255,8 @@ const weekdaySalesChartData = computed(() => {
   const totals = Array(7).fill(0)
 
   for (const vente of filteredVentesByMonth.value) {
-    const d = new Date(vente.date_vente)
-    const dayIndex = (d.getDay() + 6) % 7 // Convertir dimanche=0 en 6
+    const dayIndex = getParisWeekdayIndex(vente.date_vente)
+    if (dayIndex === null) continue
     totals[dayIndex] += vente.total_montant || 0
   }
 
@@ -266,11 +302,12 @@ const hourlySalesChartData = computed(() => {
   const totals = Array(24).fill(0)
 
   for (const vente of filteredVentesByMonth.value) {
-    const dateSource = vente.created_at || (vente.date_vente ? `${vente.date_vente}T00:00:00` : null)
+    const dateSource = vente.created_at || (vente.date_vente ? `${vente.date_vente}T00:00:00+02:00` : null)
     if (!dateSource) continue
 
-    const d = new Date(dateSource)
-    const hour = d.getHours()
+    const hour = getParisHour(dateSource)
+    if (hour === null || Number.isNaN(hour)) continue
+
     totals[hour] += vente.total_montant || 0
   }
 
