@@ -56,7 +56,7 @@ export function formatDateSimple(dateStr, fallback = '—') {
  * Si la chaîne n'a pas de timezone explicite, on force UTC pour éviter
  * que JS interprète l'heure comme locale (ce qui décale tout).
  */
-function parseUtcDate(str) {
+export function parseUtcDate(str) {
   if (!str) return null
   // Si déjà un timezone explicite (Z ou +/-HH:MM), new Date() le gère correctement
   // On vérifie la présence de 'Z' ou d'un offset +/- après les minutes

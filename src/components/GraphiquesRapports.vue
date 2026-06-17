@@ -81,6 +81,7 @@ import {
 } from 'chart.js'
 import { computed, ref } from 'vue'
 import { Bar, Doughnut, Line, Pie } from 'vue-chartjs'
+import { parseUtcDate } from '../utils/formatters'
 
 // Enregistrer les composants Chart.js
 ChartJS.register(
@@ -202,10 +203,12 @@ const selectedMonth = ref(new Date().getMonth() + 1)
 const formatParisDatePart = (dateStr, options) => {
   if (!dateStr) return null
   try {
+    const date = parseUtcDate(dateStr)
+    if (!date) return null
     return new Intl.DateTimeFormat('fr-FR', {
       timeZone: 'Europe/Paris',
       ...options,
-    }).format(new Date(dateStr))
+    }).format(date)
   } catch {
     return null
   }
@@ -355,7 +358,8 @@ const monthlyChartData = computed(() => {
   const monthData = {}
   for (const vente of props.ventesData) {
     if (!vente.date_vente) continue
-    const d = new Date(vente.date_vente)
+    const d = parseUtcDate(vente.date_vente)
+    if (!d) continue
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
     if (!monthData[key]) {
       monthData[key] = { montant: 0, articles: 0, count: 0 }
