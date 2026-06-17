@@ -21,7 +21,8 @@ const monthLabels = [
 
 export function formatDate(dateStr, fallback = '-') {
   if (!dateStr) return fallback
-  const date = new Date(dateStr)
+  const date = parseUtcDate(dateStr)
+  if (!date) return fallback
   return date.toLocaleDateString('fr-FR', {
     day: '2-digit',
     month: '2-digit',
@@ -32,7 +33,8 @@ export function formatDate(dateStr, fallback = '-') {
 
 export function formatDateTime(dateStr, fallback = '—') {
   if (!dateStr) return fallback
-  const date = new Date(dateStr)
+  const date = parseUtcDate(dateStr)
+  if (!date) return fallback
   return date.toLocaleDateString('fr-FR', {
     day: '2-digit',
     month: '2-digit',
@@ -49,10 +51,25 @@ export function formatDateSimple(dateStr, fallback = '—') {
   return `${day}/${month}/${year}`
 }
 
+/**
+ * Convertit une chaîne ISO (potentiellement sans timezone) en objet Date UTC.
+ * Si la chaîne n'a pas de timezone explicite, on force UTC pour éviter
+ * que JS interprète l'heure comme locale (ce qui décale tout).
+ */
+function parseUtcDate(str) {
+  if (!str) return null
+  // Si déjà un timezone explicite (Z ou +/-HH:MM), new Date() le gère correctement
+  // On vérifie la présence de 'Z' ou d'un offset +/- après les minutes
+  if (/[Zz]/.test(str) || /\d[+-]\d{2}:\d{2}$/.test(str)) return new Date(str)
+  // Sinon forcer UTC
+  return new Date(str + 'Z')
+}
+
 export function formatDateWithTime(dateStr, timestampStr, fallback = '-') {
   if (!dateStr) return fallback
-  // Formatter la date
-  const date = new Date(dateStr)
+  // Formatter la date seule (toujours sans heure, on parse en UTC)
+  const date = parseUtcDate(dateStr)
+  if (!date) return fallback
   const formattedDate = date.toLocaleDateString('fr-FR', {
     day: '2-digit',
     month: '2-digit',
@@ -60,9 +77,10 @@ export function formatDateWithTime(dateStr, timestampStr, fallback = '-') {
     timeZone: 'Europe/Paris',
   })
 
-  // Extraire l'heure du timestamp
+  // Extraire l'heure du timestamp (created_at)
   if (!timestampStr) return formattedDate
-  const timestamp = new Date(timestampStr)
+  const timestamp = parseUtcDate(timestampStr)
+  if (!timestamp) return formattedDate
   const formattedTime = timestamp.toLocaleTimeString('fr-FR', {
     hour: '2-digit',
     minute: '2-digit',
