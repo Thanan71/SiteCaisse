@@ -40,29 +40,16 @@
     </div>
 
     <!-- Sous-navigation : Vue globale / Mensuelle / Graphiques -->
-    <div v-if="rapportsStore.allRapports.length || rapportsStore.ventesArtisan.length" class="sub-nav">
-      <button
-        class="sub-nav-btn"
-        :class="{ active: activeTab === 'global' }"
-        @click="onTabClick('global')"
-      >
-        📋 Toutes les ventes
-      </button>
-      <button
-        class="sub-nav-btn"
-        :class="{ active: activeTab === 'mensuel' }"
-        @click="onTabClick('mensuel')"
-      >
-        📅 Par mois
-      </button>
-      <button
-        class="sub-nav-btn"
-        :class="{ active: activeTab === 'graphiques' }"
-        @click="onTabClick('graphiques')"
-      >
-        📊 Graphiques
-      </button>
-    </div>
+    <TabNav
+      v-if="rapportsStore.allRapports.length || rapportsStore.ventesArtisan.length"
+      v-model="activeTab"
+      :tabs="[
+        { key: 'global', label: 'Toutes les ventes', icon: '📋' },
+        { key: 'mensuel', label: 'Par mois', icon: '📅' },
+        { key: 'graphiques', label: 'Graphiques', icon: '📊' },
+      ]"
+      @change="onTabClick"
+    />
 
     <!-- Mode : Tous les artisans -->
     <div v-if="!selectedArtisanId">
@@ -99,32 +86,18 @@
           />
 
           <!-- Résumé global -->
-          <div class="global-summary-card">
-            <h3>Résumé global</h3>
-            <div class="global-summary-stats">
-              <div class="stat">
-                <span class="stat-label">Total articles</span>
-                <span class="stat-value">{{ rapportsStore.totalGlobal.total_articles }}</span>
-              </div>
-              <div class="stat">
-                <span class="stat-label">Total montant</span>
-                <span class="stat-value stat-value-amount">{{ formatPrice(rapportsStore.totalGlobal.total_montant) }}</span>
-              </div>
-              <div v-if="rapportsStore.totalGlobal.total_cb > 0" class="stat">
-                <span class="stat-label">Total CB</span>
-                <span class="stat-value stat-value-cb">{{ formatPrice(rapportsStore.totalGlobal.total_cb) }}</span>
-              </div>
-              <div v-if="rapportsStore.totalGlobal.total_commission > 0" class="stat">
-                <span class="stat-label">Commission CB totale</span>
-                <span class="stat-value stat-value-commission">{{ formatPrice(rapportsStore.totalGlobal.total_commission) }}</span>
-              </div>
-            </div>
-            <div v-if="rapportsStore.totalGlobal.total_commission > 0" class="commission-detail">
-              <span v-if="rapportsStore.totalAllParams">
-                Taux : Permanent {{ rapportsStore.totalAllParams.commission_cb_permanent }}% / Temporaire {{ rapportsStore.totalAllParams.commission_cb_temporaire }}%
-              </span>
-            </div>
-          </div>
+          <SummaryCard
+            title="Résumé global"
+            :total-articles="rapportsStore.totalGlobal.total_articles"
+            :total-montant="rapportsStore.totalGlobal.total_montant"
+            :total-cb="rapportsStore.totalGlobal.total_cb"
+            :total-commission="rapportsStore.totalGlobal.total_commission"
+            :commission-detail="rapportsStore.totalGlobal.total_commission > 0 && rapportsStore.totalAllParams
+              ? `Taux : Permanent ${rapportsStore.totalAllParams.commission_cb_permanent}% / Temporaire ${rapportsStore.totalAllParams.commission_cb_temporaire}%`
+              : ''"
+            commission-label-suffix=" totale"
+            variant="primary"
+          />
         </div>
 
         <div class="export-section">
@@ -137,16 +110,8 @@
       <!-- Onglet : Vue mensuelle -->
       <div v-if="activeTab === 'mensuel'">
         <!-- Sélecteur de mois avec mois courant par défaut -->
-        <div class="month-selector-card">
-          <div class="month-selector-row">
-            <label for="month-select">Sélectionner un mois :</label>
-            <input
-              id="month-select"
-              type="month"
-              v-model="selectedMonth"
-              @change="onMonthChange"
-              class="month-input"
-            />
+        <MonthSelector v-model="selectedMonth" @change="onMonthChange">
+          <template #actions>
             <button
               class="btn btn-success"
               :disabled="!rapportsStore.rapportMois || !rapportsStore.rapportMois.groupes.length"
@@ -154,8 +119,8 @@
             >
               📥 Télécharger le rapport Excel
             </button>
-          </div>
-        </div>
+          </template>
+        </MonthSelector>
 
         <div v-if="rapportsStore.loadingMois" class="loading-state">
           <div class="spinner"></div>
@@ -183,32 +148,17 @@
               />
 
               <!-- Résumé du mois -->
-            <div class="global-summary-card month-summary-card">
-              <h3>Résumé du mois</h3>
-              <div class="global-summary-stats">
-                <div class="stat">
-                  <span class="stat-label">Total articles</span>
-                  <span class="stat-value">{{ rapportsStore.rapportMois.total.total_articles }}</span>
-                </div>
-                <div class="stat">
-                  <span class="stat-label">Total montant</span>
-                  <span class="stat-value stat-value-amount">{{ formatPrice(rapportsStore.rapportMois.total.total_montant) }}</span>
-                </div>
-                <div v-if="rapportsStore.rapportMois.total.total_cb > 0" class="stat">
-                  <span class="stat-label">Total CB</span>
-                  <span class="stat-value stat-value-cb">{{ formatPrice(rapportsStore.rapportMois.total.total_cb) }}</span>
-                </div>
-                <div v-if="rapportsStore.rapportMois.total.total_commission > 0" class="stat">
-                  <span class="stat-label">Commission CB</span>
-                  <span class="stat-value stat-value-commission">{{ formatPrice(rapportsStore.rapportMois.total.total_commission) }}</span>
-                </div>
-              </div>
-              <div v-if="rapportsStore.rapportMois.total.total_commission > 0" class="commission-detail">
-                <span v-if="rapportsStore.rapportMois.parametres">
-                  Taux : Permanent {{ rapportsStore.rapportMois.parametres.commission_cb_permanent }}% / Temporaire {{ rapportsStore.rapportMois.parametres.commission_cb_temporaire }}%
-                </span>
-              </div>
-            </div>
+              <SummaryCard
+                title="Résumé du mois"
+                :total-articles="rapportsStore.rapportMois.total.total_articles"
+                :total-montant="rapportsStore.rapportMois.total.total_montant"
+                :total-cb="rapportsStore.rapportMois.total.total_cb"
+                :total-commission="rapportsStore.rapportMois.total.total_commission"
+                :commission-detail="rapportsStore.rapportMois.total.total_commission > 0 && rapportsStore.rapportMois.parametres
+                  ? `Taux : Permanent ${rapportsStore.rapportMois.parametres.commission_cb_permanent}% / Temporaire ${rapportsStore.rapportMois.parametres.commission_cb_temporaire}%`
+                  : ''"
+                variant="warning"
+              />
           </div>
         </div>
         </template>
@@ -253,16 +203,8 @@
       </div>
 
       <div v-if="activeTab === 'mensuel'">
-        <div class="month-selector-card">
-          <div class="month-selector-row">
-            <label for="month-select">Sélectionner un mois :</label>
-            <input
-              id="month-select"
-              type="month"
-              v-model="selectedMonth"
-              @change="onMonthChange"
-              class="month-input"
-            />
+        <MonthSelector v-model="selectedMonth" @change="onMonthChange">
+          <template #actions>
             <button
               class="btn btn-success"
               :disabled="!selectedArtisanRapportMoisGroup"
@@ -270,8 +212,8 @@
             >
               📥 Télécharger le rapport Excel
             </button>
-          </div>
-        </div>
+          </template>
+        </MonthSelector>
 
         <div v-if="rapportsStore.loadingMois" class="loading-state">
           <div class="spinner"></div>
@@ -296,32 +238,18 @@
                 :total-label="`TOTAL ${selectedArtisan?.nom?.toUpperCase() || ''}`"
               />
 
-              <div class="global-summary-card month-summary-card">
-                <h3>Résumé du mois</h3>
-                <div class="global-summary-stats">
-                  <div class="stat">
-                    <span class="stat-label">Total articles</span>
-                    <span class="stat-value">{{ selectedArtisanRapportMoisGroup.summary.total_articles }}</span>
-                  </div>
-                  <div class="stat">
-                    <span class="stat-label">Total montant</span>
-                    <span class="stat-value stat-value-amount">{{ formatPrice(selectedArtisanRapportMoisGroup.summary.total_montant) }}</span>
-                  </div>
-                  <div v-if="selectedArtisanRapportMoisGroup.summary.total_cb > 0" class="stat">
-                    <span class="stat-label">Total CB</span>
-                    <span class="stat-value stat-value-cb">{{ formatPrice(selectedArtisanRapportMoisGroup.summary.total_cb) }}</span>
-                  </div>
-                  <div v-if="selectedArtisanRapportMoisGroup.summary.total_commission > 0" class="stat">
-                    <span class="stat-label">Commission CB totale</span>
-                    <span class="stat-value stat-value-commission">{{ formatPrice(selectedArtisanRapportMoisGroup.summary.total_commission) }}</span>
-                  </div>
-                </div>
-                <div v-if="selectedArtisanRapportMoisGroup.summary.total_commission > 0" class="commission-detail">
-                  <span v-if="rapportsStore.rapportMois?.parametres">
-                    Taux : Permanent {{ rapportsStore.rapportMois.parametres.commission_cb_permanent }}% / Temporaire {{ rapportsStore.rapportMois.parametres.commission_cb_temporaire }}%
-                  </span>
-                </div>
-              </div>
+              <SummaryCard
+                title="Résumé du mois"
+                :total-articles="selectedArtisanRapportMoisGroup.summary.total_articles"
+                :total-montant="selectedArtisanRapportMoisGroup.summary.total_montant"
+                :total-cb="selectedArtisanRapportMoisGroup.summary.total_cb"
+                :total-commission="selectedArtisanRapportMoisGroup.summary.total_commission"
+                :commission-detail="selectedArtisanRapportMoisGroup.summary.total_commission > 0 && rapportsStore.rapportMois?.parametres
+                  ? `Taux : Permanent ${rapportsStore.rapportMois.parametres.commission_cb_permanent}% / Temporaire ${rapportsStore.rapportMois.parametres.commission_cb_temporaire}%`
+                  : ''"
+                commission-label-suffix=" totale"
+                variant="warning"
+              />
             </div>
           </div>
         </template>
@@ -332,8 +260,12 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import DataState from '../components/DataState.vue'
 import GraphiquesRapports from '../components/GraphiquesRapports.vue'
+import MonthSelector from '../components/MonthSelector.vue'
 import RapportVentesTable from '../components/RapportVentesTable.vue'
+import SummaryCard from '../components/SummaryCard.vue'
+import TabNav from '../components/TabNav.vue'
 import { exportAllRapportsToExcel, exportMonthToExcel } from '../services/excelService'
 import { useArtisansStore } from '../store/artisans'
 import { useRapportsStore } from '../store/rapports'
@@ -497,193 +429,50 @@ function exportSelectedArtisanMonthToExcel() {
   margin: 0;
 }
 
-/* Sous-navigation */
-.sub-nav {
+.export-section {
+  margin-top: 20px;
   display: flex;
-  gap: 4px;
-  margin-bottom: 24px;
-  background: white;
-  border-radius: 12px;
-  padding: 6px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  justify-content: flex-end;
 }
 
-.sub-nav-btn {
-  flex: 1;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
+.rapport-list-wrapper {
+  max-height: min(64vh, 720px);
+  overflow-y: auto;
+  padding-right: 8px;
+  margin-bottom: 24px;
+}
+
+.rapport-list-wrapper::-webkit-scrollbar {
+  width: 10px;
+}
+
+.rapport-list-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.6);
+  border-radius: 999px;
+}
+
+.rapport-list-wrapper::-webkit-scrollbar-track {
   background: transparent;
-  color: #64748b;
-  transition: all 0.2s;
 }
 
-.sub-nav-btn:hover {
-  background: #f1f5f9;
-  color: #475569;
+.month-block:last-of-type {
+  border-bottom: none;
+  margin-bottom: 32px;
 }
 
-.sub-nav-btn.active {
-  background: #4f46e5;
-  color: white;
-}
-
-/* Sélecteur de mois */
-.month-selector-card {
-  background: white;
-  border-radius: 12px;
-  padding: 20px 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  margin-bottom: 24px;
-}
-
-.month-selector-row {
+.month-title {
+  font-size: 1.4rem;
+  color: #4f46e5;
+  margin: 0 0 24px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #4f46e5;
   display: flex;
   align-items: center;
-  gap: 16px;
-  flex-wrap: wrap;
+  gap: 8px;
 }
 
-.month-selector-row label {
-  font-weight: 600;
-  font-size: 0.85rem;
-  color: #374151;
-  white-space: nowrap;
-}
-
-.month-input {
-  padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  background: white;
-  transition: border-color 0.2s;
-}
-
-.month-input:focus {
-  outline: none;
-  border-color: #4f46e5;
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
-}
-
-.export-section {
-    margin-top: 20px;
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  .rapport-list-wrapper {
-    max-height: min(64vh, 720px);
-    overflow-y: auto;
-    padding-right: 8px;
-    margin-bottom: 24px;
-  }
-
-  .rapport-list-wrapper::-webkit-scrollbar {
-    width: 10px;
-  }
-
-  .rapport-list-wrapper::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.6);
-    border-radius: 999px;
-  }
-
-  .rapport-list-wrapper::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-
-  .month-block:last-of-type {
-    border-bottom: none;
-    margin-bottom: 32px;
-  }
-
-  .month-title {
-    font-size: 1.4rem;
-    color: #4f46e5;
-    margin: 0 0 24px;
-    padding-bottom: 12px;
-    border-bottom: 2px solid #4f46e5;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .month-title::before {
-    content: '📅';
-    font-size: 1.3rem;
-  }
-
-  .month-summary-card {
-    border-color: #f59e0b;
-    margin-top: 24px;
-  }
-
-  .global-final-card {
-    border-color: #059669;
-    margin-top: 24px;
-  }
-
-/* Carte résumé global */
-.global-summary-card {
-  background: white;
-  border-radius: 12px;
-  padding: 20px 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  margin-bottom: 24px;
-  border: 2px solid #4f46e5;
-}
-
-.global-summary-card h3 {
-  margin: 0 0 16px;
-  font-size: 1.1rem;
-  color: #1e293b;
-}
-
-.global-summary-stats {
-  display: flex;
-  gap: 40px;
-  flex-wrap: wrap;
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.stat-label {
-  font-size: 0.85rem;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.stat-value {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1e293b;
-}
-
-.stat-value-amount {
-  color: #059669;
-}
-
-.stat-value-cb {
-  color: #2563eb;
-}
-
-.stat-value-commission {
-  color: #ef4444;
-}
-
-.commission-detail {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #e2e8f0;
-  font-size: 0.8rem;
-  color: #64748b;
+.month-title::before {
+  content: '📅';
+  font-size: 1.3rem;
 }
 </style>

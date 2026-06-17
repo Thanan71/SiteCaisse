@@ -5,32 +5,14 @@
       <p class="admin-subtitle">Gestion des utilisateurs, commissions et logs</p>
     </div>
 
-    <nav class="admin-subnav" aria-label="Sections administration">
-      <button
-        type="button"
-        class="subnav-button"
-        :class="{ active: activePanel === 'users' }"
-        @click="activePanel = 'users'"
-      >
-        Utilisateurs
-      </button>
-      <button
-        type="button"
-        class="subnav-button"
-        :class="{ active: activePanel === 'commissions' }"
-        @click="activePanel = 'commissions'"
-      >
-        Commissions
-      </button>
-      <button
-        type="button"
-        class="subnav-button"
-        :class="{ active: activePanel === 'logs' }"
-        @click="activePanel = 'logs'"
-      >
-        Logs
-      </button>
-    </nav>
+    <TabNav
+      v-model="activePanel"
+      :tabs="[
+        { key: 'users', label: 'Utilisateurs' },
+        { key: 'commissions', label: 'Commissions' },
+        { key: 'logs', label: 'Logs' },
+      ]"
+    />
 
     <!-- Section Paramètres : Commissions CB -->
     <div v-if="activePanel === 'commissions'" class="card parametres-card">
@@ -153,28 +135,22 @@
     </div>
 
     <!-- Modal de confirmation de suppression -->
-    <div v-if="showDeleteModal" class="modal-overlay" @click.self="closeDeleteModal">
-      <div class="modal-content">
-        <h3>Confirmer la suppression</h3>
-        <p>
-          Êtes-vous sûr de vouloir supprimer <strong>{{ userToDelete?.nom }}</strong>
-          ({{ userToDelete?.email }}) ?
-        </p>
-        <p class="warning-text">
-          Cette action est irréversible. Les ventes liées à cet utilisateur seront également supprimées.
-        </p>
-        <div class="modal-actions">
-          <button @click="closeDeleteModal" class="btn btn-secondary">Annuler</button>
-          <button @click="confirmDeleteUser" class="btn btn-danger" :disabled="deletingId !== null">
-            {{ deletingId ? 'Suppression...' : 'Confirmer la suppression' }}
-          </button>
-        </div>
-      </div>
-    </div>
+    <ConfirmModal
+      :show="showDeleteModal"
+      title="Confirmer la suppression"
+      :message="`Êtes-vous sûr de vouloir supprimer **${userToDelete?.nom}** (${userToDelete?.email}) ?`"
+      warning="Cette action est irréversible. Les ventes liées à cet utilisateur seront également supprimées."
+      confirmText="Confirmer la suppression"
+      variant="danger"
+      :loading="deletingId !== null"
+      loadingText="Suppression..."
+      @confirm="confirmDeleteUser"
+      @cancel="closeDeleteModal"
+    />
 
     <!-- Modal de prolongation d'accès -->
-    <div v-if="showExtendModal" class="modal-overlay" @click.self="closeExtendModal">
-      <div class="modal-content">
+    <div v-if="showExtendModal" class="custom-modal-overlay" @click.self="closeExtendModal">
+      <div class="custom-modal-content">
         <h3>Prolonger l'accès de {{ userToExtend?.nom }}</h3>
         <p>
           Date de fin actuelle : <strong>{{ userToExtend?.date_fin ? formatDateSimple(userToExtend.date_fin) : '—' }}</strong>
@@ -220,10 +196,12 @@ import { computed, onMounted, ref } from 'vue'
 import ConfirmModal from '../components/ConfirmModal.vue'
 import LogsViewer from '../components/LogsViewer.vue'
 import ParametresCommissions from '../components/ParametresCommissions.vue'
+import TabNav from '../components/TabNav.vue'
 import UserTable from '../components/UserTable.vue'
 import { useUsers } from '../composables/useUsers'
-import api from '../services/api'
-import { formatDateTime as formatDate, formatDateSimple } from '../utils/formatters'
+import { useCommissions } from '../composables/useCommissions'
+import { useLogs } from '../composables/useLogs'
+import { formatDateSimple } from '../utils/formatters'
 
 const activePanel = ref('users')
 
@@ -263,96 +241,34 @@ const {
   getStatusLabel,
 } = useUsers()
 
-// État des commissions CB
-const commissionPermanent = ref('')
-const commissionTemporaire = ref('')
-const savingCommissions = ref(false)
-const commissionsError = ref('')
-const commissionsSuccess = ref('')
+// Commissions CB : logique extraite dans useCommissions
+const {
+  commissionPermanent,
+  commissionTemporaire,
+  savingCommissions,
+  commissionsError,
+  commissionsSuccess,
+  fetchParametres,
+  handleSaveCommissions,
+} = useCommissions()
 
-// État du journal des actions
-const logs = ref([])
-const logsLoading = ref(false)
-const logsError = ref('')
-const logFilters = ref({ action: '', cible_type: '' })
-const logsPagination = ref({ page: 1, limit: 25, total: 0, totalPages: 0 })
+// Logs : logique extraite dans useLogs
+const {
+  logs,
+  logsLoading,
+  logsError,
+  logFilters,
+  logsPagination,
+  fetchLogs,
+  applyLogFilters,
+  changeLogsPage,
+} = useLogs()
 
 // Date minimum pour le champ date (aujourd'hui)
 const minDate = computed(() => {
   const today = new Date()
   return today.toISOString().split('T')[0]
 })
-
-/**
- * Charge les paramètres de commissions CB depuis l'API.
- */
-async function fetchParametres() {
-  try {
-    const response = await api.get('/api/admin/parametres')
-    const params = response.data
-    commissionPermanent.value = params.commission_cb_permanent || ''
-    commissionTemporaire.value = params.commission_cb_temporaire || ''
-  } catch (err) {
-    console.error('Erreur chargement paramètres:', err)
-  }
-}
-
-/**
- * Enregistre les taux de commission CB.
- */
-async function handleSaveCommissions() {
-  savingCommissions.value = true
-  commissionsError.value = ''
-  commissionsSuccess.value = ''
-
-  try {
-    await api.put('/api/admin/parametres/commission_cb_permanent', {
-      valeur: commissionPermanent.value,
-    })
-    await api.put('/api/admin/parametres/commission_cb_temporaire', {
-      valeur: commissionTemporaire.value,
-    })
-    commissionsSuccess.value = 'Commissions CB mises à jour avec succès !'
-    setTimeout(() => {
-      commissionsSuccess.value = ''
-    }, 3000)
-  } catch (err) {
-    commissionsError.value = err.response?.data?.error || "Erreur lors de l'enregistrement"
-  } finally {
-    savingCommissions.value = false
-  }
-}
-
-/**
- * Récupère le journal des actions depuis l'API admin.
- */
-async function fetchLogs(page = logsPagination.value.page) {
-  try {
-    logsLoading.value = true
-    logsError.value = ''
-
-    const params = { page, limit: logsPagination.value.limit }
-    if (logFilters.value.action) params.action = logFilters.value.action
-    if (logFilters.value.cible_type) params.cible_type = logFilters.value.cible_type
-
-    const response = await api.get('/api/admin/logs', { params })
-    logs.value = response.data.logs
-    logsPagination.value = response.data.pagination
-  } catch (err) {
-    logsError.value = err.response?.data?.error || 'Erreur lors du chargement des logs'
-  } finally {
-    logsLoading.value = false
-  }
-}
-
-function applyLogFilters() {
-  fetchLogs(1)
-}
-
-function changeLogsPage(page) {
-  if (page < 1 || page > logsPagination.value.totalPages) return
-  fetchLogs(page)
-}
 
 onMounted(() => {
   fetchUsers()
@@ -383,42 +299,6 @@ onMounted(() => {
   color: #64748b;
   margin: 4px 0 0 0;
   font-size: 0.95rem;
-}
-
-.admin-subnav {
-  display: flex;
-  gap: 8px;
-  padding: 6px;
-  margin-bottom: 24px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  overflow-x: auto;
-}
-
-.subnav-button {
-  flex: 0 0 auto;
-  padding: 9px 14px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #475569;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.subnav-button:hover {
-  background: #e2e8f0;
-  color: #1e293b;
-}
-
-.subnav-button.active {
-  background: white;
-  color: #4f46e5;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
 }
 
 /* Cards */
@@ -525,72 +405,6 @@ onMounted(() => {
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
 }
 
-/* Buttons */
-.btn {
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: #4f46e5;
-  color: white;
-  align-self: flex-start;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #4338ca;
-}
-
-.btn-secondary {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #e2e8f0;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #e2e8f0;
-}
-
-.btn-success {
-  background: #22c55e;
-  color: white;
-}
-
-.btn-success:hover:not(:disabled) {
-  background: #16a34a;
-}
-
-.btn-danger {
-  background: #ef4444;
-  color: white;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: #dc2626;
-}
-
-.btn-warning {
-  background: #f59e0b;
-  color: white;
-}
-
-.btn-warning:hover:not(:disabled) {
-  background: #d97706;
-}
-
 /* Messages */
 .error-message {
   color: #ef4444;
@@ -615,6 +429,42 @@ onMounted(() => {
   text-align: center;
   color: #94a3b8;
   padding: 40px 0;
+}
+
+/* Custom modal (prolongation) */
+.custom-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.custom-modal-content {
+  background: white;
+  border-radius: 12px;
+  padding: 28px;
+  max-width: 460px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.custom-modal-content h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.15rem;
+  color: #1e293b;
+}
+
+.custom-modal-content p {
+  margin: 0 0 8px 0;
+  color: #475569;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 /* Modal */

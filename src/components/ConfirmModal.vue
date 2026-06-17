@@ -4,6 +4,7 @@
       <h3>{{ title }}</h3>
       <p>{{ message }}</p>
       <p v-if="warning" class="warning-text">{{ warning }}</p>
+      <slot />
       <div class="modal-actions">
         <button @click="onCancel" class="btn btn-secondary" :disabled="loading">
           {{ cancelText }}
