@@ -713,7 +713,7 @@ async function seedAdminIfMissing() {
   const { data: existingAdmin } = await supabase
     .from('users')
     .select('id')
-    .eq('nom_boutique', 'Administration')
+    .eq('nom_boutique', 'Admin')
     .maybeSingle()
 
   if (existingAdmin) {
@@ -733,7 +733,7 @@ async function seedAdminIfMissing() {
 
   const { error } = await supabase
     .from('users')
-    .insert({ nom: 'Admin', nom_boutique: 'Administration', password_hash: hash, role: 'admin' })
+    .insert({ nom: 'Admin', nom_boutique: 'Admin', password_hash: hash, role: 'admin' })
 
   if (error) {
     console.error('❌ Erreur création compte admin:', error.message)
