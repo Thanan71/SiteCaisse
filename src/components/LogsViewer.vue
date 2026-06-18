@@ -62,7 +62,7 @@
             <td>{{ formatDate(log.created_at) }}</td>
             <td>
               <span>{{ log.user_nom || 'Système' }}</span>
-              <span v-if="log.user_email" class="log-email">{{ log.user_email }}</span>
+              <span v-if="log.user_nom_boutique" class="log-shop">{{ log.user_nom_boutique }}</span>
             </td>
             <td>
               <span class="action-badge" :class="{ 'action-error': log.action === 'error' }">{{ getActionLabel(log.action) }}</span>
@@ -147,13 +147,13 @@ function formatLogDetails(details) {
   if (data.context && data.message) return `${data.context} : ${data.message}`
   if (data.reason) return `Raison : ${data.reason}`
   if (data.cle) return `${data.cle} = ${data.valeur}`
-  if (data.nom && data.email) return `${data.nom} (${data.email})`
+  if (data.nom && data.nom_boutique) return `${data.nom} (${data.nom_boutique})`
   if (data.type_paiement && data.artisan_id) {
     const nbArticles = Array.isArray(data.articles) ? data.articles.length : 0
     return `${data.type_paiement}, artisan #${data.artisan_id}, ${nbArticles} article${nbArticles > 1 ? 's' : ''}`
   }
   if (data.modifications) return 'Modification vente'
-  if (data.email) return data.email
+  if (data.nom_boutique) return data.nom_boutique
 
   return JSON.stringify(data)
 }
@@ -250,7 +250,7 @@ function formatLogDetails(details) {
   background: #f8fafc;
 }
 
-.log-email {
+.log-shop {
   display: block;
   color: #64748b;
   font-size: 0.78rem;

@@ -116,7 +116,7 @@ router.get('/mensuel', async (req, res) => {
 /**
  * Récupère la liste de tous les artisans actifs pour le menu déroulant.
  * @route GET /api/rapports/artisans
- * @returns {Array<Object>} Liste des artisans (id, nom, email, role).
+ * @returns {Array<Object>} Liste des artisans (id, nom, nom_boutique, role).
  */
 router.get('/artisans', async (req, res) => {
   try {
@@ -211,7 +211,7 @@ router.get('/:artisan_id', async (req, res) => {
       const artisan = await getAllArtisans()
       const found = artisan.find((a) => Number(a.id) === Number(artisan_id))
       role = found?.role || 'permanent'
-    } catch (e) {
+    } catch {
       // fallback
     }
 

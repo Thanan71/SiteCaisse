@@ -32,7 +32,7 @@ async function logAction({
     const payload = {
       user_id: user?.id || null,
       user_nom: user?.nom || null,
-      user_email: user?.email || null,
+      user_nom_boutique: user?.nom_boutique || null,
       action,
       cible_type,
       cible_id: cible_id === undefined || cible_id === null ? null : String(cible_id),

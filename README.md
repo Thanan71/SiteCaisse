@@ -126,7 +126,7 @@ npm run dev
 ### Authentification
 
 - `POST /api/auth/login`
-  - Body : `{ email, password }`
+  - Body : `{ nom_boutique, password }`
   - Retourne : `{ token, user, password_change_required }`
 - `GET /api/auth/me`
   - Header : `Authorization: Bearer <token>`
@@ -199,12 +199,12 @@ Sur Vercel, le build front-end est généré par `npm run vercel-build`.
 
 Le seed initial crée plusieurs utilisateurs avec le mot de passe `password123` :
 
-- `admin@sitecaisse.fr` (admin)
-- `marcel@artisan.fr` (permanent)
-- `sophie@artisan.fr` (permanent)
-- `jean@artisan.fr` (permanent)
-- `lucas@artisan.fr` (temporaire)
-- `emma@artisan.fr` (temporaire)
+- `Administration` (admin)
+- `Atelier Marcel` (permanent)
+- `Boutique Sophie` (permanent)
+- `Creation Jean` (permanent)
+- `Echoppe Lucas` (temporaire)
+- `Atelier Emma` (temporaire)
 
 ---
 

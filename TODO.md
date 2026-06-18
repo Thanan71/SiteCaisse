@@ -80,7 +80,7 @@ SiteCaisse/
 
 ### 4. Base de Données
 - [x] Table `users` (artisans)
-  - [x] id, nom, email, password_hash, role (permanent/temporaire), est_actif
+  - [x] id, nom, nom_boutique, password_hash, role (permanent/temporaire), est_actif
 - [x] Table `ventes`
   - [x] id, article, quantite, prix, type_paiement, artisan_id, vendeur_id, date_vente, created_at
 

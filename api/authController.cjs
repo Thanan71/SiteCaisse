@@ -7,7 +7,7 @@
 const express = require('express')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
-const { findUserByEmail, findUserById, updatePassword } = require('./models.cjs')
+const { findUserByNomBoutique, findUserById, updatePassword } = require('./models.cjs')
 const { logAction, logError } = require('./services/loggerService.cjs')
 
 const router = express.Router()
@@ -45,32 +45,33 @@ function authMiddleware(req, res, next) {
 }
 
 /**
- * Route de connexion : authentifie un utilisateur avec email et mot de passe.
+ * Route de connexion : authentifie un utilisateur avec le nom de boutique et mot de passe.
  * @route POST /api/auth/login
- * @param {string} req.body.email - Adresse email de l'utilisateur.
+ * @param {string} req.body.nom_boutique - Nom de boutique de l'utilisateur.
  * @param {string} req.body.password - Mot de passe de l'utilisateur.
- * @returns {Object} Token JWT et informations utilisateur (id, nom, email, role).
- * @throws {400} Si email ou mot de passe manquant.
- * @throws {401} Si email ou mot de passe incorrect.
+ * @returns {Object} Token JWT et informations utilisateur (id, nom, nom_boutique, role).
+ * @throws {400} Si nom de boutique ou mot de passe manquant.
+ * @throws {401} Si nom de boutique ou mot de passe incorrect.
  * @throws {403} Si le compte est désactivé.
  */
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body
+    const { nom_boutique, password } = req.body
+    const identifiant = nom_boutique
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email et mot de passe requis' })
+    if (!identifiant || !password) {
+      return res.status(400).json({ error: 'Nom de boutique et mot de passe requis' })
     }
 
-    const user = await findUserByEmail(email)
+    const user = await findUserByNomBoutique(identifiant)
     if (!user) {
       await logAction({
         action: 'auth.login_failed',
         cible_type: 'auth',
-        details: { email, reason: 'unknown_email' },
+        details: { nom_boutique: identifiant, reason: 'unknown_shop' },
         req,
       })
-      return res.status(401).json({ error: 'Email ou mot de passe incorrect' })
+      return res.status(401).json({ error: 'Nom de boutique ou mot de passe incorrect' })
     }
 
     if (!user.est_actif) {
@@ -108,14 +109,14 @@ router.post('/login', async (req, res) => {
       await logAction({
         action: 'auth.login_failed',
         cible_type: 'auth',
-        details: { email, reason: 'invalid_password' },
+        details: { nom_boutique: identifiant, reason: 'invalid_password' },
         req,
       })
-      return res.status(401).json({ error: 'Email ou mot de passe incorrect' })
+      return res.status(401).json({ error: 'Nom de boutique ou mot de passe incorrect' })
     }
 
     const token = jwt.sign(
-      { id: user.id, nom: user.nom, email: user.email, role: user.role },
+      { id: user.id, nom: user.nom, nom_boutique: user.nom_boutique, role: user.role },
       JWT_SECRET,
       { expiresIn: '24h' },
     )
@@ -134,7 +135,7 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id,
         nom: user.nom,
-        email: user.email,
+        nom_boutique: user.nom_boutique,
         role: user.role,
         password_change_required: user.password_change_required === 1,
       },
@@ -145,7 +146,7 @@ router.post('/login', async (req, res) => {
       err,
       context: 'auth.login',
       cible_type: 'auth',
-      details: { email: req.body?.email || null },
+      details: { nom_boutique: req.body?.nom_boutique || null },
       req,
     })
     res.status(500).json({ error: 'Erreur serveur' })
@@ -155,7 +156,7 @@ router.post('/login', async (req, res) => {
 /**
  * Route de vérification du profil utilisateur connecté.
  * @route GET /api/auth/me
- * @returns {Object} Informations de l'utilisateur connecté (id, nom, email, role, est_actif).
+ * @returns {Object} Informations de l'utilisateur connecté (id, nom, nom_boutique, role, est_actif).
  * @throws {401} Si le token est manquant ou invalide (via authMiddleware).
  * @throws {404} Si l'utilisateur n'est pas trouvé en base de données.
  */
@@ -229,7 +230,7 @@ router.post('/change-password', authMiddleware, async (req, res) => {
     await updatePassword(req.user.id, newPassword)
 
     await logAction({
-      user: { id: req.user.id, nom: req.user.nom, email: req.user.email },
+      user: { id: req.user.id, nom: req.user.nom, nom_boutique: req.user.nom_boutique },
       action: 'auth.password_changed',
       cible_type: 'auth',
       cible_id: req.user.id,

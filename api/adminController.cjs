@@ -11,7 +11,6 @@ const { authMiddleware } = require('./authController.cjs')
 const { getSupabase } = require('./db.cjs')
 const { getAllParametres, updateParametre } = require('./services/parametresService.cjs')
 const { logAction, logError, getActionLogs } = require('./services/loggerService.cjs')
-const { sendAccountCreated, sendPasswordReset } = require('./services/mailService.cjs')
 const { extendUserDateFin, resetUserPassword } = require('./models.cjs')
 
 const router = express.Router()
@@ -34,14 +33,14 @@ function adminMiddleware(req, res, next) {
 /**
  * GET /api/admin/users
  * Récupère la liste de tous les utilisateurs.
- * @returns {Array} Tableau des utilisateurs (id, nom, email, role, est_actif, date_fin, created_at).
+ * @returns {Array} Tableau des utilisateurs (id, nom, nom_boutique, role, est_actif, date_fin, created_at).
  */
 router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const supabase = getSupabase()
     const { data, error } = await supabase
       .from('users')
-      .select('id, nom, email, role, est_actif, date_fin, created_at')
+      .select('id, nom, nom_boutique, role, est_actif, date_fin, created_at')
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -63,7 +62,7 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
  * POST /api/admin/users
  * Crée un nouvel utilisateur.
  * @param {string} req.body.nom - Nom de l'utilisateur.
- * @param {string} req.body.email - Email de l'utilisateur.
+ * @param {string} req.body.nom_boutique - Nom de boutique de l'utilisateur.
  * @param {string} req.body.password - Mot de passe de l'utilisateur.
  * @param {string} req.body.role - Rôle de l'utilisateur ('permanent', 'temporaire').
  * @param {string} [req.body.date_fin] - Date de fin pour les temporaires (format YYYY-MM-DD).
@@ -71,10 +70,10 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
  */
 router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { nom, email, password, role, date_fin } = req.body
+    const { nom, nom_boutique, password, role, date_fin } = req.body
 
-    if (!nom || !email || !password || !role) {
-      return res.status(400).json({ error: 'Nom, email, mot de passe et rôle requis' })
+    if (!nom || !nom_boutique || !password || !role) {
+      return res.status(400).json({ error: 'Nom, nom de boutique, mot de passe et rôle requis' })
     }
 
     if (!['permanent', 'temporaire'].includes(role)) {
@@ -97,20 +96,20 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
 
     const supabase = getSupabase()
 
-    // Vérifier si l'email existe déjà
+    // Vérifier si le nom de boutique existe déjà
     const { data: existing } = await supabase
       .from('users')
       .select('id')
-      .eq('email', email)
+      .eq('nom_boutique', nom_boutique)
       .maybeSingle()
 
     if (existing) {
-      return res.status(409).json({ error: 'Un utilisateur avec cet email existe déjà' })
+      return res.status(409).json({ error: 'Un utilisateur avec ce nom de boutique existe déjà' })
     }
 
     const password_hash = bcrypt.hashSync(password, 10)
 
-    const userData = { nom, email, password_hash, role, password_change_required: 1 }
+    const userData = { nom, nom_boutique, password_hash, role, password_change_required: 1 }
     if (date_fin) {
       userData.date_fin = date_fin
     }
@@ -118,7 +117,9 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
     const { data, error } = await supabase
       .from('users')
       .insert(userData)
-      .select('id, nom, email, role, est_actif, date_fin, created_at, password_change_required')
+      .select(
+        'id, nom, nom_boutique, role, est_actif, date_fin, created_at, password_change_required',
+      )
       .single()
 
     if (error) throw error
@@ -127,25 +128,14 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
       action: 'user.create',
       cible_type: 'user',
       cible_id: data.id,
-      details: { nom: data.nom, email: data.email, role: data.role, date_fin: data.date_fin },
+      details: {
+        nom: data.nom,
+        nom_boutique: data.nom_boutique,
+        role: data.role,
+        date_fin: data.date_fin,
+      },
       req,
     })
-
-    // Envoi d'un email de notification de création de compte (non bloquant)
-    sendAccountCreated({
-      email: data.email,
-      nom: data.nom,
-      password: req.body.password,
-      req,
-    })
-      .then((sent) => {
-        if (sent) {
-          console.log(`✅ Email de bienvenue envoyé à ${data.email}`)
-        }
-      })
-      .catch(() => {
-        // Déjà logué dans sendAccountCreated, on ne fait rien de plus
-      })
 
     res.status(201).json(data)
   } catch (err) {
@@ -157,7 +147,7 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
       cible_type: 'user',
       details: {
         nom: req.body?.nom || null,
-        email: req.body?.email || null,
+        nom_boutique: req.body?.nom_boutique || null,
         role: req.body?.role || null,
         date_fin: req.body?.date_fin || null,
       },
@@ -191,7 +181,7 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
     // Vérifier que l'utilisateur existe
     const { data: userToDelete } = await supabase
       .from('users')
-      .select('id, nom, email, role')
+      .select('id, nom, nom_boutique, role')
       .eq('id', userId)
       .maybeSingle()
 
@@ -212,7 +202,11 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
       action: 'user.delete',
       cible_type: 'user',
       cible_id: userId,
-      details: { nom: userToDelete.nom, email: userToDelete.email, role: userToDelete.role },
+      details: {
+        nom: userToDelete.nom,
+        nom_boutique: userToDelete.nom_boutique,
+        role: userToDelete.role,
+      },
       req,
     })
 
@@ -329,8 +323,8 @@ router.get('/logs', authMiddleware, adminMiddleware, async (req, res) => {
 /**
  * POST /api/admin/users/:id/reset-password
  * Réinitialise le mot de passe d'un utilisateur.
- * Génère un nouveau mot de passe aléatoire, l'envoie par email,
- * et force le changement de mot de passe à la prochaine connexion.
+ * Utilise le nom de l'utilisateur comme nouveau mot de passe et force le changement
+ * de mot de passe à la prochaine connexion.
  * @param {number} req.params.id - ID de l'utilisateur.
  * @returns {Object} Message de confirmation.
  */
@@ -347,7 +341,7 @@ router.post('/users/:id/reset-password', authMiddleware, adminMiddleware, async 
     // Vérifier que l'utilisateur existe
     const { data: user } = await supabase
       .from('users')
-      .select('id, nom, email')
+      .select('id, nom, nom_boutique')
       .eq('id', userId)
       .maybeSingle()
 
@@ -355,36 +349,21 @@ router.post('/users/:id/reset-password', authMiddleware, adminMiddleware, async 
       return res.status(404).json({ error: 'Utilisateur non trouvé' })
     }
 
-    // Générer un nouveau mot de passe et le stocker en base (avec password_change_required = 1)
-    const newPassword = await resetUserPassword(userId)
-
-    // Envoi de l'email avec le nouveau mot de passe (non bloquant)
-    sendPasswordReset({
-      email: user.email,
-      nom: user.nom,
-      newPassword,
-      req,
-    })
-      .then((sent) => {
-        if (sent) {
-          console.log(`✅ Email de réinitialisation envoyé à ${user.email}`)
-        }
-      })
-      .catch(() => {
-        // Déjà logué dans sendPasswordReset
-      })
+    // Utiliser le nom de l'utilisateur comme mot de passe temporaire.
+    const newPassword = await resetUserPassword(userId, user.nom)
 
     await logAction({
       user: req.user,
       action: 'user.password_reset',
       cible_type: 'user',
       cible_id: userId,
-      details: { nom: user.nom, email: user.email },
+      details: { nom: user.nom, nom_boutique: user.nom_boutique },
       req,
     })
 
     res.json({
-      message: "Mot de passe réinitialisé avec succès. Un email a été envoyé à l'utilisateur.",
+      message: "Mot de passe réinitialisé avec succès avec le nom de l'utilisateur.",
+      newPassword,
     })
   } catch (err) {
     console.error('Admin reset password error:', err)
@@ -425,7 +404,7 @@ router.patch('/users/:id/extend', authMiddleware, adminMiddleware, async (req, r
     // Vérifier que l'utilisateur existe et est temporaire
     const { data: user } = await supabase
       .from('users')
-      .select('id, nom, email, role, date_fin')
+      .select('id, nom, nom_boutique, role, date_fin')
       .eq('id', userId)
       .maybeSingle()
 
@@ -457,7 +436,7 @@ router.patch('/users/:id/extend', authMiddleware, adminMiddleware, async (req, r
       cible_id: userId,
       details: {
         nom: user.nom,
-        email: user.email,
+        nom_boutique: user.nom_boutique,
         ancienne_date: user.date_fin,
         nouvelle_date: date_fin,
       },

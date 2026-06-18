@@ -34,12 +34,12 @@ async function seedIfEmpty() {
   const hash = bcrypt.hashSync('password123', 10)
 
   const users = [
-    { nom: 'Admin', email: 'admin@sitecaisse.fr', password_hash: hash, role: 'admin' },
-    { nom: 'Marcel', email: 'marcel@artisan.fr', password_hash: hash, role: 'permanent' },
-    { nom: 'Sophie', email: 'sophie@artisan.fr', password_hash: hash, role: 'permanent' },
-    { nom: 'Jean', email: 'jean@artisan.fr', password_hash: hash, role: 'permanent' },
-    { nom: 'Lucas', email: 'lucas@artisan.fr', password_hash: hash, role: 'temporaire' },
-    { nom: 'Emma', email: 'emma@artisan.fr', password_hash: hash, role: 'temporaire' },
+    { nom: 'Admin', nom_boutique: 'Administration', password_hash: hash, role: 'admin' },
+    { nom: 'Marcel', nom_boutique: 'Atelier Marcel', password_hash: hash, role: 'permanent' },
+    { nom: 'Sophie', nom_boutique: 'Boutique Sophie', password_hash: hash, role: 'permanent' },
+    { nom: 'Jean', nom_boutique: 'Creation Jean', password_hash: hash, role: 'permanent' },
+    { nom: 'Lucas', nom_boutique: 'Echoppe Lucas', password_hash: hash, role: 'temporaire' },
+    { nom: 'Emma', nom_boutique: 'Atelier Emma', password_hash: hash, role: 'temporaire' },
   ]
 
   for (const user of users) {
@@ -66,13 +66,17 @@ if (require.main === module) {
 }
 
 /**
- * Recherche un utilisateur par son adresse email.
- * @param {string} email - L'adresse email de l'utilisateur à rechercher.
+ * Recherche un utilisateur par son nom de boutique.
+ * @param {string} nomBoutique - Le nom de boutique de l'utilisateur à rechercher.
  * @returns {Promise<Object|null>} L'objet utilisateur complet, ou null si non trouvé.
  */
-async function findUserByEmail(email) {
+async function findUserByNomBoutique(nomBoutique) {
   const supabase = getSupabase()
-  const { data, error } = await supabase.from('users').select('*').eq('email', email).single()
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .eq('nom_boutique', nomBoutique)
+    .single()
   if (error && error.code !== 'PGRST116') throw error
   return data || null
 }
@@ -80,13 +84,15 @@ async function findUserByEmail(email) {
 /**
  * Recherche un utilisateur par son ID.
  * @param {number} id - L'ID de l'utilisateur à rechercher.
- * @returns {Promise<Object|null>} L'objet utilisateur (id, nom, email, role, est_actif), ou null si non trouvé.
+ * @returns {Promise<Object|null>} L'objet utilisateur (id, nom, nom_boutique, role, est_actif), ou null si non trouvé.
  */
 async function findUserById(id) {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('users')
-    .select('id, nom, email, role, est_actif, date_fin, password_hash, password_change_required')
+    .select(
+      'id, nom, nom_boutique, role, est_actif, date_fin, password_hash, password_change_required',
+    )
     .eq('id', id)
     .single()
   if (error && error.code !== 'PGRST116') throw error
@@ -112,13 +118,13 @@ async function updatePassword(id, newPassword) {
 
 /**
  * Récupère tous les artisans actifs ayant un rôle permanent ou temporaire.
- * @returns {Promise<Array>} Tableau des artisans (id, nom, email, role).
+ * @returns {Promise<Array>} Tableau des artisans (id, nom, nom_boutique, role).
  */
 async function getAllArtisans() {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('users')
-    .select('id, nom, email, role')
+    .select('id, nom, nom_boutique, role')
     .eq('est_actif', 1)
     .in('role', ['permanent', 'temporaire'])
   if (error) throw error
@@ -201,7 +207,7 @@ function formatVente(vente, articlesByVente) {
     vendeur_id: vente.vendeur_id,
     date_vente: vente.date_vente,
     created_at: vente.created_at,
-    artisan_nom: vente.artisan?.nom || null,
+    artisan_nom: vente.artisan?.nom_boutique || vente.artisan?.nom || null,
     artisan_role: vente.artisan?.role || null,
     vendeur_nom: vente.vendeur?.nom || null,
     articles: venteArticles,
@@ -230,7 +236,7 @@ async function createVente(articles, type_paiement, vendeur_id, date_vente) {
   const supabase = getSupabase()
 
   // Déterminer un artisan principal pour l'en-tête (compatibilité) : prendre le premier article
-  const vente_artisan_id = articles && articles.length ? articles[0].artisan_id || null : null
+  const vente_artisan_id = articles?.length ? articles[0].artisan_id || null : null
 
   // 1. Créer l'en-tête de la vente
   const { data: venteData, error: venteError } = await supabase
@@ -289,7 +295,7 @@ async function getAllVentes(options = {}) {
       .from('ventes')
       .select(`
         *,
-        artisan:artisan_id (nom, role),
+        artisan:artisan_id (nom, role, nom_boutique),
         vendeur:vendeur_id (nom)
       `)
       .order('created_at', { ascending: false })
@@ -325,15 +331,18 @@ async function getVentesByArtisan(artisan_id) {
 
   const ventesFiltered = []
   for (const vente of allVentes) {
-    const articles = (vente.articles || []).filter((a) => Number(a.artisan_id) === Number(artisan_id))
+    const articles = (vente.articles || []).filter(
+      (a) => Number(a.artisan_id) === Number(artisan_id),
+    )
     if (articles.length > 0) {
       const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
-      const total_montant = articles.reduce((s, a) => s + (a.prix * (a.quantite || 0)), 0)
+      const total_montant = articles.reduce((s, a) => s + a.prix * (a.quantite || 0), 0)
       ventesFiltered.push({ ...vente, articles, total_articles, total_montant })
     }
   }
 
-  if (!ventesFiltered.length) return { ventes: [], summary: { total_articles: 0, total_montant: 0 } }
+  if (!ventesFiltered.length)
+    return { ventes: [], summary: { total_articles: 0, total_montant: 0 } }
 
   return { ventes: ventesFiltered, summary: summarizeVentes(ventesFiltered) }
 }
@@ -349,8 +358,8 @@ async function getAllVentesUnpaginated() {
     .from('ventes')
     .select(`
       *,
-      artisan:artisan_id (nom, role),
-      vendeur:vendeur_id (nom)
+        artisan:artisan_id (nom, role, nom_boutique),
+        vendeur:vendeur_id (nom)
     `)
     .order('created_at', { ascending: false })
 
@@ -395,7 +404,8 @@ async function getAllVentesGroupedByArtisan(options = {}) {
       if (!grouped[key]) {
         grouped[key] = {
           artisan_id: key,
-          artisan_nom: artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
+          artisan_nom:
+            artisanMap[key]?.nom_boutique || artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
           artisan_role: artisanMap[key]?.role || null,
           ventes: [],
         }
@@ -403,7 +413,7 @@ async function getAllVentesGroupedByArtisan(options = {}) {
 
       // Construire une entrée de vente ne contenant que les articles de cet artisan
       const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
-      const total_montant = articles.reduce((s, a) => s + (a.prix * (a.quantite || 0)), 0)
+      const total_montant = articles.reduce((s, a) => s + a.prix * (a.quantite || 0), 0)
 
       const venteEntry = {
         ...vente,
@@ -482,13 +492,14 @@ async function getAllVentesGroupedByMonth() {
       if (!byMonth[mois].groupes[key]) {
         byMonth[mois].groupes[key] = {
           artisan_id: key,
-          artisan_nom: artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
+          artisan_nom:
+            artisanMap[key]?.nom_boutique || artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
           ventes: [],
         }
       }
 
       const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
-      const total_montant = articles.reduce((s, a) => s + (a.prix * (a.quantite || 0)), 0)
+      const total_montant = articles.reduce((s, a) => s + a.prix * (a.quantite || 0), 0)
 
       const venteEntry = { ...vente, articles, total_articles, total_montant }
       byMonth[mois].groupes[key].ventes.push(venteEntry)
@@ -546,7 +557,7 @@ async function getVentesByMonth(mois) {
 
   const groupesMap = {}
   for (const vente of allVentes) {
-    if (!vente.date_vente || !vente.date_vente.startsWith(mois)) continue
+    if (!vente.date_vente?.startsWith(mois)) continue
 
     // regrouper articles par artisan
     const byArtisan = {}
@@ -561,13 +572,14 @@ async function getVentesByMonth(mois) {
       if (!groupesMap[key]) {
         groupesMap[key] = {
           artisan_id: key,
-          artisan_nom: artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
+          artisan_nom:
+            artisanMap[key]?.nom_boutique || artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
           ventes: [],
         }
       }
 
       const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
-      const total_montant = articles.reduce((s, a) => s + (a.prix * (a.quantite || 0)), 0)
+      const total_montant = articles.reduce((s, a) => s + a.prix * (a.quantite || 0), 0)
 
       const venteEntry = { ...vente, articles, total_articles, total_montant }
       groupesMap[key].ventes.push(venteEntry)
@@ -657,10 +669,11 @@ async function deleteVente(id) {
 }
 
 /**
- * Réinitialise le mot de passe d'un utilisateur : génère un nouveau mot de passe aléatoire,
+ * Réinitialise le mot de passe d'un utilisateur avec une valeur donnée,
  * le hache, le stocke en base et force le changement au prochain login.
  * @param {number} id - ID de l'utilisateur.
- * @returns {Promise<string>} Le nouveau mot de passe en clair (pour l'envoyer par email).
+ * @param {string} newPassword - Nouveau mot de passe en clair.
+ * @returns {Promise<string>} Le nouveau mot de passe en clair.
  */
 async function extendUserDateFin(id, newDateFin) {
   const supabase = getSupabase()
@@ -670,14 +683,11 @@ async function extendUserDateFin(id, newDateFin) {
   return true
 }
 
-async function resetUserPassword(id) {
+async function resetUserPassword(id, newPassword) {
   const supabase = getSupabase()
 
-  // Générer un mot de passe aléatoire de 12 caractères
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$%'
-  let newPassword = ''
-  for (let i = 0; i < 12; i++) {
-    newPassword += chars.charAt(Math.floor(Math.random() * chars.length))
+  if (!newPassword) {
+    throw new Error('Nouveau mot de passe requis')
   }
 
   const password_hash = bcrypt.hashSync(newPassword, 10)
@@ -703,7 +713,7 @@ async function seedAdminIfMissing() {
   const { data: existingAdmin } = await supabase
     .from('users')
     .select('id')
-    .eq('email', 'admin@sitecaisse.fr')
+    .eq('nom_boutique', 'Admin')
     .maybeSingle()
 
   if (existingAdmin) {
@@ -723,19 +733,19 @@ async function seedAdminIfMissing() {
 
   const { error } = await supabase
     .from('users')
-    .insert({ nom: 'Admin', email: 'admin@sitecaisse.fr', password_hash: hash, role: 'admin' })
+    .insert({ nom: 'Admin', nom_boutique: 'Admin', password_hash: hash, role: 'admin' })
 
   if (error) {
     console.error('❌ Erreur création compte admin:', error.message)
   } else {
-    console.log('✅ Compte admin créé (admin@sitecaisse.fr / password123)')
+    console.log('✅ Compte admin créé (Administration / password123)')
   }
 }
 
 module.exports = {
   seedIfEmpty,
   seedAdminIfMissing,
-  findUserByEmail,
+  findUserByNomBoutique,
   findUserById,
   updatePassword,
   extendUserDateFin,
