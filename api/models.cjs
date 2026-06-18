@@ -207,7 +207,7 @@ function formatVente(vente, articlesByVente) {
     vendeur_id: vente.vendeur_id,
     date_vente: vente.date_vente,
     created_at: vente.created_at,
-    artisan_nom: vente.artisan?.nom || null,
+    artisan_nom: vente.artisan?.nom_boutique || vente.artisan?.nom || null,
     artisan_role: vente.artisan?.role || null,
     vendeur_nom: vente.vendeur?.nom || null,
     articles: venteArticles,
@@ -295,7 +295,7 @@ async function getAllVentes(options = {}) {
       .from('ventes')
       .select(`
         *,
-        artisan:artisan_id (nom, role),
+        artisan:artisan_id (nom, role, nom_boutique),
         vendeur:vendeur_id (nom)
       `)
       .order('created_at', { ascending: false })
@@ -358,8 +358,8 @@ async function getAllVentesUnpaginated() {
     .from('ventes')
     .select(`
       *,
-      artisan:artisan_id (nom, role),
-      vendeur:vendeur_id (nom)
+        artisan:artisan_id (nom, role, nom_boutique),
+        vendeur:vendeur_id (nom)
     `)
     .order('created_at', { ascending: false })
 
@@ -405,7 +405,7 @@ async function getAllVentesGroupedByArtisan(options = {}) {
         grouped[key] = {
           artisan_id: key,
           artisan_nom:
-            artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
+            artisanMap[key]?.nom_boutique || artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
           artisan_role: artisanMap[key]?.role || null,
           ventes: [],
         }
@@ -493,7 +493,7 @@ async function getAllVentesGroupedByMonth() {
         byMonth[mois].groupes[key] = {
           artisan_id: key,
           artisan_nom:
-            artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
+            artisanMap[key]?.nom_boutique || artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
           ventes: [],
         }
       }
@@ -573,7 +573,7 @@ async function getVentesByMonth(mois) {
         groupesMap[key] = {
           artisan_id: key,
           artisan_nom:
-            artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
+            artisanMap[key]?.nom_boutique || artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
           ventes: [],
         }
       }
