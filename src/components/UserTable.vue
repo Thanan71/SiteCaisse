@@ -5,7 +5,7 @@
         <tr>
           <th class="col-id">ID</th>
           <th class="col-nom">Nom</th>
-          <th class="col-email">Email</th>
+          <th class="col-boutique">Boutique</th>
           <th class="col-role">Rôle</th>
           <th class="col-actif">Actif</th>
           <th class="col-date-fin">Date de fin</th>
@@ -17,7 +17,7 @@
         <tr v-for="user in users" :key="user.id">
           <td class="col-id">{{ user.id }}</td>
           <td class="col-nom">{{ user.nom }}</td>
-          <td class="col-email" :title="user.email">{{ user.email }}</td>
+          <td class="col-boutique" :title="user.nom_boutique">{{ user.nom_boutique }}</td>
           <td class="col-role">
             <span class="role-badge" :class="'role-' + user.role">
               {{ user.role === 'admin' ? 'Admin' : user.role === 'permanent' ? 'Permanent' : 'Temporaire' }}
@@ -119,7 +119,7 @@ defineEmits(['delete', 'extend', 'reset-password'])
   width: 50px;
   text-align: center;
 }
-.col-email {
+.col-boutique {
   max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -11,20 +11,20 @@ DELETE FROM parametres;
 
 -- Conserver uniquement l'admin et supprimer tous les autres comptes
 DELETE FROM users
-WHERE email <> 'admin@sitecaisse.fr';
+WHERE nom_boutique <> 'Administration';
 
 -- Créer ou mettre à jour le compte admin avec un mot de passe connu
-INSERT INTO users (nom, email, password_hash, role, est_actif, password_change_required, created_at)
+INSERT INTO users (nom, nom_boutique, password_hash, role, est_actif, password_change_required, created_at)
 VALUES (
   'Admin',
-  'admin@sitecaisse.fr',
+  'Administration',
   '$2b$10$KjIvYPinFfUhH/oAAOA9uufdBD1lR4bVgqgPViN/bRRx0rZj69IcW',
   'admin',
   1,
   0,
   CURRENT_TIMESTAMP
 )
-ON CONFLICT (email) DO UPDATE SET
+ON CONFLICT (nom_boutique) DO UPDATE SET
   nom = EXCLUDED.nom,
   password_hash = EXCLUDED.password_hash,
   role = EXCLUDED.role,

@@ -4,9 +4,9 @@
 CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   nom TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL,
+  nom_boutique TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  role TEXT DEFAULT 'permanent' CHECK(role IN ('permanent', 'temporaire')),
+  role TEXT DEFAULT 'permanent' CHECK(role IN ('admin', 'permanent', 'temporaire')),
   est_actif INTEGER DEFAULT 1,
   password_change_required INTEGER DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS action_logs (
   id SERIAL PRIMARY KEY,
   user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
   user_nom TEXT,
-  user_email TEXT,
+  user_nom_boutique TEXT,
   action TEXT NOT NULL,
   cible_type TEXT,
   cible_id TEXT,

@@ -45,12 +45,12 @@
               />
             </div>
             <div class="form-group">
-              <label for="email">Email</label>
+              <label for="nom_boutique">Nom de la boutique</label>
               <input
-                id="email"
-                v-model="newUser.email"
-                type="email"
-                placeholder="Email de l'utilisateur"
+                id="nom_boutique"
+                v-model="newUser.nom_boutique"
+                type="text"
+                placeholder="Nom de la boutique"
                 required
               />
             </div>
@@ -138,7 +138,7 @@
     <ConfirmModal
       :show="showDeleteModal"
       title="Confirmer la suppression"
-      :message="`Êtes-vous sûr de vouloir supprimer **${userToDelete?.nom}** (${userToDelete?.email}) ?`"
+      :message="`Êtes-vous sûr de vouloir supprimer **${userToDelete?.nom}** (${userToDelete?.nom_boutique}) ?`"
       warning="Cette action est irréversible. Les ventes liées à cet utilisateur seront également supprimées."
       confirmText="Confirmer la suppression"
       variant="danger"
@@ -180,11 +180,11 @@
       :show="showResetModal"
       title="Réinitialiser le mot de passe"
       :message="resetMessage"
-      warning="Un nouveau mot de passe sera généré et envoyé par email. L'utilisateur devra changer son mot de passe à la prochaine connexion."
+      warning="Un nouveau mot de passe sera généré et affiché après confirmation. L'utilisateur devra changer son mot de passe à la prochaine connexion."
       confirmText="Réinitialiser"
       variant="warning"
       :loading="resettingId !== null"
-      loadingText="Envoi en cours..."
+      loadingText="Réinitialisation..."
       @confirm="confirmResetPassword"
       @cancel="closeResetModal"
     />
@@ -198,9 +198,9 @@ import LogsViewer from '../components/LogsViewer.vue'
 import ParametresCommissions from '../components/ParametresCommissions.vue'
 import TabNav from '../components/TabNav.vue'
 import UserTable from '../components/UserTable.vue'
-import { useUsers } from '../composables/useUsers'
 import { useCommissions } from '../composables/useCommissions'
 import { useLogs } from '../composables/useLogs'
+import { useUsers } from '../composables/useUsers'
 import { formatDateSimple } from '../utils/formatters'
 
 const activePanel = ref('users')

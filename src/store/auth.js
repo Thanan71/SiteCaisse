@@ -44,12 +44,12 @@ export const useAuthStore = defineStore('auth', {
     /**
      * Connecte un utilisateur avec ses identifiants.
      * Enregistre le token et les données utilisateur dans le store et le localStorage.
-     * @param {string} email - Adresse email de l'utilisateur.
+     * @param {string} nomBoutique - Nom de boutique de l'utilisateur.
      * @param {string} password - Mot de passe de l'utilisateur.
      * @returns {Promise<Object>} Données de l'utilisateur connecté.
      */
-    async login(email, password) {
-      const response = await api.post('/api/auth/login', { email, password })
+    async login(nomBoutique, password) {
+      const response = await api.post('/api/auth/login', { nom_boutique: nomBoutique, password })
       const { token, user } = response.data
 
       this.token = token

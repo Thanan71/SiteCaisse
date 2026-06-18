@@ -9,14 +9,14 @@
 
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="form-group">
-          <label for="email">Email</label>
+          <label for="nom-boutique">Nom de la boutique</label>
           <input
-            id="email"
-            v-model="email"
-            type="email"
-            placeholder="exemple@artisan.fr"
+            id="nom-boutique"
+            v-model="nomBoutique"
+            type="text"
+            placeholder="Atelier Marcel"
             required
-            autocomplete="email"
+            autocomplete="username"
           />
         </div>
 
@@ -44,11 +44,11 @@
       <div class="login-footer">
         <p>Artisans disponibles :</p>
         <div class="artisan-list">
-          <span class="artisan-item">Marcel (permanent)</span>
-          <span class="artisan-item">Sophie (permanent)</span>
-          <span class="artisan-item">Jean (permanent)</span>
-          <span class="artisan-item">Lucas (temporaire)</span>
-          <span class="artisan-item">Emma (temporaire)</span>
+          <span class="artisan-item">Atelier Marcel</span>
+          <span class="artisan-item">Boutique Sophie</span>
+          <span class="artisan-item">Creation Jean</span>
+          <span class="artisan-item">Echoppe Lucas</span>
+          <span class="artisan-item">Atelier Emma</span>
         </div>
         <p class="password-hint">Mot de passe pour tous : <code>password123</code></p>
       </div>
@@ -64,7 +64,7 @@ import { useAuthStore } from '../store/auth'
 const router = useRouter()
 const authStore = useAuthStore()
 
-const email = ref('')
+const nomBoutique = ref('')
 const password = ref('')
 const loading = ref(false)
 const error = ref(null)
@@ -74,7 +74,7 @@ async function handleLogin() {
   error.value = null
 
   try {
-    const result = await authStore.login(email.value, password.value)
+    const result = await authStore.login(nomBoutique.value, password.value)
     if (result.password_change_required) {
       router.push({ name: 'ChangePassword' })
     } else {
