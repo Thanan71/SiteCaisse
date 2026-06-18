@@ -180,7 +180,7 @@
       :show="showResetModal"
       title="Réinitialiser le mot de passe"
       :message="resetMessage"
-      warning="Un nouveau mot de passe sera généré et affiché après confirmation. L'utilisateur devra changer son mot de passe à la prochaine connexion."
+      warning="Le nouveau mot de passe sera le nom de l'utilisateur. Il devra changer son mot de passe à la prochaine connexion."
       confirmText="Réinitialiser"
       variant="warning"
       :loading="resettingId !== null"

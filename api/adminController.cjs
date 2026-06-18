@@ -323,8 +323,8 @@ router.get('/logs', authMiddleware, adminMiddleware, async (req, res) => {
 /**
  * POST /api/admin/users/:id/reset-password
  * Réinitialise le mot de passe d'un utilisateur.
- * Génère un nouveau mot de passe aléatoire et force le changement de mot de passe
- * à la prochaine connexion.
+ * Utilise le nom de l'utilisateur comme nouveau mot de passe et force le changement
+ * de mot de passe à la prochaine connexion.
  * @param {number} req.params.id - ID de l'utilisateur.
  * @returns {Object} Message de confirmation.
  */
@@ -349,8 +349,8 @@ router.post('/users/:id/reset-password', authMiddleware, adminMiddleware, async 
       return res.status(404).json({ error: 'Utilisateur non trouvé' })
     }
 
-    // Générer un nouveau mot de passe et le stocker en base (avec password_change_required = 1)
-    const newPassword = await resetUserPassword(userId)
+    // Utiliser le nom de l'utilisateur comme mot de passe temporaire.
+    const newPassword = await resetUserPassword(userId, user.nom)
 
     await logAction({
       user: req.user,
@@ -362,7 +362,7 @@ router.post('/users/:id/reset-password', authMiddleware, adminMiddleware, async 
     })
 
     res.json({
-      message: 'Mot de passe réinitialisé avec succès.',
+      message: "Mot de passe réinitialisé avec succès avec le nom de l'utilisateur.",
       newPassword,
     })
   } catch (err) {

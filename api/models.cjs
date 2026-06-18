@@ -669,9 +669,10 @@ async function deleteVente(id) {
 }
 
 /**
- * Réinitialise le mot de passe d'un utilisateur : génère un nouveau mot de passe aléatoire,
+ * Réinitialise le mot de passe d'un utilisateur avec une valeur donnée,
  * le hache, le stocke en base et force le changement au prochain login.
  * @param {number} id - ID de l'utilisateur.
+ * @param {string} newPassword - Nouveau mot de passe en clair.
  * @returns {Promise<string>} Le nouveau mot de passe en clair.
  */
 async function extendUserDateFin(id, newDateFin) {
@@ -682,14 +683,11 @@ async function extendUserDateFin(id, newDateFin) {
   return true
 }
 
-async function resetUserPassword(id) {
+async function resetUserPassword(id, newPassword) {
   const supabase = getSupabase()
 
-  // Générer un mot de passe aléatoire de 12 caractères
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$%'
-  let newPassword = ''
-  for (let i = 0; i < 12; i++) {
-    newPassword += chars.charAt(Math.floor(Math.random() * chars.length))
+  if (!newPassword) {
+    throw new Error('Nouveau mot de passe requis')
   }
 
   const password_hash = bcrypt.hashSync(newPassword, 10)
