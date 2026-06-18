@@ -80,7 +80,7 @@
               >
                 <option value="" disabled>Sélectionner un artisan</option>
                 <option v-for="artisan in artisans" :key="artisan.id" :value="artisan.id">
-                  {{ artisan.nom }} ({{ artisan.role === 'permanent' ? 'Permanent' : 'Temporaire' }})
+                  {{ getArtisanBoutiqueLabel(artisan) }} ({{ artisan.role === 'permanent' ? 'Permanent' : 'Temporaire' }})
                 </option>
               </select>
             </div>
@@ -187,6 +187,10 @@ watch(
 
 function fieldId(name) {
   return `${props.mode}-vente-${name}`
+}
+
+function getArtisanBoutiqueLabel(artisan) {
+  return artisan.nom_boutique || artisan.nom || 'Boutique inconnue'
 }
 
 function hydrateForm() {
