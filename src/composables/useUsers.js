@@ -42,8 +42,11 @@ export function useUsers() {
 
   // Réinitialisation mot de passe
   const showResetModal = ref(false)
+  const showResetResultModal = ref(false)
   const userToReset = ref(null)
   const resetMessage = ref('')
+  const resetResultMessage = ref('')
+  const resetResultPassword = ref('')
   const resettingId = ref(null)
 
   /**
@@ -205,6 +208,15 @@ export function useUsers() {
   }
 
   /**
+   * Ferme la modale de résultat de réinitialisation.
+   */
+  function closeResetResultModal() {
+    showResetResultModal.value = false
+    resetResultMessage.value = ''
+    resetResultPassword.value = ''
+  }
+
+  /**
    * Confirme et exécute la réinitialisation du mot de passe.
    */
   async function confirmResetPassword() {
@@ -215,10 +227,9 @@ export function useUsers() {
     try {
       const response = await api.post(`/api/admin/users/${userToReset.value.id}/reset-password`)
       closeResetModal()
-      const message = response.data.newPassword
-        ? `${response.data.message}\nNouveau mot de passe : ${response.data.newPassword}`
-        : response.data.message || 'Mot de passe réinitialisé avec succès.'
-      alert(message)
+      resetResultMessage.value = response.data.message || 'Mot de passe réinitialisé avec succès.'
+      resetResultPassword.value = response.data.newPassword || ''
+      showResetResultModal.value = true
     } catch (err) {
       closeResetModal()
       alert(err.response?.data?.error || 'Erreur lors de la réinitialisation du mot de passe')
@@ -279,8 +290,11 @@ export function useUsers() {
     extendError,
     extendingId,
     showResetModal,
+    showResetResultModal,
     userToReset,
     resetMessage,
+    resetResultMessage,
+    resetResultPassword,
     resettingId,
 
     // Méthodes
@@ -301,6 +315,7 @@ export function useUsers() {
     // Réinitialisation mot de passe
     openResetModal,
     closeResetModal,
+    closeResetResultModal,
     confirmResetPassword,
 
     // Utilitaires
