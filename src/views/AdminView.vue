@@ -188,6 +188,22 @@
       @confirm="confirmResetPassword"
       @cancel="closeResetModal"
     />
+
+    <!-- Modal de résultat de réinitialisation de mot de passe -->
+    <div v-if="showResetResultModal" class="custom-modal-overlay" @click.self="closeResetResultModal">
+      <div class="custom-modal-content">
+        <h3>✅ Mot de passe réinitialisé</h3>
+        <p>{{ resetResultMessage }}</p>
+        <div v-if="resetResultPassword" class="password-result-box">
+          <p style="margin-bottom: 6px;"><strong>Nouveau mot de passe :</strong></p>
+          <div class="password-display">{{ resetResultPassword }}</div>
+          <p class="password-hint">Copiez ce mot de passe et transmettez-le à l'utilisateur. Il devra le changer à la prochaine connexion.</p>
+        </div>
+        <div class="modal-actions">
+          <button @click="closeResetResultModal" class="btn btn-primary">Fermer</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -222,8 +238,11 @@ const {
   extendError,
   extendingId,
   showResetModal,
+  showResetResultModal,
   userToReset,
   resetMessage,
+  resetResultMessage,
+  resetResultPassword,
   resettingId,
   fetchUsers,
   handleCreateUser,
@@ -236,6 +255,7 @@ const {
   confirmExtendUser,
   openResetModal,
   closeResetModal,
+  closeResetResultModal,
   confirmResetPassword,
   getStatusClass,
   getStatusLabel,
@@ -465,6 +485,35 @@ onMounted(() => {
   color: #475569;
   font-size: 0.9rem;
   line-height: 1.5;
+}
+
+.password-result-box {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+}
+
+.password-display {
+  font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #16a34a;
+  background: white;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px dashed #86efac;
+  text-align: center;
+  letter-spacing: 0.5px;
+  user-select: all;
+}
+
+.password-hint {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin: 8px 0 0 0;
+  font-style: italic;
 }
 
 /* Modal */
