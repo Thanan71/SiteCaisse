@@ -152,7 +152,7 @@ async function updatePassword(id, newPassword) {
   const password_hash = bcrypt.hashSync(newPassword, 10)
   const { error } = await supabase
     .from('users')
-    .update({ password_hash, generated_password: newPassword, password_change_required: 0 })
+    .update({ password_hash, generated_password: newPassword, password_change_required: false })
     .eq('id', id)
   if (error) throw error
   return true
@@ -167,7 +167,7 @@ async function getAllArtisans() {
   const { data, error } = await supabase
     .from('users')
     .select('id, nom, nom_boutique, role, commission_cb_personnalisee')
-    .eq('est_actif', 1)
+    .eq('est_actif', true)
     .in('role', ['permanent', 'temporaire'])
   if (error) throw error
   return data || []
@@ -231,17 +231,21 @@ function formatVente(vente, articlesByVente) {
     (sum, article) => sum + article.prix * article.quantite,
     0,
   )
+  const articleArtisanIds = [
+    ...new Set(
+      venteArticles
+        .map((article) => article.artisan_id)
+        .filter((artisanId) => artisanId !== null && artisanId !== undefined),
+    ),
+  ]
 
   return {
     id: vente.id,
     type_paiement: vente.type_paiement,
-    artisan_id: vente.artisan_id,
+    artisan_id: articleArtisanIds.length === 1 ? articleArtisanIds[0] : null,
     vendeur_id: vente.vendeur_id,
     date_vente: vente.date_vente,
     created_at: vente.created_at,
-    artisan_nom: vente.artisan?.nom_boutique || vente.artisan?.nom || null,
-    artisan_role: vente.artisan?.role || null,
-    artisan_commission_cb_personnalisee: vente.artisan?.commission_cb_personnalisee ?? null,
     vendeur_nom: vente.vendeur?.nom || null,
     articles: venteArticles,
     total_articles,
@@ -260,7 +264,6 @@ async function formatVentesWithArticles(supabase, ventes) {
  * Crée une nouvelle vente avec ses lignes d'articles.
  * @param {Array<{article: string, quantite: number, prix: number}>} articles - Liste des articles vendus.
  * @param {string} type_paiement - Type de paiement (CB, Espece, Cheque).
- * @param {number} artisan_id - ID de l'artisan concerné.
  * @param {number} vendeur_id - ID de l'utilisateur qui a effectué la vente.
  * @param {string} date_vente - Date de la vente au format ISO.
  * @returns {Promise<number>} L'ID de la vente créée.
@@ -268,13 +271,10 @@ async function formatVentesWithArticles(supabase, ventes) {
 async function createVente(articles, type_paiement, vendeur_id, date_vente) {
   const supabase = getSupabase()
 
-  // Déterminer un artisan principal pour l'en-tête (compatibilité) : prendre le premier article
-  const vente_artisan_id = articles?.length ? articles[0].artisan_id || null : null
-
   // 1. Créer l'en-tête de la vente
   const { data: venteData, error: venteError } = await supabase
     .from('ventes')
-    .insert({ type_paiement, artisan_id: vente_artisan_id, vendeur_id, date_vente })
+    .insert({ type_paiement, vendeur_id, date_vente })
     .select('id')
     .single()
 
@@ -328,7 +328,6 @@ async function getAllVentes(options = {}) {
       .from('ventes')
       .select(`
         *,
-        artisan:artisan_id (nom, role, nom_boutique, commission_cb_personnalisee),
         vendeur:vendeur_id (nom)
       `)
       .order('created_at', { ascending: false })
@@ -374,7 +373,6 @@ async function getAllVentesUnpaginated() {
     .from('ventes')
     .select(`
       *,
-        artisan:artisan_id (nom, role, nom_boutique, commission_cb_personnalisee),
         vendeur:vendeur_id (nom)
     `)
     .order('created_at', { ascending: false })
@@ -437,7 +435,6 @@ async function getVentesByMonth(mois) {
  * @param {number} id - ID de la vente à modifier.
  * @param {Object} fields - Objet contenant les champs à mettre à jour.
  * @param {string} [fields.type_paiement] - Nouveau type de paiement.
- * @param {number} [fields.artisan_id] - Nouvel ID de l'artisan.
  * @param {string} [fields.date_vente] - Nouvelle date de vente.
  * @param {Array<{id?: number, article: string, quantite: number, prix: number}>} [fields.articles] - Nouvelle liste d'articles.
  * @returns {Promise<boolean>} true si la mise à jour a réussi.
@@ -446,7 +443,7 @@ async function updateVente(id, fields) {
   const supabase = getSupabase()
 
   // Mettre à jour l'en-tête de la vente
-  const allowed = ['type_paiement', 'artisan_id', 'date_vente']
+  const allowed = ['type_paiement', 'date_vente']
   const updateData = {}
   for (const key of allowed) {
     if (fields[key] !== undefined) updateData[key] = fields[key]
@@ -519,7 +516,7 @@ async function resetUserPassword(id, newPassword) {
   const password_hash = bcrypt.hashSync(newPassword, 10)
   const { error } = await supabase
     .from('users')
-    .update({ password_hash, generated_password: newPassword, password_change_required: 0 })
+    .update({ password_hash, generated_password: newPassword, password_change_required: false })
     .eq('id', id)
 
   if (error) throw error
@@ -535,18 +532,30 @@ async function seedAdminIfMissing() {
   const supabase = getSupabase()
 
   const hash = bcrypt.hashSync('password123', 10)
+  const adminBoutique = 'Administration'
+  const legacyAdminBoutique = 'Admin'
 
-  const { data: existingAdmin } = await supabase
+  const { data: existingAdmins } = await supabase
     .from('users')
-    .select('id')
-    .eq('nom_boutique', 'Admin')
-    .maybeSingle()
+    .select('id, nom_boutique')
+    .in('nom_boutique', [adminBoutique, legacyAdminBoutique])
 
+  const existingAdmin =
+    existingAdmins?.find((user) => user.nom_boutique === adminBoutique) || existingAdmins?.[0]
   if (existingAdmin) {
     // Mettre à jour le mot de passe pour garantir qu'il soit valide
     const { error: updateError } = await supabase
       .from('users')
-      .update({ password_hash: hash, generated_password: 'password123' })
+      .update({
+        nom: 'Admin',
+        nom_boutique: adminBoutique,
+        password_hash: hash,
+        generated_password: 'password123',
+        role: 'admin',
+        est_actif: true,
+        password_change_required: false,
+        date_fin: null,
+      })
       .eq('id', existingAdmin.id)
 
     if (updateError) {
@@ -559,10 +568,13 @@ async function seedAdminIfMissing() {
 
   const { error } = await supabase.from('users').insert({
     nom: 'Admin',
-    nom_boutique: 'Admin',
+    nom_boutique: adminBoutique,
     password_hash: hash,
     generated_password: 'password123',
     role: 'admin',
+    est_actif: true,
+    password_change_required: false,
+    date_fin: null,
   })
 
   if (error) {

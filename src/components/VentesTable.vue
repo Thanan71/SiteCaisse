@@ -145,16 +145,14 @@ function getArtisansForVente(vente) {
 
   if (vente.articles?.length) {
     for (const art of vente.articles) {
-      const aid = art.artisan_id || vente.artisan_id || null
+      const aid = art.artisan_id || null
       const name = artisansStore.getArtisanName(Number(aid))
       if (name && name !== 'Artisan inconnu' && !artisans.includes(name)) artisans.push(name)
     }
   }
 
   if (artisans.length) return artisans.join(', ')
-
-  // fallback: try vente.artisan_nom or 'Artisan inconnu'
-  return vente.artisan_nom || artisansStore.getArtisanName(null)
+  return artisansStore.getArtisanName(null)
 }
 
 const columnCount = computed(() => {

@@ -98,7 +98,7 @@ async function createUser({ nom, nom_boutique, password, role, date_fin }) {
     password_hash: bcrypt.hashSync(password, 10),
     generated_password: password,
     role,
-    password_change_required: 1,
+    password_change_required: true,
   }
 
   if (date_fin) {
@@ -129,18 +129,7 @@ async function deleteUser(userId, currentUserId) {
     throw new AdminUserError('Utilisateur non trouvé', 404, 'USER_NOT_FOUND')
   }
 
-  const { error: artisanVentesError } = await supabase
-    .from('ventes')
-    .delete()
-    .eq('artisan_id', userId)
-  if (artisanVentesError) throw artisanVentesError
-
-  const { error: vendeurVentesError } = await supabase
-    .from('ventes')
-    .delete()
-    .eq('vendeur_id', userId)
-  if (vendeurVentesError) throw vendeurVentesError
-
+  // Les FK en base détachent les ventes via ON DELETE SET NULL pour conserver l'historique.
   const { error } = await supabase.from('users').delete().eq('id', userId)
   if (error) throw error
 

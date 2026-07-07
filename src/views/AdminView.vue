@@ -210,7 +210,7 @@
       :show="showDeleteModal"
       title="Confirmer la suppression"
       :message="`Êtes-vous sûr de vouloir supprimer **${userToDelete?.nom}** (${userToDelete?.nom_boutique}) ?`"
-      warning="Cette action est irréversible. Les ventes liées à cet utilisateur seront également supprimées."
+      warning="Cette action est irréversible. Les ventes historiques seront conservées, mais détachées de cet utilisateur."
       confirmText="Confirmer la suppression"
       variant="danger"
       :loading="deletingId !== null"

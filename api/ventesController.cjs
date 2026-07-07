@@ -56,9 +56,8 @@ router.get('/', async (req, res) => {
 /**
  * Crée une nouvelle vente avec un ou plusieurs articles.
  * @route POST /api/ventes
- * @param {Array<{article: string, quantite: number, prix: number}>} req.body.articles - Liste des articles vendus (requis, minimum 1).
+ * @param {Array<{article: string, quantite: number, prix: number, artisan_id: number}>} req.body.articles - Liste des articles vendus (requis, minimum 1).
  * @param {string} req.body.type_paiement - Type de paiement, doit être 'CB', 'Espece' ou 'Cheque' (requis).
- * @param {number} req.body.artisan_id - ID de l'artisan concerné (requis).
  * @param {string} req.body.date_vente - Date de la vente au format ISO (requis).
  * @returns {Object} ID de la vente créée et message de confirmation.
  * @throws {400} Si un champ requis est manquant ou si le type de paiement est invalide.
@@ -103,7 +102,7 @@ router.post('/', async (req, res) => {
  * Modifie une vente existante.
  * @route PUT /api/ventes/:id
  * @param {number} req.params.id - ID de la vente à modifier.
- * @param {Object} req.body - Champs à modifier (type_paiement, artisan_id, date_vente, articles).
+ * @param {Object} req.body - Champs à modifier (type_paiement, date_vente, articles).
  * @param {Array} [req.body.articles] - Nouvelle liste d'articles (remplace les anciens).
  * @returns {Object} Message de confirmation de la modification.
  * @throws {404} Si la vente n'est pas trouvée ou si aucun champ valide fourni.
