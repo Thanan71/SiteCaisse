@@ -32,7 +32,7 @@ async function getAllParametres() {
  */
 async function updateParametre(cle, valeur, description = '') {
   const supabase = getSupabase()
-  
+
   // Vérifier si la clé existe déjà
   const { data: existing } = await supabase
     .from('parametres')

@@ -131,13 +131,13 @@ router.post('/login', async (req, res) => {
 
     res.json({
       token,
-      password_change_required: user.password_change_required === 1,
+      password_change_required: Boolean(user.password_change_required),
       user: {
         id: user.id,
         nom: user.nom,
         nom_boutique: user.nom_boutique,
         role: user.role,
-        password_change_required: user.password_change_required === 1,
+        password_change_required: Boolean(user.password_change_required),
       },
     })
   } catch (err) {
@@ -210,7 +210,7 @@ router.post('/change-password', authMiddleware, async (req, res) => {
     }
 
     // Si l'utilisateur n'est pas en changement obligatoire, vérifier l'ancien mot de passe
-    if (user.password_change_required !== 1) {
+    if (!user.password_change_required) {
       if (!currentPassword) {
         return res.status(400).json({ error: 'Mot de passe actuel requis' })
       }

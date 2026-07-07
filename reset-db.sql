@@ -22,6 +22,7 @@ INSERT INTO users (
   role,
   est_actif,
   password_change_required,
+  date_fin,
   created_at
 )
 VALUES (
@@ -30,8 +31,9 @@ VALUES (
   '$2b$10$KjIvYPinFfUhH/oAAOA9uufdBD1lR4bVgqgPViN/bRRx0rZj69IcW',
   'password123',
   'admin',
-  1,
-  0,
+  true,
+  false,
+  NULL,
   CURRENT_TIMESTAMP
 )
 ON CONFLICT (nom_boutique) DO UPDATE SET
@@ -40,6 +42,16 @@ ON CONFLICT (nom_boutique) DO UPDATE SET
   generated_password = EXCLUDED.generated_password,
   role = EXCLUDED.role,
   est_actif = EXCLUDED.est_actif,
-  password_change_required = EXCLUDED.password_change_required;
+  password_change_required = EXCLUDED.password_change_required,
+  date_fin = EXCLUDED.date_fin;
+
+-- Restaurer les paramètres système par défaut
+INSERT INTO parametres (cle, valeur, description) VALUES
+  ('commission_cb_permanent', '1.70', 'Commission CB en % pour les artisans permanents'),
+  ('commission_cb_temporaire', '1.70', 'Commission CB en % pour les artisans temporaires')
+ON CONFLICT (cle) DO UPDATE SET
+  valeur = EXCLUDED.valeur,
+  description = EXCLUDED.description,
+  updated_at = CURRENT_TIMESTAMP;
 
 COMMIT;

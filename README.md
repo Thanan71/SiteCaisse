@@ -84,12 +84,13 @@ JWT_SECRET=<secret-jwt-personnel>
 PORT=3001
 ```
 
-> Note : `SUPABASE_SERVICE_ROLE_KEY` est recommandé pour permettre au backend d’exécuter les opérations Supabase sans RLS. Ne partagez jamais cette clé publiquement.
+> Note : `SUPABASE_SERVICE_ROLE_KEY` est fortement recommandé pour que seul le backend accède aux tables Supabase. Ne partagez jamais cette clé publiquement.
 
 4. Créer les tables Supabase
 
-- Exécuter `supabase-schema.sql` depuis l’éditeur SQL du dashboard Supabase.
-- Vérifier que les tables `users`, `ventes` et `action_logs` sont présentes.
+- Pour une nouvelle base, exécuter `supabase-schema.sql` depuis l’éditeur SQL du dashboard Supabase.
+- Pour une base existante, appliquer les fichiers `supabase-migrations/*.sql` dans l’ordre, puis `011_harden_schema_constraints_indexes.sql`.
+- Vérifier que les tables `users`, `ventes`, `vente_articles`, `parametres` et `action_logs` sont présentes.
 
 5. Lancer l’application
 
@@ -158,7 +159,9 @@ npm run dev
 Le fichier `supabase-schema.sql` déclare :
 
 - `users` : comptes, rôles, état actif, mot de passe, date de fin pour accès temporaire
-- `ventes` : ventes enregistrées avec type de paiement, artisan, vendeur, date et montant
+- `ventes` : en-têtes de vente avec paiement, vendeur et date
+- `vente_articles` : lignes d’articles vendus, avec quantité, prix et artisan attribué par ligne
+- `parametres` : paramètres système, notamment les taux de commission CB
 - `action_logs` : journalisation des actions utilisateur et erreurs
 
 ## 🔐 Rôles et autorisations

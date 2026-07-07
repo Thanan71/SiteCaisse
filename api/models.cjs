@@ -5,6 +5,12 @@
  */
 const bcrypt = require('bcryptjs')
 const { getSupabase } = require('./db.cjs')
+const {
+  filterVentesByArtisan,
+  groupVentesByArtisan,
+  groupVentesByMonth,
+  groupVentesForMonth,
+} = require('./services/venteAggregationService.cjs')
 
 /**
  * Vérifie si des utilisateurs existent dans la table users.
@@ -146,7 +152,7 @@ async function updatePassword(id, newPassword) {
   const password_hash = bcrypt.hashSync(newPassword, 10)
   const { error } = await supabase
     .from('users')
-    .update({ password_hash, generated_password: newPassword, password_change_required: 0 })
+    .update({ password_hash, generated_password: newPassword, password_change_required: false })
     .eq('id', id)
   if (error) throw error
   return true
@@ -154,14 +160,14 @@ async function updatePassword(id, newPassword) {
 
 /**
  * Récupère tous les artisans actifs ayant un rôle permanent ou temporaire.
- * @returns {Promise<Array>} Tableau des artisans (id, nom, nom_boutique, role).
+ * @returns {Promise<Array>} Tableau des artisans (id, nom, nom_boutique, role, commission personnalisée).
  */
 async function getAllArtisans() {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('users')
-    .select('id, nom, nom_boutique, role')
-    .eq('est_actif', 1)
+    .select('id, nom, nom_boutique, role, commission_cb_personnalisee')
+    .eq('est_actif', true)
     .in('role', ['permanent', 'temporaire'])
   if (error) throw error
   return data || []
@@ -218,16 +224,6 @@ function groupArticlesByVenteId(articles) {
   }, {})
 }
 
-function summarizeVentes(ventes) {
-  return ventes.reduce(
-    (summary, vente) => ({
-      total_articles: summary.total_articles + vente.total_articles,
-      total_montant: summary.total_montant + vente.total_montant,
-    }),
-    { total_articles: 0, total_montant: 0 },
-  )
-}
-
 function formatVente(vente, articlesByVente) {
   const venteArticles = articlesByVente[vente.id] || []
   const total_articles = venteArticles.reduce((sum, article) => sum + (article.quantite || 0), 0)
@@ -235,16 +231,21 @@ function formatVente(vente, articlesByVente) {
     (sum, article) => sum + article.prix * article.quantite,
     0,
   )
+  const articleArtisanIds = [
+    ...new Set(
+      venteArticles
+        .map((article) => article.artisan_id)
+        .filter((artisanId) => artisanId !== null && artisanId !== undefined),
+    ),
+  ]
 
   return {
     id: vente.id,
     type_paiement: vente.type_paiement,
-    artisan_id: vente.artisan_id,
+    artisan_id: articleArtisanIds.length === 1 ? articleArtisanIds[0] : null,
     vendeur_id: vente.vendeur_id,
     date_vente: vente.date_vente,
     created_at: vente.created_at,
-    artisan_nom: vente.artisan?.nom_boutique || vente.artisan?.nom || null,
-    artisan_role: vente.artisan?.role || null,
     vendeur_nom: vente.vendeur?.nom || null,
     articles: venteArticles,
     total_articles,
@@ -263,7 +264,6 @@ async function formatVentesWithArticles(supabase, ventes) {
  * Crée une nouvelle vente avec ses lignes d'articles.
  * @param {Array<{article: string, quantite: number, prix: number}>} articles - Liste des articles vendus.
  * @param {string} type_paiement - Type de paiement (CB, Espece, Cheque).
- * @param {number} artisan_id - ID de l'artisan concerné.
  * @param {number} vendeur_id - ID de l'utilisateur qui a effectué la vente.
  * @param {string} date_vente - Date de la vente au format ISO.
  * @returns {Promise<number>} L'ID de la vente créée.
@@ -271,13 +271,10 @@ async function formatVentesWithArticles(supabase, ventes) {
 async function createVente(articles, type_paiement, vendeur_id, date_vente) {
   const supabase = getSupabase()
 
-  // Déterminer un artisan principal pour l'en-tête (compatibilité) : prendre le premier article
-  const vente_artisan_id = articles?.length ? articles[0].artisan_id || null : null
-
   // 1. Créer l'en-tête de la vente
   const { data: venteData, error: venteError } = await supabase
     .from('ventes')
-    .insert({ type_paiement, artisan_id: vente_artisan_id, vendeur_id, date_vente })
+    .insert({ type_paiement, vendeur_id, date_vente })
     .select('id')
     .single()
 
@@ -331,7 +328,6 @@ async function getAllVentes(options = {}) {
       .from('ventes')
       .select(`
         *,
-        artisan:artisan_id (nom, role, nom_boutique),
         vendeur:vendeur_id (nom)
       `)
       .order('created_at', { ascending: false })
@@ -362,25 +358,8 @@ async function getAllVentes(options = {}) {
  * @returns {Promise<{ventes: Array, summary: {total_articles: number, total_montant: number}}>}
  */
 async function getVentesByArtisan(artisan_id) {
-  // Agréger les ventes pour un artisan en se basant sur les articles
   const allVentes = await getAllVentesUnpaginated()
-
-  const ventesFiltered = []
-  for (const vente of allVentes) {
-    const articles = (vente.articles || []).filter(
-      (a) => Number(a.artisan_id) === Number(artisan_id),
-    )
-    if (articles.length > 0) {
-      const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
-      const total_montant = articles.reduce((s, a) => s + a.prix * (a.quantite || 0), 0)
-      ventesFiltered.push({ ...vente, articles, total_articles, total_montant })
-    }
-  }
-
-  if (!ventesFiltered.length)
-    return { ventes: [], summary: { total_articles: 0, total_montant: 0 } }
-
-  return { ventes: ventesFiltered, summary: summarizeVentes(ventesFiltered) }
+  return filterVentesByArtisan(allVentes, artisan_id)
 }
 
 /**
@@ -394,7 +373,6 @@ async function getAllVentesUnpaginated() {
     .from('ventes')
     .select(`
       *,
-        artisan:artisan_id (nom, role, nom_boutique),
         vendeur:vendeur_id (nom)
     `)
     .order('created_at', { ascending: false })
@@ -416,72 +394,8 @@ async function getAllVentesGroupedByArtisan(options = {}) {
     ? await getAllVentes(options)
     : { ventes: await getAllVentesUnpaginated(), pagination: null }
   const allVentes = result.ventes
-
-  // Récupérer la liste d'artisans pour nom/role
   const artisansList = await getAllArtisans()
-  const artisanMap = artisansList.reduce((m, a) => {
-    m[a.id] = a
-    return m
-  }, {})
-
-  // Grouper par artisan_id présent sur chaque ligne d'article
-  const grouped = {}
-  for (const vente of allVentes) {
-    // pour chaque vente, regrouper ses articles par artisan
-    const byArtisan = {}
-    for (const art of vente.articles || []) {
-      const aid = art.artisan_id || null
-      if (!byArtisan[aid]) byArtisan[aid] = []
-      byArtisan[aid].push(art)
-    }
-
-    for (const [aid, articles] of Object.entries(byArtisan)) {
-      const key = aid === 'null' ? null : Number(aid)
-      if (!grouped[key]) {
-        grouped[key] = {
-          artisan_id: key,
-          artisan_nom:
-            artisanMap[key]?.nom_boutique || artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
-          artisan_role: artisanMap[key]?.role || null,
-          ventes: [],
-        }
-      }
-
-      // Construire une entrée de vente ne contenant que les articles de cet artisan
-      const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
-      const total_montant = articles.reduce((s, a) => s + a.prix * (a.quantite || 0), 0)
-
-      const venteEntry = {
-        ...vente,
-        articles,
-        total_articles,
-        total_montant,
-      }
-
-      grouped[key].ventes.push(venteEntry)
-    }
-  }
-
-  // Construire le tableau de groupes avec le résumé par artisan
-  const groupes = Object.values(grouped).map((g) => ({
-    artisan_id: g.artisan_id,
-    artisan_nom: g.artisan_nom,
-    artisan_role: g.artisan_role,
-    ventes: g.ventes,
-    summary: summarizeVentes(g.ventes),
-  }))
-
-  // Trier les groupes par nom d'artisan
-  groupes.sort((a, b) => (a.artisan_nom || '').localeCompare(b.artisan_nom || ''))
-
-  // Résumé global
-  const total = groupes.reduce(
-    (summary, groupe) => ({
-      total_articles: summary.total_articles + groupe.summary.total_articles,
-      total_montant: summary.total_montant + groupe.summary.total_montant,
-    }),
-    { total_articles: 0, total_montant: 0 },
-  )
+  const { groupes, total } = groupVentesByArtisan(allVentes, artisansList)
 
   return {
     groupes,
@@ -501,79 +415,8 @@ async function getAllVentesGroupedByMonth() {
     return { mois: [], total: { total_articles: 0, total_montant: 0 } }
   }
 
-  // Grouper par mois (YYYY-MM) puis par artisan
   const artisansList = await getAllArtisans()
-  const artisanMap = artisansList.reduce((m, a) => {
-    m[a.id] = a
-    return m
-  }, {})
-
-  const byMonth = {}
-  for (const vente of allVentes) {
-    const mois = vente.date_vente.substring(0, 7) // "2024-01"
-    if (!byMonth[mois]) {
-      byMonth[mois] = { mois, groupes: {} }
-    }
-
-    // regrouper articles par artisan
-    const byArtisan = {}
-    for (const art of vente.articles || []) {
-      const aid = art.artisan_id || null
-      if (!byArtisan[aid]) byArtisan[aid] = []
-      byArtisan[aid].push(art)
-    }
-
-    for (const [aid, articles] of Object.entries(byArtisan)) {
-      const key = aid === 'null' ? null : Number(aid)
-      if (!byMonth[mois].groupes[key]) {
-        byMonth[mois].groupes[key] = {
-          artisan_id: key,
-          artisan_nom:
-            artisanMap[key]?.nom_boutique || artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
-          ventes: [],
-        }
-      }
-
-      const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
-      const total_montant = articles.reduce((s, a) => s + a.prix * (a.quantite || 0), 0)
-
-      const venteEntry = { ...vente, articles, total_articles, total_montant }
-      byMonth[mois].groupes[key].ventes.push(venteEntry)
-    }
-  }
-
-  // Convertir en tableau trié (du plus récent au plus ancien) avec résumés
-  const moisArray = Object.entries(byMonth)
-    .sort(([a], [b]) => b.localeCompare(a))
-    .map(([moisKey, monthData]) => {
-      const groupes = Object.values(monthData.groupes)
-        .map((g) => ({
-          artisan_id: g.artisan_id,
-          artisan_nom: g.artisan_nom,
-          ventes: g.ventes,
-          summary: summarizeVentes(g.ventes),
-        }))
-        .sort((a, b) => (a.artisan_nom || '').localeCompare(b.artisan_nom || ''))
-
-      const totalMois = groupes.reduce(
-        (acc, g) => ({
-          total_articles: acc.total_articles + g.summary.total_articles,
-          total_montant: acc.total_montant + g.summary.total_montant,
-        }),
-        { total_articles: 0, total_montant: 0 },
-      )
-
-      return {
-        mois: moisKey,
-        groupes,
-        total: totalMois,
-      }
-    })
-
-  // Résumé global toutes périodes confondues
-  const total = summarizeVentes(allVentes)
-
-  return { mois: moisArray, total }
+  return groupVentesByMonth(allVentes, artisansList)
 }
 
 /**
@@ -582,64 +425,9 @@ async function getAllVentesGroupedByMonth() {
  * @returns {Promise<{groupes: Array, total: {total_articles: number, total_montant: number}}>}
  */
 async function getVentesByMonth(mois) {
-  // Utiliser les ventes non paginées puis filtrer par mois, puis regrouper par artisan au niveau des articles
   const allVentes = await getAllVentesUnpaginated()
-
   const artisansList = await getAllArtisans()
-  const artisanMap = artisansList.reduce((m, a) => {
-    m[a.id] = a
-    return m
-  }, {})
-
-  const groupesMap = {}
-  for (const vente of allVentes) {
-    if (!vente.date_vente?.startsWith(mois)) continue
-
-    // regrouper articles par artisan
-    const byArtisan = {}
-    for (const art of vente.articles || []) {
-      const aid = art.artisan_id || null
-      if (!byArtisan[aid]) byArtisan[aid] = []
-      byArtisan[aid].push(art)
-    }
-
-    for (const [aid, articles] of Object.entries(byArtisan)) {
-      const key = aid === 'null' ? null : Number(aid)
-      if (!groupesMap[key]) {
-        groupesMap[key] = {
-          artisan_id: key,
-          artisan_nom:
-            artisanMap[key]?.nom_boutique || artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
-          ventes: [],
-        }
-      }
-
-      const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
-      const total_montant = articles.reduce((s, a) => s + a.prix * (a.quantite || 0), 0)
-
-      const venteEntry = { ...vente, articles, total_articles, total_montant }
-      groupesMap[key].ventes.push(venteEntry)
-    }
-  }
-
-  const groupes = Object.values(groupesMap)
-    .map((g) => ({
-      artisan_id: g.artisan_id,
-      artisan_nom: g.artisan_nom,
-      ventes: g.ventes,
-      summary: summarizeVentes(g.ventes),
-    }))
-    .sort((a, b) => (a.artisan_nom || '').localeCompare(b.artisan_nom || ''))
-
-  const total = groupes.reduce(
-    (acc, g) => ({
-      total_articles: acc.total_articles + g.summary.total_articles,
-      total_montant: acc.total_montant + g.summary.total_montant,
-    }),
-    { total_articles: 0, total_montant: 0 },
-  )
-
-  return { groupes, total }
+  return groupVentesForMonth(allVentes, artisansList, mois)
 }
 
 /**
@@ -647,7 +435,6 @@ async function getVentesByMonth(mois) {
  * @param {number} id - ID de la vente à modifier.
  * @param {Object} fields - Objet contenant les champs à mettre à jour.
  * @param {string} [fields.type_paiement] - Nouveau type de paiement.
- * @param {number} [fields.artisan_id] - Nouvel ID de l'artisan.
  * @param {string} [fields.date_vente] - Nouvelle date de vente.
  * @param {Array<{id?: number, article: string, quantite: number, prix: number}>} [fields.articles] - Nouvelle liste d'articles.
  * @returns {Promise<boolean>} true si la mise à jour a réussi.
@@ -656,7 +443,7 @@ async function updateVente(id, fields) {
   const supabase = getSupabase()
 
   // Mettre à jour l'en-tête de la vente
-  const allowed = ['type_paiement', 'artisan_id', 'date_vente']
+  const allowed = ['type_paiement', 'date_vente']
   const updateData = {}
   for (const key of allowed) {
     if (fields[key] !== undefined) updateData[key] = fields[key]
@@ -729,7 +516,7 @@ async function resetUserPassword(id, newPassword) {
   const password_hash = bcrypt.hashSync(newPassword, 10)
   const { error } = await supabase
     .from('users')
-    .update({ password_hash, generated_password: newPassword, password_change_required: 0 })
+    .update({ password_hash, generated_password: newPassword, password_change_required: false })
     .eq('id', id)
 
   if (error) throw error
@@ -745,18 +532,30 @@ async function seedAdminIfMissing() {
   const supabase = getSupabase()
 
   const hash = bcrypt.hashSync('password123', 10)
+  const adminBoutique = 'Administration'
+  const legacyAdminBoutique = 'Admin'
 
-  const { data: existingAdmin } = await supabase
+  const { data: existingAdmins } = await supabase
     .from('users')
-    .select('id')
-    .eq('nom_boutique', 'Admin')
-    .maybeSingle()
+    .select('id, nom_boutique')
+    .in('nom_boutique', [adminBoutique, legacyAdminBoutique])
 
+  const existingAdmin =
+    existingAdmins?.find((user) => user.nom_boutique === adminBoutique) || existingAdmins?.[0]
   if (existingAdmin) {
     // Mettre à jour le mot de passe pour garantir qu'il soit valide
     const { error: updateError } = await supabase
       .from('users')
-      .update({ password_hash: hash, generated_password: 'password123' })
+      .update({
+        nom: 'Admin',
+        nom_boutique: adminBoutique,
+        password_hash: hash,
+        generated_password: 'password123',
+        role: 'admin',
+        est_actif: true,
+        password_change_required: false,
+        date_fin: null,
+      })
       .eq('id', existingAdmin.id)
 
     if (updateError) {
@@ -767,15 +566,16 @@ async function seedAdminIfMissing() {
     return
   }
 
-  const { error } = await supabase
-    .from('users')
-    .insert({
-      nom: 'Admin',
-      nom_boutique: 'Admin',
-      password_hash: hash,
-      generated_password: 'password123',
-      role: 'admin',
-    })
+  const { error } = await supabase.from('users').insert({
+    nom: 'Admin',
+    nom_boutique: adminBoutique,
+    password_hash: hash,
+    generated_password: 'password123',
+    role: 'admin',
+    est_actif: true,
+    password_change_required: false,
+    date_fin: null,
+  })
 
   if (error) {
     console.error('❌ Erreur création compte admin:', error.message)

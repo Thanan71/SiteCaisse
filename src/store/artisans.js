@@ -38,7 +38,7 @@ export const useArtisansStore = defineStore('artisans', {
      */
     getArtisanName: (state) => (id) => {
       const artisan = state.artisans.find((a) => a.id === id)
-      return artisan ? (artisan.nom_boutique || artisan.nom) : 'Artisan inconnu'
+      return artisan ? artisan.nom_boutique || artisan.nom : 'Artisan inconnu'
     },
   },
 

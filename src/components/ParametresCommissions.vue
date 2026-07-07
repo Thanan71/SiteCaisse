@@ -1,13 +1,13 @@
 <template>
   <div>
-    <h2>Paramètres des commissions CB</h2>
+    <h2>Commissions CB générales</h2>
     <p class="parametres-info">
       Les commissions CB sont calculées en pourcentage du montant total des ventes par carte bancaire.
     </p>
     <form @submit.prevent="$emit('save')" class="parametres-form">
       <div class="form-row">
         <div class="form-group">
-          <label for="commission-permanent">Commission CB - Artisans permanents (%)</label>
+          <label for="commission-permanent">Commission générale - Artisans permanents (%)</label>
           <div class="input-with-suffix">
             <input
               id="commission-permanent"
@@ -24,7 +24,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label for="commission-temporaire">Commission CB - Artisans temporaires (%)</label>
+          <label for="commission-temporaire">Commission générale - Artisans temporaires (%)</label>
           <div class="input-with-suffix">
             <input
               id="commission-temporaire"

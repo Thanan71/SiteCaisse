@@ -50,6 +50,15 @@ export function useUsers() {
   const resetResultPassword = ref('')
   const resettingId = ref(null)
 
+  // Commission personnalisée
+  const showCommissionModal = ref(false)
+  const userToEditCommission = ref(null)
+  const commissionModalMode = ref('create')
+  const selectedCommissionUserId = ref('')
+  const commissionDraft = ref('')
+  const commissionError = ref('')
+  const savingCommissionId = ref(null)
+
   /**
    * Récupère la liste des utilisateurs depuis l'API.
    */
@@ -86,7 +95,13 @@ export function useUsers() {
       await api.post('/api/admin/users', payload)
 
       createSuccess.value = `Utilisateur ${newUser.value.nom} créé avec succès !`
-      newUser.value = { nom: '', nom_boutique: '', password: '', role: '', date_fin: '' }
+      newUser.value = {
+        nom: '',
+        nom_boutique: '',
+        password: '',
+        role: '',
+        date_fin: '',
+      }
       await fetchUsers()
 
       setTimeout(() => {
@@ -105,6 +120,120 @@ export function useUsers() {
   function onRoleChange() {
     if (newUser.value.role === 'permanent') {
       newUser.value.date_fin = ''
+    }
+  }
+
+  // ---- Commission personnalisée ----
+
+  function formatCommissionDraft(value) {
+    if (value === null || value === undefined || value === '') return ''
+    return String(value)
+  }
+
+  /**
+   * Ouvre la modale d'ajout de commission personnalisée.
+   */
+  function openCreateCommissionModal() {
+    userToEditCommission.value = null
+    commissionModalMode.value = 'create'
+    selectedCommissionUserId.value = ''
+    commissionDraft.value = ''
+    commissionError.value = ''
+    showCommissionModal.value = true
+  }
+
+  /**
+   * Ouvre la modale d'édition de commission personnalisée.
+   * @param {Object} user
+   */
+  function openCommissionModal(user) {
+    userToEditCommission.value = user
+    commissionModalMode.value = 'edit'
+    selectedCommissionUserId.value = user.id
+    commissionDraft.value = formatCommissionDraft(user.commission_cb_personnalisee)
+    commissionError.value = ''
+    showCommissionModal.value = true
+  }
+
+  /**
+   * Ferme la modale d'édition de commission.
+   */
+  function closeCommissionModal() {
+    showCommissionModal.value = false
+    userToEditCommission.value = null
+    commissionModalMode.value = 'create'
+    selectedCommissionUserId.value = ''
+    commissionDraft.value = ''
+    commissionError.value = ''
+  }
+
+  function getCommissionTargetUserId() {
+    if (commissionModalMode.value === 'edit') return userToEditCommission.value?.id || null
+    return selectedCommissionUserId.value || null
+  }
+
+  function updateUserCommission(userId, commission) {
+    users.value = users.value.map((user) =>
+      Number(user.id) === Number(userId)
+        ? {
+            ...user,
+            commission_cb_personnalisee: commission,
+          }
+        : user,
+    )
+  }
+
+  /**
+   * Enregistre la commission personnalisée d'un utilisateur.
+   */
+  async function confirmSaveCommission() {
+    const userId = getCommissionTargetUserId()
+    if (!userId) {
+      commissionError.value = 'Sélectionnez un utilisateur'
+      return
+    }
+
+    if (commissionDraft.value === '') {
+      commissionError.value = 'Renseignez un taux personnalisé'
+      return
+    }
+
+    savingCommissionId.value = Number(userId)
+    commissionError.value = ''
+
+    try {
+      const response = await api.patch(`/api/admin/users/${userId}/commission`, {
+        commission_cb_personnalisee: commissionDraft.value,
+      })
+      const updatedUser = response.data.user
+      updateUserCommission(updatedUser.id, updatedUser.commission_cb_personnalisee)
+      closeCommissionModal()
+    } catch (err) {
+      commissionError.value = err.response?.data?.error || 'Erreur lors de la mise à jour'
+    } finally {
+      savingCommissionId.value = null
+    }
+  }
+
+  /**
+   * Retire la commission personnalisée pour revenir au taux général.
+   * @param {Object} user
+   */
+  async function clearCustomCommission(user) {
+    if (!user) return
+
+    savingCommissionId.value = user.id
+
+    try {
+      const response = await api.patch(`/api/admin/users/${user.id}/commission`, {
+        commission_cb_personnalisee: null,
+      })
+      const updatedUser = response.data.user
+      updateUserCommission(updatedUser.id, updatedUser.commission_cb_personnalisee)
+    } catch (err) {
+      alert(err.response?.data?.error || 'Erreur lors de la suppression de la commission')
+    } finally {
+      savingCommissionId.value = null
     }
   }
 
@@ -311,11 +440,25 @@ export function useUsers() {
     resetResultMessage,
     resetResultPassword,
     resettingId,
+    showCommissionModal,
+    userToEditCommission,
+    commissionModalMode,
+    selectedCommissionUserId,
+    commissionDraft,
+    commissionError,
+    savingCommissionId,
 
     // Méthodes
     fetchUsers,
     handleCreateUser,
     onRoleChange,
+
+    // Commission personnalisée
+    openCreateCommissionModal,
+    openCommissionModal,
+    closeCommissionModal,
+    confirmSaveCommission,
+    clearCustomCommission,
 
     // Suppression
     openDeleteModal,

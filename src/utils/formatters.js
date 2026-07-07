@@ -62,7 +62,7 @@ export function parseUtcDate(str) {
   // On vérifie la présence de 'Z' ou d'un offset +/- après les minutes
   if (/[Zz]/.test(str) || /\d[+-]\d{2}:\d{2}$/.test(str)) return new Date(str)
   // Sinon forcer UTC
-  return new Date(str + 'Z')
+  return new Date(`${str}Z`)
 }
 
 export function formatDateWithTime(dateStr, timestampStr, fallback = '-') {

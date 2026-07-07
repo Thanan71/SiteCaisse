@@ -232,7 +232,7 @@
             :total-cb="rapportsStore.rapportMois.total.total_cb"
             :total-commission="rapportsStore.rapportMois.total.total_commission"
             :commission-detail="rapportsStore.rapportMois.total.total_commission > 0 && rapportsStore.rapportMois.parametres
-              ? `Taux : Permanent ${rapportsStore.rapportMois.parametres.commission_cb_permanent}% / Temporaire ${rapportsStore.rapportMois.parametres.commission_cb_temporaire}%`
+              ? `Taux généraux : Permanent ${rapportsStore.rapportMois.parametres.commission_cb_permanent}% / Temporaire ${rapportsStore.rapportMois.parametres.commission_cb_temporaire}%`
               : ''"
             variant="warning"
           />
@@ -331,7 +331,12 @@ function setActiveTab(tab) {
 }
 
 async function fetchJournalier() {
-  await ventesStore.fetchVentes({ page: 1, limit: 1000, date_debut: currentDateISO, date_fin: currentDateISO })
+  await ventesStore.fetchVentes({
+    page: 1,
+    limit: 1000,
+    date_debut: currentDateISO,
+    date_fin: currentDateISO,
+  })
 }
 
 /**
@@ -386,23 +391,53 @@ function closeDeleteModal() {
 }
 
 function flattenGroupVentes(groupes) {
-  const ventes = []
+  const ventesById = new Map()
+
   for (const groupe of groupes) {
     for (const vente of groupe.ventes) {
-      ventes.push({
-        ...vente,
-        artisan_nom: groupe.artisan_nom,
-      })
+      const existing = ventesById.get(vente.id)
+      if (!existing) {
+        ventesById.set(vente.id, {
+          ...vente,
+          artisan_nom: groupe.artisan_nom,
+          articles: [...(vente.articles || [])],
+        })
+        continue
+      }
+
+      existing.articles.push(...(vente.articles || []))
+      existing.artisan_nom = mergeArtisanNames(existing.artisan_nom, groupe.artisan_nom)
     }
   }
+
+  const ventes = Array.from(ventesById.values()).map((vente) => ({
+    ...vente,
+    total_articles: vente.articles.reduce(
+      (total, article) => total + (Number(article.quantite) || 0),
+      0,
+    ),
+    total_montant: vente.articles.reduce(
+      (total, article) => total + (Number(article.prix) || 0) * (Number(article.quantite) || 0),
+      0,
+    ),
+  }))
+
   // Trier par created_at (plus récent en premier)
   return ventes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+}
+
+function mergeArtisanNames(current, next) {
+  return [...new Set([...(current ? current.split(', ') : []), next].filter(Boolean))].join(', ')
 }
 
 const dailyVentes = computed(() => {
   const ventes = ventesStore.ventes || []
   const filtered = ventes.filter((v) => {
-    const dateStr = v.date_vente ? String(v.date_vente).slice(0, 10) : (v.created_at ? new Date(v.created_at).toISOString().slice(0, 10) : '')
+    const dateStr = v.date_vente
+      ? String(v.date_vente).slice(0, 10)
+      : v.created_at
+        ? new Date(v.created_at).toISOString().slice(0, 10)
+        : ''
     return dateStr === currentDateISO
   })
   return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
@@ -412,7 +447,14 @@ const dailySummary = computed(() => {
   const ventes = dailyVentes.value || []
   const total_articles = ventes.reduce((s, v) => s + (Number(v.total_articles) || 0), 0)
   const total_montant = ventes.reduce((s, v) => s + (Number(v.total_montant) || 0), 0)
-  const total_cb = ventes.reduce((s, v) => s + ((v.type_paiement === 'CB' || v.type_paiement === 'Carte Bancaire') ? (Number(v.total_montant) || 0) : 0), 0)
+  const total_cb = ventes.reduce(
+    (s, v) =>
+      s +
+      (v.type_paiement === 'CB' || v.type_paiement === 'Carte Bancaire'
+        ? Number(v.total_montant) || 0
+        : 0),
+    0,
+  )
   const taux_commission = rapportsStore.rapportMois?.parametres?.commission_cb_permanent || 0
   const commission_cb = 0 // calcul de commission non disponible ici sans règles serveur
   return {

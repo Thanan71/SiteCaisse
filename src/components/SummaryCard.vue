@@ -37,7 +37,11 @@ const props = defineProps({
   totalCommission: { type: Number, default: 0 },
   commissionDetail: { type: String, default: '' },
   commissionLabelSuffix: { type: String, default: '' },
-  variant: { type: String, default: 'primary', validator: (v) => ['primary', 'warning', 'success'].includes(v) },
+  variant: {
+    type: String,
+    default: 'primary',
+    validator: (v) => ['primary', 'warning', 'success'].includes(v),
+  },
 })
 
 const variantClass = computed(() => {

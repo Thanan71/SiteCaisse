@@ -68,7 +68,8 @@
         <tr v-if="summary.commission_cb > 0" class="commission-row">
           <td :colspan="commissionLabelColspan" class="text-right">
             <span class="commission-label">
-              Commission CB ({{ summary.taux_commission }}% sur {{ formatPrice(summary.total_cb) }})
+              {{ summary.commission_personnalisee ? 'Commission CB personnalisée' : 'Commission CB' }}
+              ({{ summary.taux_commission }}% sur {{ formatPrice(summary.total_cb) }})
             </span>
           </td>
           <td class="text-right">
@@ -142,18 +143,16 @@ onMounted(() => {
 function getArtisansForVente(vente) {
   const artisans = []
 
-  if (vente.articles && vente.articles.length) {
+  if (vente.articles?.length) {
     for (const art of vente.articles) {
-      const aid = art.artisan_id || vente.artisan_id || null
+      const aid = art.artisan_id || null
       const name = artisansStore.getArtisanName(Number(aid))
       if (name && name !== 'Artisan inconnu' && !artisans.includes(name)) artisans.push(name)
     }
   }
 
   if (artisans.length) return artisans.join(', ')
-
-  // fallback: try vente.artisan_nom or 'Artisan inconnu'
-  return vente.artisan_nom || artisansStore.getArtisanName(null)
+  return artisansStore.getArtisanName(null)
 }
 
 const columnCount = computed(() => {

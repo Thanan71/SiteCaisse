@@ -28,6 +28,25 @@ function calculerCommissionsCB(ventes, tauxCommission) {
   return { total_cb: totalCB, commission_cb: Math.round(commission * 100) / 100 }
 }
 
+function parseTauxPersonnalise(value) {
+  if (value === null || value === undefined || value === '') return null
+
+  const parsed = parseFloat(value)
+  return Number.isNaN(parsed) ? null : parsed
+}
+
+function getTauxCommission(role, tauxPermanent, tauxTemporaire, tauxPersonnalise) {
+  const tauxPerso = parseTauxPersonnalise(tauxPersonnalise)
+  if (tauxPerso !== null) {
+    return { taux: tauxPerso, personnalise: true }
+  }
+
+  return {
+    taux: role === 'temporaire' ? tauxTemporaire : tauxPermanent,
+    personnalise: false,
+  }
+}
+
 /**
  * Ajoute les informations de commission CB aux résumés des groupes de ventes.
  * @param {Array} groupes - Groupes de ventes par artisan (chacun avec `ventes` et `summary`).
@@ -41,7 +60,12 @@ function ajouterCommissionsAuxGroupes(groupes, tauxPermanent, tauxTemporaire) {
 
   const groupesAvecCommissions = groupes.map((g) => {
     const role = g.artisan_role || g.ventes[0]?.artisan_role || 'permanent'
-    const taux = role === 'temporaire' ? tauxTemporaire : tauxPermanent
+    const { taux, personnalise } = getTauxCommission(
+      role,
+      tauxPermanent,
+      tauxTemporaire,
+      g.commission_cb_personnalisee,
+    )
 
     const cb = calculerCommissionsCB(g.ventes, taux)
     totalGlobalCB += cb.total_cb
@@ -54,6 +78,7 @@ function ajouterCommissionsAuxGroupes(groupes, tauxPermanent, tauxTemporaire) {
         total_cb: cb.total_cb,
         commission_cb: cb.commission_cb,
         taux_commission: taux,
+        commission_personnalisee: personnalise,
       },
     }
   })
@@ -73,10 +98,22 @@ function ajouterCommissionsAuxGroupes(groupes, tauxPermanent, tauxTemporaire) {
  * @param {string} role - Rôle de l'artisan ('permanent' ou 'temporaire').
  * @param {number} tauxPermanent - Taux de commission pour les permanents.
  * @param {number} tauxTemporaire - Taux de commission pour les temporaires.
+ * @param {number|null} tauxPersonnalise - Taux personnalisé optionnel.
  * @returns {Object} Données enrichies avec les informations de commission.
  */
-function ajouterCommissionAUnArtisan(data, role, tauxPermanent, tauxTemporaire) {
-  const taux = role === 'temporaire' ? tauxTemporaire : tauxPermanent
+function ajouterCommissionAUnArtisan(
+  data,
+  role,
+  tauxPermanent,
+  tauxTemporaire,
+  tauxPersonnalise = null,
+) {
+  const { taux, personnalise } = getTauxCommission(
+    role,
+    tauxPermanent,
+    tauxTemporaire,
+    tauxPersonnalise,
+  )
   const cb = calculerCommissionsCB(data.ventes, taux || 0)
 
   return {
@@ -86,6 +123,7 @@ function ajouterCommissionAUnArtisan(data, role, tauxPermanent, tauxTemporaire) 
       total_cb: cb.total_cb,
       commission_cb: cb.commission_cb,
       taux_commission: taux || 0,
+      commission_personnalisee: personnalise,
     },
   }
 }
@@ -94,4 +132,5 @@ module.exports = {
   calculerCommissionsCB,
   ajouterCommissionsAuxGroupes,
   ajouterCommissionAUnArtisan,
+  getTauxCommission,
 }

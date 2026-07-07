@@ -283,7 +283,8 @@ const weekdaySalesChartOptions = {
     legend: { display: false },
     tooltip: {
       callbacks: {
-        label: (ctx) => `Montant: ${ctx.raw.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`,
+        label: (ctx) =>
+          `Montant: ${ctx.raw.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`,
       },
     },
   },
@@ -305,7 +306,8 @@ const hourlySalesChartData = computed(() => {
   const totals = Array(24).fill(0)
 
   for (const vente of filteredVentesByMonth.value) {
-    const dateSource = vente.created_at || (vente.date_vente ? `${vente.date_vente}T00:00:00+02:00` : null)
+    const dateSource =
+      vente.created_at || (vente.date_vente ? `${vente.date_vente}T00:00:00+02:00` : null)
     if (!dateSource) continue
 
     const hour = getParisHour(dateSource)
@@ -334,7 +336,8 @@ const hourlySalesChartOptions = {
     legend: { display: false },
     tooltip: {
       callbacks: {
-        label: (ctx) => `Montant: ${ctx.raw.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`,
+        label: (ctx) =>
+          `Montant: ${ctx.raw.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`,
       },
     },
   },
