@@ -14,7 +14,7 @@
             id="nom-boutique"
             v-model="nomBoutique"
             type="text"
-            placeholder="Atelier Marcel"
+            placeholder="Nom de la boutique"
             required
             autocomplete="username"
           />
@@ -40,18 +40,6 @@
           {{ loading ? 'Connexion en cours...' : 'Se connecter' }}
         </button>
       </form>
-
-      <div class="login-footer">
-        <p>Artisans disponibles :</p>
-        <div class="artisan-list">
-          <span class="artisan-item">Atelier Marcel</span>
-          <span class="artisan-item">Boutique Sophie</span>
-          <span class="artisan-item">Creation Jean</span>
-          <span class="artisan-item">Echoppe Lucas</span>
-          <span class="artisan-item">Atelier Emma</span>
-        </div>
-        <p class="password-hint">Mot de passe pour tous : <code>password123</code></p>
-      </div>
     </div>
   </div>
 </template>
@@ -196,48 +184,5 @@ async function handleLogin() {
 .btn-login:disabled {
   opacity: 0.7;
   cursor: not-allowed;
-}
-
-.login-footer {
-  margin-top: 32px;
-  padding-top: 24px;
-  border-top: 1px solid #e2e8f0;
-  text-align: center;
-}
-
-.login-footer p {
-  font-size: 0.8rem;
-  color: #94a3b8;
-  margin: 0 0 8px;
-}
-
-.artisan-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  justify-content: center;
-  margin-bottom: 8px;
-}
-
-.artisan-item {
-  background: #f1f5f9;
-  color: #475569;
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-.password-hint {
-  font-size: 0.75rem !important;
-  color: #94a3b8 !important;
-}
-
-.password-hint code {
-  background: #f1f5f9;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  color: #4f46e5;
 }
 </style>
