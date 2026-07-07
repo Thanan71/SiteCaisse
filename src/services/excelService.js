@@ -52,15 +52,19 @@ export function exportMonthToExcel(groupes, total, parametres, mois) {
     const sheetName = groupe.artisan_nom
       ? `Rapport - ${groupe.artisan_nom}`.substring(0, 31)
       : groupe.artisan_id !== null && groupe.artisan_id !== undefined
-      ? `Artisan #${groupe.artisan_id}`
-      : 'Artisan inconnu'
+        ? `Artisan #${groupe.artisan_id}`
+        : 'Artisan inconnu'
     const worksheet = buildWorksheet(groupe.ventes, groupe.summary)
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
   }
 
   // Onglet récapitulatif du mois
   const globalRows = groupes.map((g) => ({
-    Artisan: g.artisan_nom || (g.artisan_id !== null && g.artisan_id !== undefined ? `Artisan #${g.artisan_id}` : 'Artisan inconnu'),
+    Artisan:
+      g.artisan_nom ||
+      (g.artisan_id !== null && g.artisan_id !== undefined
+        ? `Artisan #${g.artisan_id}`
+        : 'Artisan inconnu'),
     'Total articles': g.summary.total_articles,
     'Total montant (€)': g.summary.total_montant.toFixed(2),
     'Total CB (€)': (g.summary.total_cb || 0).toFixed(2),
@@ -142,15 +146,19 @@ export function exportAllRapportsToExcel(groupes, total, parametres) {
     const sheetName = groupe.artisan_nom
       ? `Rapport - ${groupe.artisan_nom}`.substring(0, 31) // limitation Excel 31 caractères
       : groupe.artisan_id !== null && groupe.artisan_id !== undefined
-      ? `Artisan #${groupe.artisan_id}`
-      : 'Artisan inconnu'
+        ? `Artisan #${groupe.artisan_id}`
+        : 'Artisan inconnu'
     const worksheet = buildWorksheet(groupe.ventes, groupe.summary)
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
   }
 
   // Onglet récapitulatif global
   const globalRows = groupes.map((g) => ({
-    Artisan: g.artisan_nom || (g.artisan_id !== null && g.artisan_id !== undefined ? `Artisan #${g.artisan_id}` : 'Artisan inconnu'),
+    Artisan:
+      g.artisan_nom ||
+      (g.artisan_id !== null && g.artisan_id !== undefined
+        ? `Artisan #${g.artisan_id}`
+        : 'Artisan inconnu'),
     'Total articles': g.summary.total_articles,
     'Total montant (€)': g.summary.total_montant.toFixed(2),
     'Total CB (€)': (g.summary.total_cb || 0).toFixed(2),
@@ -253,9 +261,13 @@ function buildWorksheet(ventes, summary) {
 
   // Ajouter la ligne de commission CB si elle existe
   if (summary.commission_cb && summary.commission_cb > 0) {
+    const commissionLabel = summary.commission_personnalisee
+      ? 'Commission CB personnalisée'
+      : 'Commission CB'
+
     data.push({
       Date: '',
-      Article: `Commission CB (${summary.taux_commission || 0}%)`,
+      Article: `${commissionLabel} (${summary.taux_commission || 0}%)`,
       Quantité: '',
       'Prix unitaire (€)': '',
       'Total (€)': `-${summary.commission_cb.toFixed(2)}`,

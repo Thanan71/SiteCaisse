@@ -207,16 +207,24 @@ router.get('/:artisan_id', async (req, res) => {
 
     // Déterminer le rôle de l'artisan depuis la table users
     let role = 'permanent'
+    let tauxPersonnalise = null
     try {
       const artisan = await getAllArtisans()
       const found = artisan.find((a) => Number(a.id) === Number(artisan_id))
       role = found?.role || 'permanent'
+      tauxPersonnalise = found?.commission_cb_personnalisee ?? null
     } catch {
       // fallback
     }
 
     // Déléguer le calcul des commissions au service dédié (SRP)
-    const resultat = ajouterCommissionAUnArtisan(data, role, tauxPermanent, tauxTemporaire)
+    const resultat = ajouterCommissionAUnArtisan(
+      data,
+      role,
+      tauxPermanent,
+      tauxTemporaire,
+      tauxPersonnalise,
+    )
 
     res.json(resultat)
   } catch (err) {

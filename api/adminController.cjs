@@ -48,6 +48,18 @@ function generateResetPassword(nomBoutique) {
   return `${base}${suffix}`
 }
 
+function parseOptionalPositiveNumber(value) {
+  if (value === undefined || value === null) return null
+
+  const normalized = typeof value === 'string' ? value.trim().replace(',', '.') : value
+  if (normalized === '') return null
+
+  const parsed = Number(normalized)
+  if (!Number.isFinite(parsed) || parsed < 0) return undefined
+
+  return parsed
+}
+
 /**
  * GET /api/admin/users
  * Récupère la liste de tous les utilisateurs.
@@ -58,7 +70,9 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
     const supabase = getSupabase()
     const { data, error } = await supabase
       .from('users')
-      .select('id, nom, nom_boutique, generated_password, role, est_actif, date_fin, created_at')
+      .select(
+        'id, nom, nom_boutique, generated_password, commission_cb_personnalisee, role, est_actif, date_fin, created_at',
+      )
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -247,6 +261,87 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
       req,
     })
     res.status(500).json({ error: "Erreur lors de la suppression de l'utilisateur" })
+  }
+})
+
+/**
+ * PATCH /api/admin/users/:id/commission
+ * Met à jour le taux de commission CB personnalisé d'un utilisateur.
+ * Une valeur vide ou null retire la personnalisation et réactive le taux général.
+ */
+router.patch('/users/:id/commission', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10)
+
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'ID utilisateur invalide' })
+    }
+
+    const commissionCbPersonnalisee = parseOptionalPositiveNumber(
+      req.body?.commission_cb_personnalisee,
+    )
+    if (commissionCbPersonnalisee === undefined) {
+      return res
+        .status(400)
+        .json({ error: 'La commission personnalisée doit être un nombre positif' })
+    }
+
+    const supabase = getSupabase()
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('id, nom, nom_boutique, role, commission_cb_personnalisee')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (!user) {
+      return res.status(404).json({ error: 'Utilisateur non trouvé' })
+    }
+
+    if (user.role === 'admin') {
+      return res
+        .status(400)
+        .json({ error: 'Les commissions personnalisées ne concernent que les artisans' })
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .update({ commission_cb_personnalisee: commissionCbPersonnalisee })
+      .eq('id', userId)
+      .select('id, nom, nom_boutique, role, commission_cb_personnalisee')
+      .single()
+
+    if (error) throw error
+
+    await logAction({
+      user: req.user,
+      action: 'user.commission_update',
+      cible_type: 'user',
+      cible_id: userId,
+      details: {
+        nom: user.nom,
+        nom_boutique: user.nom_boutique,
+        ancienne_commission_cb_personnalisee: user.commission_cb_personnalisee,
+        nouvelle_commission_cb_personnalisee: data.commission_cb_personnalisee,
+      },
+      req,
+    })
+
+    res.json({
+      message: 'Commission personnalisée mise à jour avec succès',
+      user: data,
+    })
+  } catch (err) {
+    console.error('Admin update user commission error:', err)
+    await logError({
+      user: req.user,
+      err,
+      context: 'admin.users.commission_update',
+      cible_type: 'user',
+      cible_id: req.params.id,
+      req,
+    })
+    res.status(500).json({ error: 'Erreur lors de la mise à jour de la commission' })
   }
 })
 

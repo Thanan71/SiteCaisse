@@ -14,19 +14,90 @@
       ]"
     />
 
-    <!-- Section Paramètres : Commissions CB -->
-    <div v-if="activePanel === 'commissions'" class="card parametres-card">
-      <parametres-commissions
-        :commission-permanent="commissionPermanent"
-        :commission-temporaire="commissionTemporaire"
-        :saving="savingCommissions"
-        :error="commissionsError"
-        :success="commissionsSuccess"
-        @save="handleSaveCommissions"
-        @update:commission-permanent="commissionPermanent = $event"
-        @update:commission-temporaire="commissionTemporaire = $event"
-      />
-    </div>
+    <template v-if="activePanel === 'commissions'">
+      <!-- Section Paramètres : Commissions CB -->
+      <div class="card parametres-card">
+        <parametres-commissions
+          :commission-permanent="commissionPermanent"
+          :commission-temporaire="commissionTemporaire"
+          :saving="savingCommissions"
+          :error="commissionsError"
+          :success="commissionsSuccess"
+          @save="handleSaveCommissions"
+          @update:commission-permanent="commissionPermanent = $event"
+          @update:commission-temporaire="commissionTemporaire = $event"
+        />
+      </div>
+
+      <!-- Section Commissions personnalisées -->
+      <div class="card custom-commissions-card">
+        <div class="section-header">
+          <div>
+            <h2>Commissions personnalisées</h2>
+            <p class="section-description">
+              Une commission personnalisée remplace le taux général uniquement pour l'artisan choisi.
+            </p>
+          </div>
+          <button
+            class="btn btn-primary"
+            type="button"
+            :disabled="availableCommissionUsers.length === 0"
+            @click="openCreateCommissionModal"
+          >
+            Ajouter une commission personnalisée
+          </button>
+        </div>
+
+        <div v-if="customCommissionUsers.length === 0" class="empty-state">
+          Aucune commission personnalisée définie.
+        </div>
+        <div v-else class="custom-commissions-table-wrapper">
+          <table class="custom-commissions-table">
+            <thead>
+              <tr>
+                <th>Artisan</th>
+                <th>Boutique</th>
+                <th>Rôle</th>
+                <th>Taux personnalisé</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="user in customCommissionUsers" :key="user.id">
+                <td>{{ user.nom }}</td>
+                <td>{{ user.nom_boutique }}</td>
+                <td>{{ user.role === 'temporaire' ? 'Temporaire' : 'Permanent' }}</td>
+                <td>
+                  <span class="commission-rate">
+                    {{ formatCommissionRate(user.commission_cb_personnalisee) }}
+                  </span>
+                </td>
+                <td>
+                  <div class="actions-cell">
+                    <button
+                      class="btn btn-secondary btn-sm"
+                      type="button"
+                      :disabled="savingCommissionId === user.id"
+                      @click="openCommissionModal(user)"
+                    >
+                      Modifier
+                    </button>
+                    <button
+                      class="btn btn-danger btn-sm"
+                      type="button"
+                      :disabled="savingCommissionId === user.id"
+                      @click="clearCustomCommission(user)"
+                    >
+                      {{ savingCommissionId === user.id ? '...' : 'Supprimer' }}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
 
     <template v-if="activePanel === 'users'">
       <!-- Section Ajouter un utilisateur -->
@@ -175,6 +246,53 @@
       </div>
     </div>
 
+    <!-- Modal de commission personnalisée -->
+    <div v-if="showCommissionModal" class="custom-modal-overlay" @click.self="closeCommissionModal">
+      <div class="custom-modal-content">
+        <h3>
+          {{
+            commissionModalMode === 'create'
+              ? 'Ajouter une commission personnalisée'
+              : `Modifier la commission de ${userToEditCommission?.nom}`
+          }}
+        </h3>
+        <div v-if="commissionModalMode === 'create'" class="form-group" style="margin: 16px 0;">
+          <label for="commission-user">Artisan</label>
+          <select id="commission-user" v-model="selectedCommissionUserId">
+            <option value="" disabled>Sélectionner un artisan</option>
+            <option v-for="user in availableCommissionUsers" :key="user.id" :value="user.id">
+              {{ user.nom_boutique }} - {{ user.nom }}
+            </option>
+          </select>
+        </div>
+        <div class="form-group" style="margin: 16px 0;">
+          <label for="user-commission-cb">Taux personnalisé (%)</label>
+          <div class="input-with-suffix">
+            <input
+              id="user-commission-cb"
+              v-model="commissionDraft"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Taux général"
+            />
+            <span class="input-suffix">%</span>
+          </div>
+        </div>
+        <p v-if="commissionError" class="error-message">{{ commissionError }}</p>
+        <div class="modal-actions">
+          <button @click="closeCommissionModal" class="btn btn-secondary">Annuler</button>
+          <button
+            @click="confirmSaveCommission"
+            class="btn btn-primary"
+            :disabled="savingCommissionId !== null"
+          >
+            {{ savingCommissionId ? 'Enregistrement...' : 'Enregistrer' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal de confirmation de réinitialisation de mot de passe -->
     <ConfirmModal
       :show="showResetModal"
@@ -244,9 +362,21 @@ const {
   resetResultMessage,
   resetResultPassword,
   resettingId,
+  showCommissionModal,
+  userToEditCommission,
+  commissionModalMode,
+  selectedCommissionUserId,
+  commissionDraft,
+  commissionError,
+  savingCommissionId,
   fetchUsers,
   handleCreateUser,
   onRoleChange,
+  openCreateCommissionModal,
+  openCommissionModal,
+  closeCommissionModal,
+  confirmSaveCommission,
+  clearCustomCommission,
   openDeleteModal,
   closeDeleteModal,
   confirmDeleteUser,
@@ -289,6 +419,24 @@ const minDate = computed(() => {
   const today = new Date()
   return today.toISOString().split('T')[0]
 })
+
+const artisanUsers = computed(() => users.value.filter((user) => user.role !== 'admin'))
+
+function hasCustomCommission(user) {
+  return user.commission_cb_personnalisee !== null && user.commission_cb_personnalisee !== undefined
+}
+
+function hasNoCustomCommission(user) {
+  return !hasCustomCommission(user)
+}
+
+const customCommissionUsers = computed(() => artisanUsers.value.filter(hasCustomCommission))
+
+const availableCommissionUsers = computed(() => artisanUsers.value.filter(hasNoCustomCommission))
+
+function formatCommissionRate(value) {
+  return `${Number(value).toLocaleString('fr-FR', { maximumFractionDigits: 2 })}%`
+}
 
 onMounted(() => {
   fetchUsers()
@@ -336,6 +484,77 @@ onMounted(() => {
   font-weight: 600;
   color: #1e293b;
   margin: 0 0 20px 0;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.section-header h2 {
+  margin-bottom: 6px;
+}
+
+.section-description {
+  color: #64748b;
+  font-size: 0.85rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.custom-commissions-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.custom-commissions-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.custom-commissions-table th {
+  text-align: left;
+  padding: 10px;
+  border-bottom: 2px solid #e2e8f0;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.custom-commissions-table td {
+  padding: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+}
+
+.commission-rate {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.actions-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  white-space: nowrap;
 }
 
 .parametres-info {
@@ -572,6 +791,10 @@ onMounted(() => {
 @media (max-width: 640px) {
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  .section-header {
+    flex-direction: column;
   }
 
   .admin-container {

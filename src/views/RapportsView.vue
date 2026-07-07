@@ -93,7 +93,7 @@
             :total-cb="rapportsStore.totalGlobal.total_cb"
             :total-commission="rapportsStore.totalGlobal.total_commission"
             :commission-detail="rapportsStore.totalGlobal.total_commission > 0 && rapportsStore.totalAllParams
-              ? `Taux : Permanent ${rapportsStore.totalAllParams.commission_cb_permanent}% / Temporaire ${rapportsStore.totalAllParams.commission_cb_temporaire}%`
+              ? `Taux généraux : Permanent ${rapportsStore.totalAllParams.commission_cb_permanent}% / Temporaire ${rapportsStore.totalAllParams.commission_cb_temporaire}%`
               : ''"
             commission-label-suffix=" totale"
             variant="primary"
@@ -155,7 +155,7 @@
                 :total-cb="rapportsStore.rapportMois.total.total_cb"
                 :total-commission="rapportsStore.rapportMois.total.total_commission"
                 :commission-detail="rapportsStore.rapportMois.total.total_commission > 0 && rapportsStore.rapportMois.parametres
-                  ? `Taux : Permanent ${rapportsStore.rapportMois.parametres.commission_cb_permanent}% / Temporaire ${rapportsStore.rapportMois.parametres.commission_cb_temporaire}%`
+                  ? `Taux généraux : Permanent ${rapportsStore.rapportMois.parametres.commission_cb_permanent}% / Temporaire ${rapportsStore.rapportMois.parametres.commission_cb_temporaire}%`
                   : ''"
                 variant="warning"
               />
@@ -245,7 +245,7 @@
                 :total-cb="selectedArtisanRapportMoisGroup.summary.total_cb"
                 :total-commission="selectedArtisanRapportMoisGroup.summary.total_commission"
                 :commission-detail="selectedArtisanRapportMoisGroup.summary.total_commission > 0 && rapportsStore.rapportMois?.parametres
-                  ? `Taux : Permanent ${rapportsStore.rapportMois.parametres.commission_cb_permanent}% / Temporaire ${rapportsStore.rapportMois.parametres.commission_cb_temporaire}%`
+                  ? `Taux généraux : Permanent ${rapportsStore.rapportMois.parametres.commission_cb_permanent}% / Temporaire ${rapportsStore.rapportMois.parametres.commission_cb_temporaire}%`
                   : ''"
                 commission-label-suffix=" totale"
                 variant="warning"

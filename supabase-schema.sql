@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   nom_boutique TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   generated_password TEXT,
+  commission_cb_personnalisee REAL CHECK(commission_cb_personnalisee IS NULL OR commission_cb_personnalisee >= 0),
   role TEXT DEFAULT 'permanent' CHECK(role IN ('admin', 'permanent', 'temporaire')),
   est_actif INTEGER DEFAULT 1,
   password_change_required INTEGER DEFAULT 0,

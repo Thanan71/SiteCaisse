@@ -154,13 +154,13 @@ async function updatePassword(id, newPassword) {
 
 /**
  * Récupère tous les artisans actifs ayant un rôle permanent ou temporaire.
- * @returns {Promise<Array>} Tableau des artisans (id, nom, nom_boutique, role).
+ * @returns {Promise<Array>} Tableau des artisans (id, nom, nom_boutique, role, commission personnalisée).
  */
 async function getAllArtisans() {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('users')
-    .select('id, nom, nom_boutique, role')
+    .select('id, nom, nom_boutique, role, commission_cb_personnalisee')
     .eq('est_actif', 1)
     .in('role', ['permanent', 'temporaire'])
   if (error) throw error
@@ -245,6 +245,7 @@ function formatVente(vente, articlesByVente) {
     created_at: vente.created_at,
     artisan_nom: vente.artisan?.nom_boutique || vente.artisan?.nom || null,
     artisan_role: vente.artisan?.role || null,
+    artisan_commission_cb_personnalisee: vente.artisan?.commission_cb_personnalisee ?? null,
     vendeur_nom: vente.vendeur?.nom || null,
     articles: venteArticles,
     total_articles,
@@ -331,7 +332,7 @@ async function getAllVentes(options = {}) {
       .from('ventes')
       .select(`
         *,
-        artisan:artisan_id (nom, role, nom_boutique),
+        artisan:artisan_id (nom, role, nom_boutique, commission_cb_personnalisee),
         vendeur:vendeur_id (nom)
       `)
       .order('created_at', { ascending: false })
@@ -394,7 +395,7 @@ async function getAllVentesUnpaginated() {
     .from('ventes')
     .select(`
       *,
-        artisan:artisan_id (nom, role, nom_boutique),
+        artisan:artisan_id (nom, role, nom_boutique, commission_cb_personnalisee),
         vendeur:vendeur_id (nom)
     `)
     .order('created_at', { ascending: false })
@@ -441,8 +442,11 @@ async function getAllVentesGroupedByArtisan(options = {}) {
         grouped[key] = {
           artisan_id: key,
           artisan_nom:
-            artisanMap[key]?.nom_boutique || artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
+            artisanMap[key]?.nom_boutique ||
+            artisanMap[key]?.nom ||
+            (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
           artisan_role: artisanMap[key]?.role || null,
+          commission_cb_personnalisee: artisanMap[key]?.commission_cb_personnalisee ?? null,
           ventes: [],
         }
       }
@@ -467,6 +471,7 @@ async function getAllVentesGroupedByArtisan(options = {}) {
     artisan_id: g.artisan_id,
     artisan_nom: g.artisan_nom,
     artisan_role: g.artisan_role,
+    commission_cb_personnalisee: g.commission_cb_personnalisee,
     ventes: g.ventes,
     summary: summarizeVentes(g.ventes),
   }))
@@ -529,7 +534,11 @@ async function getAllVentesGroupedByMonth() {
         byMonth[mois].groupes[key] = {
           artisan_id: key,
           artisan_nom:
-            artisanMap[key]?.nom_boutique || artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
+            artisanMap[key]?.nom_boutique ||
+            artisanMap[key]?.nom ||
+            (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
+          artisan_role: artisanMap[key]?.role || null,
+          commission_cb_personnalisee: artisanMap[key]?.commission_cb_personnalisee ?? null,
           ventes: [],
         }
       }
@@ -550,6 +559,8 @@ async function getAllVentesGroupedByMonth() {
         .map((g) => ({
           artisan_id: g.artisan_id,
           artisan_nom: g.artisan_nom,
+          artisan_role: g.artisan_role,
+          commission_cb_personnalisee: g.commission_cb_personnalisee,
           ventes: g.ventes,
           summary: summarizeVentes(g.ventes),
         }))
@@ -609,7 +620,11 @@ async function getVentesByMonth(mois) {
         groupesMap[key] = {
           artisan_id: key,
           artisan_nom:
-            artisanMap[key]?.nom_boutique || artisanMap[key]?.nom || (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
+            artisanMap[key]?.nom_boutique ||
+            artisanMap[key]?.nom ||
+            (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
+          artisan_role: artisanMap[key]?.role || null,
+          commission_cb_personnalisee: artisanMap[key]?.commission_cb_personnalisee ?? null,
           ventes: [],
         }
       }
@@ -626,6 +641,8 @@ async function getVentesByMonth(mois) {
     .map((g) => ({
       artisan_id: g.artisan_id,
       artisan_nom: g.artisan_nom,
+      artisan_role: g.artisan_role,
+      commission_cb_personnalisee: g.commission_cb_personnalisee,
       ventes: g.ventes,
       summary: summarizeVentes(g.ventes),
     }))
@@ -767,15 +784,13 @@ async function seedAdminIfMissing() {
     return
   }
 
-  const { error } = await supabase
-    .from('users')
-    .insert({
-      nom: 'Admin',
-      nom_boutique: 'Admin',
-      password_hash: hash,
-      generated_password: 'password123',
-      role: 'admin',
-    })
+  const { error } = await supabase.from('users').insert({
+    nom: 'Admin',
+    nom_boutique: 'Admin',
+    password_hash: hash,
+    generated_password: 'password123',
+    role: 'admin',
+  })
 
   if (error) {
     console.error('❌ Erreur création compte admin:', error.message)
