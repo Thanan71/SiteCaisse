@@ -24,7 +24,6 @@ export function useUsers() {
   const newUser = ref({
     nom: '',
     nom_boutique: '',
-    password: '',
     role: '',
     date_fin: '',
   })
@@ -45,6 +44,7 @@ export function useUsers() {
   const showResetModal = ref(false)
   const showResetResultModal = ref(false)
   const userToReset = ref(null)
+  const resetResultTitle = ref('Mot de passe réinitialisé')
   const resetMessage = ref('')
   const resetResultMessage = ref('')
   const resetResultPassword = ref('')
@@ -92,13 +92,25 @@ export function useUsers() {
         delete payload.date_fin
       }
 
-      await api.post('/api/admin/users', payload)
+      const response = await api.post('/api/admin/users', payload)
+      const createdUser = response.data.user || response.data
+      const generatedPassword = response.data.newPassword || createdUser.generated_password || ''
+
+      if (generatedPassword && createdUser.id) {
+        generatedPasswordsByUserId.set(createdUser.id, generatedPassword)
+      }
 
       createSuccess.value = `Utilisateur ${newUser.value.nom} créé avec succès !`
+      if (generatedPassword) {
+        resetResultTitle.value = 'Utilisateur créé'
+        resetResultMessage.value =
+          response.data.message || `Utilisateur ${newUser.value.nom} créé avec succès.`
+        resetResultPassword.value = generatedPassword
+        showResetResultModal.value = true
+      }
       newUser.value = {
         nom: '',
         nom_boutique: '',
-        password: '',
         role: '',
         date_fin: '',
       }
@@ -347,6 +359,7 @@ export function useUsers() {
    */
   function closeResetResultModal() {
     showResetResultModal.value = false
+    resetResultTitle.value = 'Mot de passe réinitialisé'
     resetResultMessage.value = ''
     resetResultPassword.value = ''
   }
@@ -363,6 +376,7 @@ export function useUsers() {
     try {
       const response = await api.post(`/api/admin/users/${userToReset.value.id}/reset-password`)
       closeResetModal()
+      resetResultTitle.value = 'Mot de passe réinitialisé'
       resetResultMessage.value = response.data.message || 'Mot de passe réinitialisé avec succès.'
       resetResultPassword.value = response.data.newPassword || ''
       if (resetResultPassword.value) {
@@ -436,6 +450,7 @@ export function useUsers() {
     showResetModal,
     showResetResultModal,
     userToReset,
+    resetResultTitle,
     resetMessage,
     resetResultMessage,
     resetResultPassword,

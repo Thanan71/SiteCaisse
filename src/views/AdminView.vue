@@ -128,17 +128,6 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label for="password">Mot de passe</label>
-              <input
-                id="password"
-                v-model="newUser.password"
-                type="password"
-                placeholder="Mot de passe"
-                required
-                minlength="4"
-              />
-            </div>
-            <div class="form-group">
               <label for="role">Rôle</label>
               <select id="role" v-model="newUser.role" required @change="onRoleChange">
                 <option value="" disabled>Sélectionner un rôle</option>
@@ -146,9 +135,7 @@
                 <option value="temporaire">Temporaire</option>
               </select>
             </div>
-          </div>
-          <div class="form-row" v-if="newUser.role === 'temporaire'">
-            <div class="form-group">
+            <div v-if="newUser.role === 'temporaire'" class="form-group">
               <label for="date_fin">Date de fin d'accès</label>
               <input
                 id="date_fin"
@@ -158,7 +145,6 @@
                 :min="minDate"
               />
             </div>
-            <div class="form-group"></div>
           </div>
           <button type="submit" class="btn btn-primary" :disabled="creating">
             {{ creating ? 'Création...' : "Ajouter l'utilisateur" }}
@@ -307,10 +293,10 @@
       @cancel="closeResetModal"
     />
 
-    <!-- Modal de résultat de réinitialisation de mot de passe -->
+    <!-- Modal de résultat de mot de passe généré -->
     <div v-if="showResetResultModal" class="custom-modal-overlay" @click.self="closeResetResultModal">
       <div class="custom-modal-content">
-        <h3>✅ Mot de passe réinitialisé</h3>
+        <h3>✅ {{ resetResultTitle }}</h3>
         <p>{{ resetResultMessage }}</p>
         <div v-if="resetResultPassword" class="password-result-box">
           <p style="margin-bottom: 6px;"><strong>Nouveau mot de passe :</strong></p>
@@ -358,6 +344,7 @@ const {
   showResetModal,
   showResetResultModal,
   userToReset,
+  resetResultTitle,
   resetMessage,
   resetResultMessage,
   resetResultPassword,
