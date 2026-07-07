@@ -34,12 +34,48 @@ async function seedIfEmpty() {
   const hash = bcrypt.hashSync('password123', 10)
 
   const users = [
-    { nom: 'Admin', nom_boutique: 'Administration', password_hash: hash, role: 'admin' },
-    { nom: 'Marcel', nom_boutique: 'Atelier Marcel', password_hash: hash, role: 'permanent' },
-    { nom: 'Sophie', nom_boutique: 'Boutique Sophie', password_hash: hash, role: 'permanent' },
-    { nom: 'Jean', nom_boutique: 'Creation Jean', password_hash: hash, role: 'permanent' },
-    { nom: 'Lucas', nom_boutique: 'Echoppe Lucas', password_hash: hash, role: 'temporaire' },
-    { nom: 'Emma', nom_boutique: 'Atelier Emma', password_hash: hash, role: 'temporaire' },
+    {
+      nom: 'Admin',
+      nom_boutique: 'Administration',
+      password_hash: hash,
+      generated_password: 'password123',
+      role: 'admin',
+    },
+    {
+      nom: 'Marcel',
+      nom_boutique: 'Atelier Marcel',
+      password_hash: hash,
+      generated_password: 'password123',
+      role: 'permanent',
+    },
+    {
+      nom: 'Sophie',
+      nom_boutique: 'Boutique Sophie',
+      password_hash: hash,
+      generated_password: 'password123',
+      role: 'permanent',
+    },
+    {
+      nom: 'Jean',
+      nom_boutique: 'Creation Jean',
+      password_hash: hash,
+      generated_password: 'password123',
+      role: 'permanent',
+    },
+    {
+      nom: 'Lucas',
+      nom_boutique: 'Echoppe Lucas',
+      password_hash: hash,
+      generated_password: 'password123',
+      role: 'temporaire',
+    },
+    {
+      nom: 'Emma',
+      nom_boutique: 'Atelier Emma',
+      password_hash: hash,
+      generated_password: 'password123',
+      role: 'temporaire',
+    },
   ]
 
   for (const user of users) {
@@ -110,7 +146,7 @@ async function updatePassword(id, newPassword) {
   const password_hash = bcrypt.hashSync(newPassword, 10)
   const { error } = await supabase
     .from('users')
-    .update({ password_hash, password_change_required: 0 })
+    .update({ password_hash, generated_password: newPassword, password_change_required: 0 })
     .eq('id', id)
   if (error) throw error
   return true
@@ -670,7 +706,7 @@ async function deleteVente(id) {
 
 /**
  * Réinitialise le mot de passe d'un utilisateur avec une valeur donnée,
- * le hache, le stocke en base et force le changement au prochain login.
+ * le hache et le stocke en base.
  * @param {number} id - ID de l'utilisateur.
  * @param {string} newPassword - Nouveau mot de passe en clair.
  * @returns {Promise<string>} Le nouveau mot de passe en clair.
@@ -693,7 +729,7 @@ async function resetUserPassword(id, newPassword) {
   const password_hash = bcrypt.hashSync(newPassword, 10)
   const { error } = await supabase
     .from('users')
-    .update({ password_hash, password_change_required: 1 })
+    .update({ password_hash, generated_password: newPassword, password_change_required: 0 })
     .eq('id', id)
 
   if (error) throw error
@@ -720,7 +756,7 @@ async function seedAdminIfMissing() {
     // Mettre à jour le mot de passe pour garantir qu'il soit valide
     const { error: updateError } = await supabase
       .from('users')
-      .update({ password_hash: hash })
+      .update({ password_hash: hash, generated_password: 'password123' })
       .eq('id', existingAdmin.id)
 
     if (updateError) {
@@ -733,7 +769,13 @@ async function seedAdminIfMissing() {
 
   const { error } = await supabase
     .from('users')
-    .insert({ nom: 'Admin', nom_boutique: 'Admin', password_hash: hash, role: 'admin' })
+    .insert({
+      nom: 'Admin',
+      nom_boutique: 'Admin',
+      password_hash: hash,
+      generated_password: 'password123',
+      role: 'admin',
+    })
 
   if (error) {
     console.error('❌ Erreur création compte admin:', error.message)

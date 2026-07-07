@@ -180,7 +180,7 @@
       :show="showResetModal"
       title="Réinitialiser le mot de passe"
       :message="resetMessage"
-      warning="Le nouveau mot de passe sera le nom de l'utilisateur. Il devra changer son mot de passe à la prochaine connexion."
+      warning="Le nouveau mot de passe sera généré à partir du nom de la boutique, suivi de 4 chiffres aléatoires."
       confirmText="Réinitialiser"
       variant="warning"
       :loading="resettingId !== null"
@@ -197,7 +197,7 @@
         <div v-if="resetResultPassword" class="password-result-box">
           <p style="margin-bottom: 6px;"><strong>Nouveau mot de passe :</strong></p>
           <div class="password-display">{{ resetResultPassword }}</div>
-          <p class="password-hint">Copiez ce mot de passe et transmettez-le à l'utilisateur. Il devra le changer à la prochaine connexion.</p>
+          <p class="password-hint">Copiez ce mot de passe et transmettez-le à l'utilisateur. Il est aussi affiché dans la liste des utilisateurs.</p>
         </div>
         <div class="modal-actions">
           <button @click="closeResetResultModal" class="btn btn-primary">Fermer</button>
