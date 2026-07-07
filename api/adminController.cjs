@@ -68,17 +68,16 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
  * Crée un nouvel utilisateur.
  * @param {string} req.body.nom - Nom de l'utilisateur.
  * @param {string} req.body.nom_boutique - Nom de boutique de l'utilisateur.
- * @param {string} req.body.password - Mot de passe de l'utilisateur.
  * @param {string} req.body.role - Rôle de l'utilisateur ('permanent', 'temporaire').
  * @param {string} [req.body.date_fin] - Date de fin pour les temporaires (format YYYY-MM-DD).
- * @returns {Object} Utilisateur créé (sans le password_hash).
+ * @returns {Object} Utilisateur créé (sans le password_hash) et mot de passe généré.
  */
 router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { nom, nom_boutique, password, role, date_fin } = req.body
+    const { nom, nom_boutique, role, date_fin } = req.body
 
-    if (!nom || !nom_boutique || !password || !role) {
-      return res.status(400).json({ error: 'Nom, nom de boutique, mot de passe et rôle requis' })
+    if (!nom || !nom_boutique || !role) {
+      return res.status(400).json({ error: 'Nom, nom de boutique et rôle requis' })
     }
 
     if (!['permanent', 'temporaire'].includes(role)) {
@@ -99,10 +98,9 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
         .json({ error: 'Un utilisateur permanent ne peut pas avoir de date de fin' })
     }
 
-    const data = await createUser({
+    const { user, newPassword } = await createUser({
       nom,
       nom_boutique,
-      password,
       role,
       date_fin,
     })
@@ -111,17 +109,21 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
       user: req.user,
       action: 'user.create',
       cible_type: 'user',
-      cible_id: data.id,
+      cible_id: user.id,
       details: {
-        nom: data.nom,
-        nom_boutique: data.nom_boutique,
-        role: data.role,
-        date_fin: data.date_fin,
+        nom: user.nom,
+        nom_boutique: user.nom_boutique,
+        role: user.role,
+        date_fin: user.date_fin,
       },
       req,
     })
 
-    res.status(201).json(data)
+    res.status(201).json({
+      message: 'Utilisateur créé avec succès.',
+      user,
+      newPassword,
+    })
   } catch (err) {
     if (sendAdminUserError(err, res)) return
 

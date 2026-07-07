@@ -32,7 +32,7 @@ function normalizePasswordBase(value) {
     .replace(/[^a-z0-9]/g, '')
 }
 
-function generateResetPassword(nomBoutique) {
+function generateUserPassword(nomBoutique) {
   const base = normalizePasswordBase(nomBoutique) || 'boutique'
   const suffix = crypto.randomInt(0, 10000).toString().padStart(4, '0')
   return `${base}${suffix}`
@@ -74,7 +74,7 @@ async function listUsers() {
   return data || []
 }
 
-async function createUser({ nom, nom_boutique, password, role, date_fin }) {
+async function createUser({ nom, nom_boutique, role, date_fin }) {
   const supabase = getSupabase()
 
   const { data: existing, error: existingError } = await supabase
@@ -92,11 +92,12 @@ async function createUser({ nom, nom_boutique, password, role, date_fin }) {
     )
   }
 
+  const generatedPassword = generateUserPassword(nom_boutique)
   const userData = {
     nom,
     nom_boutique,
-    password_hash: bcrypt.hashSync(password, 10),
-    generated_password: password,
+    password_hash: bcrypt.hashSync(generatedPassword, 10),
+    generated_password: generatedPassword,
     role,
     password_change_required: true,
   }
@@ -109,12 +110,12 @@ async function createUser({ nom, nom_boutique, password, role, date_fin }) {
     .from('users')
     .insert(userData)
     .select(
-      'id, nom, nom_boutique, role, est_actif, date_fin, created_at, password_change_required',
+      'id, nom, nom_boutique, generated_password, role, est_actif, date_fin, created_at, password_change_required',
     )
     .single()
 
   if (error) throw error
-  return data
+  return { user: data, newPassword: generatedPassword }
 }
 
 async function deleteUser(userId, currentUserId) {
@@ -175,7 +176,7 @@ async function resetPasswordForUser(userId) {
     throw new AdminUserError('Utilisateur non trouvé', 404, 'USER_NOT_FOUND')
   }
 
-  const newPassword = await resetUserPassword(userId, generateResetPassword(user.nom_boutique))
+  const newPassword = await resetUserPassword(userId, generateUserPassword(user.nom_boutique))
   return { user, newPassword }
 }
 
