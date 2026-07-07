@@ -6,6 +6,7 @@
           <th class="col-id">ID</th>
           <th class="col-nom">Nom</th>
           <th class="col-boutique">Boutique</th>
+          <th class="col-password">Mot de passe</th>
           <th class="col-role">Rôle</th>
           <th class="col-actif">Actif</th>
           <th class="col-date-fin">Date de fin</th>
@@ -18,6 +19,12 @@
           <td class="col-id">{{ user.id }}</td>
           <td class="col-nom">{{ user.nom }}</td>
           <td class="col-boutique" :title="user.nom_boutique">{{ user.nom_boutique }}</td>
+          <td class="col-password">
+            <span v-if="user.generated_password" class="password-chip">
+              {{ user.generated_password }}
+            </span>
+            <span v-else class="password-empty">—</span>
+          </td>
           <td class="col-role">
             <span class="role-badge" :class="'role-' + user.role">
               {{ user.role === 'admin' ? 'Admin' : user.role === 'permanent' ? 'Permanent' : 'Temporaire' }}
@@ -89,7 +96,7 @@ defineEmits(['delete', 'extend', 'reset-password'])
   width: 100%;
   border-collapse: collapse;
   font-size: 0.85rem;
-  min-width: 700px;
+  min-width: 850px;
 }
 
 .users-table th {
@@ -123,6 +130,10 @@ defineEmits(['delete', 'extend', 'reset-password'])
   max-width: 180px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.col-password {
+  min-width: 130px;
   white-space: nowrap;
 }
 .col-role {
@@ -164,6 +175,23 @@ defineEmits(['delete', 'extend', 'reset-password'])
 .role-temporaire {
   background: #fef3c7;
   color: #d97706;
+}
+
+.password-chip {
+  display: inline-block;
+  padding: 4px 8px;
+  border: 1px dashed #86efac;
+  border-radius: 6px;
+  background: #f0fdf4;
+  color: #166534;
+  font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
+  font-size: 0.78rem;
+  font-weight: 700;
+  user-select: all;
+}
+
+.password-empty {
+  color: #94a3b8;
 }
 
 /* Status dot */

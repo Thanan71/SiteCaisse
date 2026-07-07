@@ -15,6 +15,7 @@ export function useUsers() {
   /** @type {import('vue').Ref<Array>} */
   const users = ref([])
   const loading = ref(true)
+  const generatedPasswordsByUserId = new Map()
 
   // Création
   const creating = ref(false)
@@ -56,7 +57,10 @@ export function useUsers() {
     try {
       loading.value = true
       const response = await api.get('/api/admin/users')
-      users.value = response.data
+      users.value = (response.data || []).map((user) => ({
+        ...user,
+        generated_password: generatedPasswordsByUserId.get(user.id) || '',
+      }))
     } catch (err) {
       console.error('Erreur chargement utilisateurs:', err)
     } finally {
@@ -132,6 +136,7 @@ export function useUsers() {
 
     try {
       await api.delete(`/api/admin/users/${userToDelete.value.id}`)
+      generatedPasswordsByUserId.delete(userToDelete.value.id)
       closeDeleteModal()
       await fetchUsers()
     } catch (err) {
@@ -223,12 +228,21 @@ export function useUsers() {
     if (!userToReset.value) return
 
     resettingId.value = userToReset.value.id
+    const resetUserId = userToReset.value.id
 
     try {
       const response = await api.post(`/api/admin/users/${userToReset.value.id}/reset-password`)
       closeResetModal()
       resetResultMessage.value = response.data.message || 'Mot de passe réinitialisé avec succès.'
       resetResultPassword.value = response.data.newPassword || ''
+      if (resetResultPassword.value) {
+        generatedPasswordsByUserId.set(resetUserId, resetResultPassword.value)
+        users.value = users.value.map((user) =>
+          user.id === resetUserId
+            ? { ...user, generated_password: resetResultPassword.value }
+            : user,
+        )
+      }
       showResetResultModal.value = true
     } catch (err) {
       closeResetModal()

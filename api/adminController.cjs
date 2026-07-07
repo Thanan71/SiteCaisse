@@ -7,6 +7,7 @@
  */
 const express = require('express')
 const bcrypt = require('bcryptjs')
+const crypto = require('node:crypto')
 const { authMiddleware } = require('./authController.cjs')
 const { getSupabase } = require('./db.cjs')
 const { getAllParametres, updateParametre } = require('./services/parametresService.cjs')
@@ -28,6 +29,23 @@ function adminMiddleware(req, res, next) {
     return res.status(403).json({ error: 'Accès réservé aux administrateurs' })
   }
   next()
+}
+
+function normalizePasswordBase(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/œ/g, 'oe')
+    .replace(/æ/g, 'ae')
+    .replace(/\s+/g, '')
+    .replace(/[^a-z0-9]/g, '')
+}
+
+function generateResetPassword(nomBoutique) {
+  const base = normalizePasswordBase(nomBoutique) || 'boutique'
+  const suffix = crypto.randomInt(0, 10000).toString().padStart(4, '0')
+  return `${base}${suffix}`
 }
 
 /**
@@ -323,8 +341,7 @@ router.get('/logs', authMiddleware, adminMiddleware, async (req, res) => {
 /**
  * POST /api/admin/users/:id/reset-password
  * Réinitialise le mot de passe d'un utilisateur.
- * Utilise le nom de l'utilisateur comme nouveau mot de passe et force le changement
- * de mot de passe à la prochaine connexion.
+ * Génère un mot de passe à partir du nom de boutique et de 4 chiffres aléatoires.
  * @param {number} req.params.id - ID de l'utilisateur.
  * @returns {Object} Message de confirmation.
  */
@@ -349,8 +366,7 @@ router.post('/users/:id/reset-password', authMiddleware, adminMiddleware, async 
       return res.status(404).json({ error: 'Utilisateur non trouvé' })
     }
 
-    // Utiliser le nom de l'utilisateur comme mot de passe temporaire.
-    const newPassword = await resetUserPassword(userId, user.nom)
+    const newPassword = await resetUserPassword(userId, generateResetPassword(user.nom_boutique))
 
     await logAction({
       user: req.user,
@@ -362,7 +378,7 @@ router.post('/users/:id/reset-password', authMiddleware, adminMiddleware, async 
     })
 
     res.json({
-      message: "Mot de passe réinitialisé avec succès avec le nom de l'utilisateur.",
+      message: 'Mot de passe réinitialisé avec succès.',
       newPassword,
     })
   } catch (err) {

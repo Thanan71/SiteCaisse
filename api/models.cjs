@@ -670,7 +670,7 @@ async function deleteVente(id) {
 
 /**
  * Réinitialise le mot de passe d'un utilisateur avec une valeur donnée,
- * le hache, le stocke en base et force le changement au prochain login.
+ * le hache et le stocke en base.
  * @param {number} id - ID de l'utilisateur.
  * @param {string} newPassword - Nouveau mot de passe en clair.
  * @returns {Promise<string>} Le nouveau mot de passe en clair.
@@ -693,7 +693,7 @@ async function resetUserPassword(id, newPassword) {
   const password_hash = bcrypt.hashSync(newPassword, 10)
   const { error } = await supabase
     .from('users')
-    .update({ password_hash, password_change_required: 1 })
+    .update({ password_hash, password_change_required: 0 })
     .eq('id', id)
 
   if (error) throw error
