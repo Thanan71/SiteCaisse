@@ -286,12 +286,18 @@ const temporaires = computed(() => artisansStore.temporaires)
 
 const selectedArtisan = computed(() => {
   if (!selectedArtisanId.value) return null
-  return artisansStore.artisans.find((a) => String(a.id) === String(selectedArtisanId.value)) || null
+  return (
+    artisansStore.artisans.find((a) => String(a.id) === String(selectedArtisanId.value)) || null
+  )
 })
 
 const selectedArtisanRapportMoisGroup = computed(() => {
   if (!selectedArtisanId.value || !rapportsStore.rapportMois?.groupes) return null
-  return rapportsStore.rapportMois.groupes.find((g) => String(g.artisan_id) === String(selectedArtisanId.value)) || null
+  return (
+    rapportsStore.rapportMois.groupes.find(
+      (g) => String(g.artisan_id) === String(selectedArtisanId.value),
+    ) || null
+  )
 })
 
 /**

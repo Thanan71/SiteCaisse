@@ -6,13 +6,18 @@
  * Protégé par le middleware d'authentification + vérification du rôle admin.
  */
 const express = require('express')
-const bcrypt = require('bcryptjs')
-const crypto = require('node:crypto')
 const { authMiddleware } = require('./authController.cjs')
-const { getSupabase } = require('./db.cjs')
 const { getAllParametres, updateParametre } = require('./services/parametresService.cjs')
 const { logAction, logError, getActionLogs } = require('./services/loggerService.cjs')
-const { extendUserDateFin, resetUserPassword } = require('./models.cjs')
+const {
+  AdminUserError,
+  createUser,
+  deleteUser,
+  extendTemporaryUserAccess,
+  listUsers,
+  resetPasswordForUser,
+  updateUserCommission,
+} = require('./services/adminUserService.cjs')
 
 const router = express.Router()
 
@@ -31,33 +36,10 @@ function adminMiddleware(req, res, next) {
   next()
 }
 
-function normalizePasswordBase(value) {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/œ/g, 'oe')
-    .replace(/æ/g, 'ae')
-    .replace(/\s+/g, '')
-    .replace(/[^a-z0-9]/g, '')
-}
-
-function generateResetPassword(nomBoutique) {
-  const base = normalizePasswordBase(nomBoutique) || 'boutique'
-  const suffix = crypto.randomInt(0, 10000).toString().padStart(4, '0')
-  return `${base}${suffix}`
-}
-
-function parseOptionalPositiveNumber(value) {
-  if (value === undefined || value === null) return null
-
-  const normalized = typeof value === 'string' ? value.trim().replace(',', '.') : value
-  if (normalized === '') return null
-
-  const parsed = Number(normalized)
-  if (!Number.isFinite(parsed) || parsed < 0) return undefined
-
-  return parsed
+function sendAdminUserError(err, res) {
+  if (!(err instanceof AdminUserError)) return false
+  res.status(err.statusCode).json({ error: err.message })
+  return true
 }
 
 /**
@@ -67,16 +49,7 @@ function parseOptionalPositiveNumber(value) {
  */
 router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const supabase = getSupabase()
-    const { data, error } = await supabase
-      .from('users')
-      .select(
-        'id, nom, nom_boutique, generated_password, commission_cb_personnalisee, role, est_actif, date_fin, created_at',
-      )
-      .order('created_at', { ascending: false })
-
-    if (error) throw error
-    res.json(data || [])
+    res.json(await listUsers())
   } catch (err) {
     console.error('Admin list users error:', err)
     await logError({
@@ -126,42 +99,14 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
         .json({ error: 'Un utilisateur permanent ne peut pas avoir de date de fin' })
     }
 
-    const supabase = getSupabase()
-
-    // Vérifier si le nom de boutique existe déjà
-    const { data: existing } = await supabase
-      .from('users')
-      .select('id')
-      .eq('nom_boutique', nom_boutique)
-      .maybeSingle()
-
-    if (existing) {
-      return res.status(409).json({ error: 'Un utilisateur avec ce nom de boutique existe déjà' })
-    }
-
-    const password_hash = bcrypt.hashSync(password, 10)
-
-    const userData = {
+    const data = await createUser({
       nom,
       nom_boutique,
-      password_hash,
-      generated_password: password,
+      password,
       role,
-      password_change_required: 1,
-    }
-    if (date_fin) {
-      userData.date_fin = date_fin
-    }
+      date_fin,
+    })
 
-    const { data, error } = await supabase
-      .from('users')
-      .insert(userData)
-      .select(
-        'id, nom, nom_boutique, role, est_actif, date_fin, created_at, password_change_required',
-      )
-      .single()
-
-    if (error) throw error
     await logAction({
       user: req.user,
       action: 'user.create',
@@ -178,6 +123,8 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
 
     res.status(201).json(data)
   } catch (err) {
+    if (sendAdminUserError(err, res)) return
+
     console.error('Admin create user error:', err)
     await logError({
       user: req.user,
@@ -210,31 +157,7 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
       return res.status(400).json({ error: 'ID utilisateur invalide' })
     }
 
-    // Empêcher l'admin de se supprimer lui-même
-    if (userId === req.user.id) {
-      return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' })
-    }
-
-    const supabase = getSupabase()
-
-    // Vérifier que l'utilisateur existe
-    const { data: userToDelete } = await supabase
-      .from('users')
-      .select('id, nom, nom_boutique, role')
-      .eq('id', userId)
-      .maybeSingle()
-
-    if (!userToDelete) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' })
-    }
-
-    // Supprimer les ventes liées à cet utilisateur (artisan ou vendeur)
-    await supabase.from('ventes').delete().eq('artisan_id', userId)
-    await supabase.from('ventes').delete().eq('vendeur_id', userId)
-
-    // Supprimer l'utilisateur
-    const { error } = await supabase.from('users').delete().eq('id', userId)
-    if (error) throw error
+    const userToDelete = await deleteUser(userId, req.user.id)
 
     await logAction({
       user: req.user,
@@ -251,6 +174,8 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
 
     res.json({ message: 'Utilisateur supprimé avec succès' })
   } catch (err) {
+    if (sendAdminUserError(err, res)) return
+
     console.error('Admin delete user error:', err)
     await logError({
       user: req.user,
@@ -277,41 +202,10 @@ router.patch('/users/:id/commission', authMiddleware, adminMiddleware, async (re
       return res.status(400).json({ error: 'ID utilisateur invalide' })
     }
 
-    const commissionCbPersonnalisee = parseOptionalPositiveNumber(
+    const { previousUser, user } = await updateUserCommission(
+      userId,
       req.body?.commission_cb_personnalisee,
     )
-    if (commissionCbPersonnalisee === undefined) {
-      return res
-        .status(400)
-        .json({ error: 'La commission personnalisée doit être un nombre positif' })
-    }
-
-    const supabase = getSupabase()
-
-    const { data: user } = await supabase
-      .from('users')
-      .select('id, nom, nom_boutique, role, commission_cb_personnalisee')
-      .eq('id', userId)
-      .maybeSingle()
-
-    if (!user) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' })
-    }
-
-    if (user.role === 'admin') {
-      return res
-        .status(400)
-        .json({ error: 'Les commissions personnalisées ne concernent que les artisans' })
-    }
-
-    const { data, error } = await supabase
-      .from('users')
-      .update({ commission_cb_personnalisee: commissionCbPersonnalisee })
-      .eq('id', userId)
-      .select('id, nom, nom_boutique, role, commission_cb_personnalisee')
-      .single()
-
-    if (error) throw error
 
     await logAction({
       user: req.user,
@@ -319,19 +213,21 @@ router.patch('/users/:id/commission', authMiddleware, adminMiddleware, async (re
       cible_type: 'user',
       cible_id: userId,
       details: {
-        nom: user.nom,
-        nom_boutique: user.nom_boutique,
-        ancienne_commission_cb_personnalisee: user.commission_cb_personnalisee,
-        nouvelle_commission_cb_personnalisee: data.commission_cb_personnalisee,
+        nom: previousUser.nom,
+        nom_boutique: previousUser.nom_boutique,
+        ancienne_commission_cb_personnalisee: previousUser.commission_cb_personnalisee,
+        nouvelle_commission_cb_personnalisee: user.commission_cb_personnalisee,
       },
       req,
     })
 
     res.json({
       message: 'Commission personnalisée mise à jour avec succès',
-      user: data,
+      user,
     })
   } catch (err) {
+    if (sendAdminUserError(err, res)) return
+
     console.error('Admin update user commission error:', err)
     await logError({
       user: req.user,
@@ -455,20 +351,7 @@ router.post('/users/:id/reset-password', authMiddleware, adminMiddleware, async 
       return res.status(400).json({ error: 'ID utilisateur invalide' })
     }
 
-    const supabase = getSupabase()
-
-    // Vérifier que l'utilisateur existe
-    const { data: user } = await supabase
-      .from('users')
-      .select('id, nom, nom_boutique')
-      .eq('id', userId)
-      .maybeSingle()
-
-    if (!user) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' })
-    }
-
-    const newPassword = await resetUserPassword(userId, generateResetPassword(user.nom_boutique))
+    const { user, newPassword } = await resetPasswordForUser(userId)
 
     await logAction({
       user: req.user,
@@ -484,6 +367,8 @@ router.post('/users/:id/reset-password', authMiddleware, adminMiddleware, async 
       newPassword,
     })
   } catch (err) {
+    if (sendAdminUserError(err, res)) return
+
     console.error('Admin reset password error:', err)
     await logError({
       user: req.user,
@@ -513,39 +398,7 @@ router.patch('/users/:id/extend', authMiddleware, adminMiddleware, async (req, r
     }
 
     const { date_fin } = req.body
-    if (!date_fin) {
-      return res.status(400).json({ error: 'La nouvelle date de fin est requise' })
-    }
-
-    const supabase = getSupabase()
-
-    // Vérifier que l'utilisateur existe et est temporaire
-    const { data: user } = await supabase
-      .from('users')
-      .select('id, nom, nom_boutique, role, date_fin')
-      .eq('id', userId)
-      .maybeSingle()
-
-    if (!user) {
-      return res.status(404).json({ error: 'Utilisateur non trouvé' })
-    }
-
-    if (user.role !== 'temporaire') {
-      return res
-        .status(400)
-        .json({ error: 'Seuls les utilisateurs temporaires peuvent être prolongés' })
-    }
-
-    // Valider que la nouvelle date est postérieure à l'ancienne
-    const oldDate = new Date(user.date_fin)
-    const newDate = new Date(date_fin)
-    if (newDate <= oldDate) {
-      return res
-        .status(400)
-        .json({ error: 'La nouvelle date de fin doit être postérieure à la date actuelle' })
-    }
-
-    await extendUserDateFin(userId, date_fin)
+    const { user, nouvelleDateFin } = await extendTemporaryUserAccess(userId, date_fin)
 
     await logAction({
       user: req.user,
@@ -556,13 +409,15 @@ router.patch('/users/:id/extend', authMiddleware, adminMiddleware, async (req, r
         nom: user.nom,
         nom_boutique: user.nom_boutique,
         ancienne_date: user.date_fin,
-        nouvelle_date: date_fin,
+        nouvelle_date: nouvelleDateFin,
       },
       req,
     })
 
-    res.json({ message: 'Accès prolongé avec succès', nouvelle_date_fin: date_fin })
+    res.json({ message: 'Accès prolongé avec succès', nouvelle_date_fin: nouvelleDateFin })
   } catch (err) {
+    if (sendAdminUserError(err, res)) return
+
     console.error('Admin extend user error:', err)
     await logError({
       user: req.user,

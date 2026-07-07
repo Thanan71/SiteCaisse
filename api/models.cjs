@@ -5,6 +5,12 @@
  */
 const bcrypt = require('bcryptjs')
 const { getSupabase } = require('./db.cjs')
+const {
+  filterVentesByArtisan,
+  groupVentesByArtisan,
+  groupVentesByMonth,
+  groupVentesForMonth,
+} = require('./services/venteAggregationService.cjs')
 
 /**
  * Vérifie si des utilisateurs existent dans la table users.
@@ -218,16 +224,6 @@ function groupArticlesByVenteId(articles) {
   }, {})
 }
 
-function summarizeVentes(ventes) {
-  return ventes.reduce(
-    (summary, vente) => ({
-      total_articles: summary.total_articles + vente.total_articles,
-      total_montant: summary.total_montant + vente.total_montant,
-    }),
-    { total_articles: 0, total_montant: 0 },
-  )
-}
-
 function formatVente(vente, articlesByVente) {
   const venteArticles = articlesByVente[vente.id] || []
   const total_articles = venteArticles.reduce((sum, article) => sum + (article.quantite || 0), 0)
@@ -363,25 +359,8 @@ async function getAllVentes(options = {}) {
  * @returns {Promise<{ventes: Array, summary: {total_articles: number, total_montant: number}}>}
  */
 async function getVentesByArtisan(artisan_id) {
-  // Agréger les ventes pour un artisan en se basant sur les articles
   const allVentes = await getAllVentesUnpaginated()
-
-  const ventesFiltered = []
-  for (const vente of allVentes) {
-    const articles = (vente.articles || []).filter(
-      (a) => Number(a.artisan_id) === Number(artisan_id),
-    )
-    if (articles.length > 0) {
-      const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
-      const total_montant = articles.reduce((s, a) => s + a.prix * (a.quantite || 0), 0)
-      ventesFiltered.push({ ...vente, articles, total_articles, total_montant })
-    }
-  }
-
-  if (!ventesFiltered.length)
-    return { ventes: [], summary: { total_articles: 0, total_montant: 0 } }
-
-  return { ventes: ventesFiltered, summary: summarizeVentes(ventesFiltered) }
+  return filterVentesByArtisan(allVentes, artisan_id)
 }
 
 /**
@@ -417,76 +396,8 @@ async function getAllVentesGroupedByArtisan(options = {}) {
     ? await getAllVentes(options)
     : { ventes: await getAllVentesUnpaginated(), pagination: null }
   const allVentes = result.ventes
-
-  // Récupérer la liste d'artisans pour nom/role
   const artisansList = await getAllArtisans()
-  const artisanMap = artisansList.reduce((m, a) => {
-    m[a.id] = a
-    return m
-  }, {})
-
-  // Grouper par artisan_id présent sur chaque ligne d'article
-  const grouped = {}
-  for (const vente of allVentes) {
-    // pour chaque vente, regrouper ses articles par artisan
-    const byArtisan = {}
-    for (const art of vente.articles || []) {
-      const aid = art.artisan_id || null
-      if (!byArtisan[aid]) byArtisan[aid] = []
-      byArtisan[aid].push(art)
-    }
-
-    for (const [aid, articles] of Object.entries(byArtisan)) {
-      const key = aid === 'null' ? null : Number(aid)
-      if (!grouped[key]) {
-        grouped[key] = {
-          artisan_id: key,
-          artisan_nom:
-            artisanMap[key]?.nom_boutique ||
-            artisanMap[key]?.nom ||
-            (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
-          artisan_role: artisanMap[key]?.role || null,
-          commission_cb_personnalisee: artisanMap[key]?.commission_cb_personnalisee ?? null,
-          ventes: [],
-        }
-      }
-
-      // Construire une entrée de vente ne contenant que les articles de cet artisan
-      const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
-      const total_montant = articles.reduce((s, a) => s + a.prix * (a.quantite || 0), 0)
-
-      const venteEntry = {
-        ...vente,
-        articles,
-        total_articles,
-        total_montant,
-      }
-
-      grouped[key].ventes.push(venteEntry)
-    }
-  }
-
-  // Construire le tableau de groupes avec le résumé par artisan
-  const groupes = Object.values(grouped).map((g) => ({
-    artisan_id: g.artisan_id,
-    artisan_nom: g.artisan_nom,
-    artisan_role: g.artisan_role,
-    commission_cb_personnalisee: g.commission_cb_personnalisee,
-    ventes: g.ventes,
-    summary: summarizeVentes(g.ventes),
-  }))
-
-  // Trier les groupes par nom d'artisan
-  groupes.sort((a, b) => (a.artisan_nom || '').localeCompare(b.artisan_nom || ''))
-
-  // Résumé global
-  const total = groupes.reduce(
-    (summary, groupe) => ({
-      total_articles: summary.total_articles + groupe.summary.total_articles,
-      total_montant: summary.total_montant + groupe.summary.total_montant,
-    }),
-    { total_articles: 0, total_montant: 0 },
-  )
+  const { groupes, total } = groupVentesByArtisan(allVentes, artisansList)
 
   return {
     groupes,
@@ -506,85 +417,8 @@ async function getAllVentesGroupedByMonth() {
     return { mois: [], total: { total_articles: 0, total_montant: 0 } }
   }
 
-  // Grouper par mois (YYYY-MM) puis par artisan
   const artisansList = await getAllArtisans()
-  const artisanMap = artisansList.reduce((m, a) => {
-    m[a.id] = a
-    return m
-  }, {})
-
-  const byMonth = {}
-  for (const vente of allVentes) {
-    const mois = vente.date_vente.substring(0, 7) // "2024-01"
-    if (!byMonth[mois]) {
-      byMonth[mois] = { mois, groupes: {} }
-    }
-
-    // regrouper articles par artisan
-    const byArtisan = {}
-    for (const art of vente.articles || []) {
-      const aid = art.artisan_id || null
-      if (!byArtisan[aid]) byArtisan[aid] = []
-      byArtisan[aid].push(art)
-    }
-
-    for (const [aid, articles] of Object.entries(byArtisan)) {
-      const key = aid === 'null' ? null : Number(aid)
-      if (!byMonth[mois].groupes[key]) {
-        byMonth[mois].groupes[key] = {
-          artisan_id: key,
-          artisan_nom:
-            artisanMap[key]?.nom_boutique ||
-            artisanMap[key]?.nom ||
-            (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
-          artisan_role: artisanMap[key]?.role || null,
-          commission_cb_personnalisee: artisanMap[key]?.commission_cb_personnalisee ?? null,
-          ventes: [],
-        }
-      }
-
-      const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
-      const total_montant = articles.reduce((s, a) => s + a.prix * (a.quantite || 0), 0)
-
-      const venteEntry = { ...vente, articles, total_articles, total_montant }
-      byMonth[mois].groupes[key].ventes.push(venteEntry)
-    }
-  }
-
-  // Convertir en tableau trié (du plus récent au plus ancien) avec résumés
-  const moisArray = Object.entries(byMonth)
-    .sort(([a], [b]) => b.localeCompare(a))
-    .map(([moisKey, monthData]) => {
-      const groupes = Object.values(monthData.groupes)
-        .map((g) => ({
-          artisan_id: g.artisan_id,
-          artisan_nom: g.artisan_nom,
-          artisan_role: g.artisan_role,
-          commission_cb_personnalisee: g.commission_cb_personnalisee,
-          ventes: g.ventes,
-          summary: summarizeVentes(g.ventes),
-        }))
-        .sort((a, b) => (a.artisan_nom || '').localeCompare(b.artisan_nom || ''))
-
-      const totalMois = groupes.reduce(
-        (acc, g) => ({
-          total_articles: acc.total_articles + g.summary.total_articles,
-          total_montant: acc.total_montant + g.summary.total_montant,
-        }),
-        { total_articles: 0, total_montant: 0 },
-      )
-
-      return {
-        mois: moisKey,
-        groupes,
-        total: totalMois,
-      }
-    })
-
-  // Résumé global toutes périodes confondues
-  const total = summarizeVentes(allVentes)
-
-  return { mois: moisArray, total }
+  return groupVentesByMonth(allVentes, artisansList)
 }
 
 /**
@@ -593,70 +427,9 @@ async function getAllVentesGroupedByMonth() {
  * @returns {Promise<{groupes: Array, total: {total_articles: number, total_montant: number}}>}
  */
 async function getVentesByMonth(mois) {
-  // Utiliser les ventes non paginées puis filtrer par mois, puis regrouper par artisan au niveau des articles
   const allVentes = await getAllVentesUnpaginated()
-
   const artisansList = await getAllArtisans()
-  const artisanMap = artisansList.reduce((m, a) => {
-    m[a.id] = a
-    return m
-  }, {})
-
-  const groupesMap = {}
-  for (const vente of allVentes) {
-    if (!vente.date_vente?.startsWith(mois)) continue
-
-    // regrouper articles par artisan
-    const byArtisan = {}
-    for (const art of vente.articles || []) {
-      const aid = art.artisan_id || null
-      if (!byArtisan[aid]) byArtisan[aid] = []
-      byArtisan[aid].push(art)
-    }
-
-    for (const [aid, articles] of Object.entries(byArtisan)) {
-      const key = aid === 'null' ? null : Number(aid)
-      if (!groupesMap[key]) {
-        groupesMap[key] = {
-          artisan_id: key,
-          artisan_nom:
-            artisanMap[key]?.nom_boutique ||
-            artisanMap[key]?.nom ||
-            (key === null ? 'Artisan inconnu' : `Artisan #${key}`),
-          artisan_role: artisanMap[key]?.role || null,
-          commission_cb_personnalisee: artisanMap[key]?.commission_cb_personnalisee ?? null,
-          ventes: [],
-        }
-      }
-
-      const total_articles = articles.reduce((s, a) => s + (a.quantite || 0), 0)
-      const total_montant = articles.reduce((s, a) => s + a.prix * (a.quantite || 0), 0)
-
-      const venteEntry = { ...vente, articles, total_articles, total_montant }
-      groupesMap[key].ventes.push(venteEntry)
-    }
-  }
-
-  const groupes = Object.values(groupesMap)
-    .map((g) => ({
-      artisan_id: g.artisan_id,
-      artisan_nom: g.artisan_nom,
-      artisan_role: g.artisan_role,
-      commission_cb_personnalisee: g.commission_cb_personnalisee,
-      ventes: g.ventes,
-      summary: summarizeVentes(g.ventes),
-    }))
-    .sort((a, b) => (a.artisan_nom || '').localeCompare(b.artisan_nom || ''))
-
-  const total = groupes.reduce(
-    (acc, g) => ({
-      total_articles: acc.total_articles + g.summary.total_articles,
-      total_montant: acc.total_montant + g.summary.total_montant,
-    }),
-    { total_articles: 0, total_montant: 0 },
-  )
-
-  return { groupes, total }
+  return groupVentesForMonth(allVentes, artisansList, mois)
 }
 
 /**

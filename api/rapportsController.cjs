@@ -6,19 +6,14 @@
  * Toutes les routes sont protégées par le middleware d'authentification JWT.
  */
 const express = require('express')
-const {
-  getAllArtisans,
-  getVentesByArtisan,
-  getAllVentesGroupedByArtisan,
-  getAllVentesGroupedByMonth,
-  getVentesByMonth,
-} = require('./models.cjs')
+const { getAllArtisans } = require('./models.cjs')
 const { authMiddleware } = require('./authController.cjs')
 const {
-  ajouterCommissionsAuxGroupes,
-  ajouterCommissionAUnArtisan,
-} = require('./services/commissionService.cjs')
-const { getAllParametres } = require('./services/parametresService.cjs')
+  getRapportArtisan,
+  getRapportGlobal,
+  getRapportMensuel,
+  getRapportParMois,
+} = require('./services/rapportService.cjs')
 const { logError } = require('./services/loggerService.cjs')
 
 const router = express.Router()
@@ -32,30 +27,7 @@ router.use(authMiddleware)
  */
 router.get('/', async (req, res) => {
   try {
-    const [data, parametres] = await Promise.all([
-      getAllVentesGroupedByArtisan(),
-      getAllParametres(),
-    ])
-
-    const tauxPermanent = parseFloat(parametres.commission_cb_permanent) || 0
-    const tauxTemporaire = parseFloat(parametres.commission_cb_temporaire) || 0
-
-    // Déléguer le calcul des commissions au service dédié (SRP)
-    const { groupesAvecCommissions, totalGlobalCB, totalGlobalCommission } =
-      ajouterCommissionsAuxGroupes(data.groupes, tauxPermanent, tauxTemporaire)
-
-    res.json({
-      groupes: groupesAvecCommissions,
-      total: {
-        ...data.total,
-        total_cb: totalGlobalCB,
-        total_commission: totalGlobalCommission,
-      },
-      parametres: {
-        commission_cb_permanent: tauxPermanent,
-        commission_cb_temporaire: tauxTemporaire,
-      },
-    })
+    res.json(await getRapportGlobal())
   } catch (err) {
     console.error('GET all rapports error:', err)
     await logError({
@@ -76,30 +48,7 @@ router.get('/', async (req, res) => {
  */
 router.get('/mensuel', async (req, res) => {
   try {
-    const [data, parametres] = await Promise.all([getAllVentesGroupedByMonth(), getAllParametres()])
-
-    const tauxPermanent = parseFloat(parametres.commission_cb_permanent) || 0
-    const tauxTemporaire = parseFloat(parametres.commission_cb_temporaire) || 0
-
-    // Ajouter les commissions à chaque groupe de chaque mois
-    for (const mois of data.mois) {
-      const { groupesAvecCommissions, totalGlobalCB, totalGlobalCommission } =
-        ajouterCommissionsAuxGroupes(mois.groupes, tauxPermanent, tauxTemporaire)
-      mois.groupes = groupesAvecCommissions
-      mois.total.total_cb = totalGlobalCB
-      mois.total.total_commission = totalGlobalCommission
-    }
-
-    res.json({
-      mois: data.mois,
-      total: {
-        ...data.total,
-      },
-      parametres: {
-        commission_cb_permanent: tauxPermanent,
-        commission_cb_temporaire: tauxTemporaire,
-      },
-    })
+    res.json(await getRapportMensuel())
   } catch (err) {
     console.error('GET rapports mensuel error:', err)
     await logError({
@@ -149,26 +98,7 @@ router.get('/mensuel/:mois', async (req, res) => {
       return res.status(400).json({ error: 'Format de mois invalide. Utilisez YYYY-MM' })
     }
 
-    const [data, parametres] = await Promise.all([getVentesByMonth(mois), getAllParametres()])
-
-    const tauxPermanent = parseFloat(parametres.commission_cb_permanent) || 0
-    const tauxTemporaire = parseFloat(parametres.commission_cb_temporaire) || 0
-
-    const { groupesAvecCommissions, totalGlobalCB, totalGlobalCommission } =
-      ajouterCommissionsAuxGroupes(data.groupes, tauxPermanent, tauxTemporaire)
-
-    res.json({
-      groupes: groupesAvecCommissions,
-      total: {
-        ...data.total,
-        total_cb: totalGlobalCB,
-        total_commission: totalGlobalCommission,
-      },
-      parametres: {
-        commission_cb_permanent: tauxPermanent,
-        commission_cb_temporaire: tauxTemporaire,
-      },
-    })
+    res.json(await getRapportParMois(mois))
   } catch (err) {
     console.error('GET rapport mensuel par mois error:', err)
     await logError({
@@ -197,36 +127,7 @@ router.get('/:artisan_id', async (req, res) => {
       return res.status(400).json({ error: 'ID artisan invalide' })
     }
 
-    const [data, parametres] = await Promise.all([
-      getVentesByArtisan(artisan_id),
-      getAllParametres(),
-    ])
-
-    const tauxPermanent = parseFloat(parametres.commission_cb_permanent) || 0
-    const tauxTemporaire = parseFloat(parametres.commission_cb_temporaire) || 0
-
-    // Déterminer le rôle de l'artisan depuis la table users
-    let role = 'permanent'
-    let tauxPersonnalise = null
-    try {
-      const artisan = await getAllArtisans()
-      const found = artisan.find((a) => Number(a.id) === Number(artisan_id))
-      role = found?.role || 'permanent'
-      tauxPersonnalise = found?.commission_cb_personnalisee ?? null
-    } catch {
-      // fallback
-    }
-
-    // Déléguer le calcul des commissions au service dédié (SRP)
-    const resultat = ajouterCommissionAUnArtisan(
-      data,
-      role,
-      tauxPermanent,
-      tauxTemporaire,
-      tauxPersonnalise,
-    )
-
-    res.json(resultat)
+    res.json(await getRapportArtisan(artisan_id))
   } catch (err) {
     console.error('GET rapport artisan error:', err)
     await logError({

@@ -331,7 +331,12 @@ function setActiveTab(tab) {
 }
 
 async function fetchJournalier() {
-  await ventesStore.fetchVentes({ page: 1, limit: 1000, date_debut: currentDateISO, date_fin: currentDateISO })
+  await ventesStore.fetchVentes({
+    page: 1,
+    limit: 1000,
+    date_debut: currentDateISO,
+    date_fin: currentDateISO,
+  })
 }
 
 /**
@@ -402,7 +407,11 @@ function flattenGroupVentes(groupes) {
 const dailyVentes = computed(() => {
   const ventes = ventesStore.ventes || []
   const filtered = ventes.filter((v) => {
-    const dateStr = v.date_vente ? String(v.date_vente).slice(0, 10) : (v.created_at ? new Date(v.created_at).toISOString().slice(0, 10) : '')
+    const dateStr = v.date_vente
+      ? String(v.date_vente).slice(0, 10)
+      : v.created_at
+        ? new Date(v.created_at).toISOString().slice(0, 10)
+        : ''
     return dateStr === currentDateISO
   })
   return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
@@ -412,7 +421,14 @@ const dailySummary = computed(() => {
   const ventes = dailyVentes.value || []
   const total_articles = ventes.reduce((s, v) => s + (Number(v.total_articles) || 0), 0)
   const total_montant = ventes.reduce((s, v) => s + (Number(v.total_montant) || 0), 0)
-  const total_cb = ventes.reduce((s, v) => s + ((v.type_paiement === 'CB' || v.type_paiement === 'Carte Bancaire') ? (Number(v.total_montant) || 0) : 0), 0)
+  const total_cb = ventes.reduce(
+    (s, v) =>
+      s +
+      (v.type_paiement === 'CB' || v.type_paiement === 'Carte Bancaire'
+        ? Number(v.total_montant) || 0
+        : 0),
+    0,
+  )
   const taux_commission = rapportsStore.rapportMois?.parametres?.commission_cb_permanent || 0
   const commission_cb = 0 // calcul de commission non disponible ici sans règles serveur
   return {
