@@ -14,11 +14,21 @@ DELETE FROM users
 WHERE nom_boutique <> 'Administration';
 
 -- Créer ou mettre à jour le compte admin avec un mot de passe connu
-INSERT INTO users (nom, nom_boutique, password_hash, role, est_actif, password_change_required, created_at)
+INSERT INTO users (
+  nom,
+  nom_boutique,
+  password_hash,
+  generated_password,
+  role,
+  est_actif,
+  password_change_required,
+  created_at
+)
 VALUES (
   'Admin',
   'Administration',
   '$2b$10$KjIvYPinFfUhH/oAAOA9uufdBD1lR4bVgqgPViN/bRRx0rZj69IcW',
+  'password123',
   'admin',
   1,
   0,
@@ -27,6 +37,7 @@ VALUES (
 ON CONFLICT (nom_boutique) DO UPDATE SET
   nom = EXCLUDED.nom,
   password_hash = EXCLUDED.password_hash,
+  generated_password = EXCLUDED.generated_password,
   role = EXCLUDED.role,
   est_actif = EXCLUDED.est_actif,
   password_change_required = EXCLUDED.password_change_required;

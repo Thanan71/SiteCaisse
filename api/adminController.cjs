@@ -58,7 +58,7 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
     const supabase = getSupabase()
     const { data, error } = await supabase
       .from('users')
-      .select('id, nom, nom_boutique, role, est_actif, date_fin, created_at')
+      .select('id, nom, nom_boutique, generated_password, role, est_actif, date_fin, created_at')
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -127,7 +127,14 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
 
     const password_hash = bcrypt.hashSync(password, 10)
 
-    const userData = { nom, nom_boutique, password_hash, role, password_change_required: 1 }
+    const userData = {
+      nom,
+      nom_boutique,
+      password_hash,
+      generated_password: password,
+      role,
+      password_change_required: 1,
+    }
     if (date_fin) {
       userData.date_fin = date_fin
     }

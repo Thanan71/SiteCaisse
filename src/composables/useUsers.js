@@ -59,7 +59,8 @@ export function useUsers() {
       const response = await api.get('/api/admin/users')
       users.value = (response.data || []).map((user) => ({
         ...user,
-        generated_password: generatedPasswordsByUserId.get(user.id) || '',
+        generated_password:
+          generatedPasswordsByUserId.get(user.id) || user.generated_password || '',
       }))
     } catch (err) {
       console.error('Erreur chargement utilisateurs:', err)
