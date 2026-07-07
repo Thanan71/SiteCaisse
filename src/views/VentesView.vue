@@ -391,17 +391,43 @@ function closeDeleteModal() {
 }
 
 function flattenGroupVentes(groupes) {
-  const ventes = []
+  const ventesById = new Map()
+
   for (const groupe of groupes) {
     for (const vente of groupe.ventes) {
-      ventes.push({
-        ...vente,
-        artisan_nom: groupe.artisan_nom,
-      })
+      const existing = ventesById.get(vente.id)
+      if (!existing) {
+        ventesById.set(vente.id, {
+          ...vente,
+          artisan_nom: groupe.artisan_nom,
+          articles: [...(vente.articles || [])],
+        })
+        continue
+      }
+
+      existing.articles.push(...(vente.articles || []))
+      existing.artisan_nom = mergeArtisanNames(existing.artisan_nom, groupe.artisan_nom)
     }
   }
+
+  const ventes = Array.from(ventesById.values()).map((vente) => ({
+    ...vente,
+    total_articles: vente.articles.reduce(
+      (total, article) => total + (Number(article.quantite) || 0),
+      0,
+    ),
+    total_montant: vente.articles.reduce(
+      (total, article) => total + (Number(article.prix) || 0) * (Number(article.quantite) || 0),
+      0,
+    ),
+  }))
+
   // Trier par created_at (plus récent en premier)
   return ventes.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+}
+
+function mergeArtisanNames(current, next) {
+  return [...new Set([...(current ? current.split(', ') : []), next].filter(Boolean))].join(', ')
 }
 
 const dailyVentes = computed(() => {
