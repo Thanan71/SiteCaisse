@@ -64,7 +64,6 @@ jobs:
         run: npm run ci
 
       - name: 'notify vercel'
-        if: always()
         uses: 'vercel/repository-dispatch/actions/status@v1'
         with:
           name: 'Vercel - site-caisse: testing'
