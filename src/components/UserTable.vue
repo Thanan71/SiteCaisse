@@ -47,13 +47,13 @@
                 {{ extendingId === user.id ? '...' : 'Prolonger' }}
               </button>
               <button
-                v-if="user.role !== 'admin'"
+                v-if="user.role !== 'admin' && user.est_actif !== false"
                 @click="$emit('delete', user)"
                 class="btn btn-danger btn-sm"
                 :disabled="deletingId === user.id"
-                title="Supprimer"
+                title="Archiver le compte"
               >
-                {{ deletingId === user.id ? '...' : 'Suppr.' }}
+                {{ deletingId === user.id ? '...' : 'Archiver' }}
               </button>
               <button
                 @click="$emit('reset-password', user)"

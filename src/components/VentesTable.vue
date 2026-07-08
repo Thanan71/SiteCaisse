@@ -136,7 +136,7 @@ const artisansStore = useArtisansStore()
 
 onMounted(() => {
   if (!artisansStore.artisans || artisansStore.artisans.length === 0) {
-    artisansStore.fetchArtisans().catch(() => {})
+    artisansStore.fetchArtisans({ includeInactive: true }).catch(() => {})
   }
 })
 

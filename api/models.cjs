@@ -159,16 +159,26 @@ async function updatePassword(id, newPassword) {
 }
 
 /**
- * Récupère tous les artisans actifs ayant un rôle permanent ou temporaire.
- * @returns {Promise<Array>} Tableau des artisans (id, nom, nom_boutique, role, commission personnalisée).
+ * Récupère les artisans ayant un rôle permanent ou temporaire.
+ * Par défaut, seuls les comptes actifs sont retournés pour les formulaires de vente.
+ * Les rapports demandent aussi les comptes archivés afin de conserver les noms historiques.
+ * @param {Object} [options]
+ * @param {boolean} [options.includeInactive=false] - Inclut les comptes désactivés.
+ * @returns {Promise<Array>} Tableau des artisans (id, nom, nom_boutique, role, statut, commission personnalisée).
  */
-async function getAllArtisans() {
+async function getAllArtisans({ includeInactive = false } = {}) {
   const supabase = getSupabase()
-  const { data, error } = await supabase
+  let query = supabase
     .from('users')
-    .select('id, nom, nom_boutique, role, commission_cb_personnalisee')
-    .eq('est_actif', true)
+    .select('id, nom, nom_boutique, role, est_actif, commission_cb_personnalisee')
     .in('role', ['permanent', 'temporaire'])
+    .order('nom', { ascending: true })
+
+  if (!includeInactive) {
+    query = query.eq('est_actif', true)
+  }
+
+  const { data, error } = await query
   if (error) throw error
   return data || []
 }
@@ -394,7 +404,7 @@ async function getAllVentesGroupedByArtisan(options = {}) {
     ? await getAllVentes(options)
     : { ventes: await getAllVentesUnpaginated(), pagination: null }
   const allVentes = result.ventes
-  const artisansList = await getAllArtisans()
+  const artisansList = await getAllArtisans({ includeInactive: true })
   const { groupes, total } = groupVentesByArtisan(allVentes, artisansList)
 
   return {
@@ -415,7 +425,7 @@ async function getAllVentesGroupedByMonth() {
     return { mois: [], total: { total_articles: 0, total_montant: 0 } }
   }
 
-  const artisansList = await getAllArtisans()
+  const artisansList = await getAllArtisans({ includeInactive: true })
   return groupVentesByMonth(allVentes, artisansList)
 }
 
@@ -426,7 +436,7 @@ async function getAllVentesGroupedByMonth() {
  */
 async function getVentesByMonth(mois) {
   const allVentes = await getAllVentesUnpaginated()
-  const artisansList = await getAllArtisans()
+  const artisansList = await getAllArtisans({ includeInactive: true })
   return groupVentesForMonth(allVentes, artisansList, mois)
 }
 

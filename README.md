@@ -150,7 +150,8 @@ npm run dev
 
 ### Administration
 
-- `GET /api/admin/users` : liste des utilisateurs actifs
+- `GET /api/admin/users` : liste des utilisateurs
+- `DELETE /api/admin/users/:id` : archivage / désactivation d’un utilisateur
 - `PUT /api/admin/users/:id` : mise à jour d’un utilisateur
 - `POST /api/admin/users` : création d’un utilisateur
 

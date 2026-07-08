@@ -118,23 +118,43 @@ async function createUser({ nom, nom_boutique, role, date_fin }) {
   return { user: data, newPassword: generatedPassword }
 }
 
-async function deleteUser(userId, currentUserId) {
+async function deactivateUser(userId, currentUserId) {
   if (Number(userId) === Number(currentUserId)) {
-    throw new AdminUserError('Vous ne pouvez pas supprimer votre propre compte', 400, 'SELF_DELETE')
+    throw new AdminUserError(
+      'Vous ne pouvez pas désactiver votre propre compte',
+      400,
+      'SELF_DELETE',
+    )
   }
 
   const supabase = getSupabase()
-  const userToDelete = await findUserById(userId, 'id, nom, nom_boutique, role')
+  const userToDeactivate = await findUserById(userId, 'id, nom, nom_boutique, role, est_actif')
 
-  if (!userToDelete) {
+  if (!userToDeactivate) {
     throw new AdminUserError('Utilisateur non trouvé', 404, 'USER_NOT_FOUND')
   }
 
-  // Les FK en base détachent les ventes via ON DELETE SET NULL pour conserver l'historique.
-  const { error } = await supabase.from('users').delete().eq('id', userId)
+  if (userToDeactivate.role === 'admin') {
+    throw new AdminUserError(
+      'Les comptes administrateurs ne peuvent pas être désactivés',
+      400,
+      'ADMIN_DEACTIVATE',
+    )
+  }
+
+  if (!userToDeactivate.est_actif) {
+    return userToDeactivate
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({ est_actif: false })
+    .eq('id', userId)
+    .select('id, nom, nom_boutique, role, est_actif')
+    .single()
   if (error) throw error
 
-  return userToDelete
+  return data
 }
 
 async function updateUserCommission(userId, value) {
@@ -216,7 +236,7 @@ async function extendTemporaryUserAccess(userId, dateFin) {
 module.exports = {
   AdminUserError,
   createUser,
-  deleteUser,
+  deactivateUser,
   extendTemporaryUserAccess,
   listUsers,
   resetPasswordForUser,

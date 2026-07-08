@@ -21,17 +21,17 @@ const JWT_SECRET = process.env.JWT_SECRET || 'sitecaisse-secret-key-2024'
  * @param {import('express').NextFunction} next - Fonction suivante dans la chaîne de middleware.
  * @returns {void}
  */
-function authMiddleware(req, res, next) {
+async function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization
   if (!authHeader?.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Token manquant' })
   }
 
   const token = authHeader.split(' ')[1]
+  let decoded
+
   try {
-    const decoded = jwt.verify(token, JWT_SECRET)
-    req.user = decoded
-    next()
+    decoded = jwt.verify(token, JWT_SECRET)
   } catch (err) {
     void logError({
       err,
@@ -41,6 +41,43 @@ function authMiddleware(req, res, next) {
       req,
     })
     return res.status(401).json({ error: 'Token invalide ou expiré' })
+  }
+
+  try {
+    const user = await findUserById(decoded.id)
+
+    if (!user) {
+      return res.status(401).json({ error: 'Utilisateur introuvable' })
+    }
+
+    if (!user.est_actif) {
+      await logAction({
+        user,
+        action: 'auth.token_refused',
+        cible_type: 'auth',
+        cible_id: user.id,
+        details: { reason: 'inactive_account' },
+        req,
+      })
+      return res.status(403).json({ error: 'Compte désactivé' })
+    }
+
+    req.user = {
+      id: user.id,
+      nom: user.nom,
+      nom_boutique: user.nom_boutique,
+      role: user.role,
+    }
+    next()
+  } catch (err) {
+    await logError({
+      err,
+      context: 'auth.middleware.user_lookup',
+      cible_type: 'auth',
+      cible_id: decoded?.id || null,
+      req,
+    })
+    return res.status(500).json({ error: 'Erreur serveur' })
   }
 }
 

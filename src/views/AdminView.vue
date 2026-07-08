@@ -191,16 +191,16 @@
       />
     </div>
 
-    <!-- Modal de confirmation de suppression -->
+    <!-- Modal de confirmation d'archivage -->
     <ConfirmModal
       :show="showDeleteModal"
-      title="Confirmer la suppression"
-      :message="`Êtes-vous sûr de vouloir supprimer **${userToDelete?.nom}** (${userToDelete?.nom_boutique}) ?`"
-      warning="Cette action est irréversible. Les ventes historiques seront conservées, mais détachées de cet utilisateur."
-      confirmText="Confirmer la suppression"
-      variant="danger"
+      title="Archiver le compte"
+      :message="`Êtes-vous sûr de vouloir archiver **${userToDelete?.nom}** (${userToDelete?.nom_boutique}) ?`"
+      warning="Le compte sera désactivé et ne pourra plus se connecter. Les ventes historiques resteront liées à cet utilisateur."
+      confirmText="Archiver le compte"
+      variant="warning"
       :loading="deletingId !== null"
-      loadingText="Suppression..."
+      loadingText="Archivage..."
       @confirm="confirmDeleteUser"
       @cancel="closeDeleteModal"
     />
