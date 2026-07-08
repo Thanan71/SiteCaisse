@@ -24,6 +24,7 @@
           <option value="vente.delete">Vente supprimée</option>
           <option value="user.create">Utilisateur créé</option>
           <option value="user.deactivate">Utilisateur archivé</option>
+          <option value="user.reactivate">Utilisateur désarchivé</option>
           <option value="user.delete">Utilisateur supprimé</option>
           <option value="user.extend">Accès prolongé</option>
           <option value="parametre.update">Paramètre modifié</option>
@@ -111,6 +112,7 @@ const LABELS_ACTION = {
   'vente.delete': 'Vente supprimée',
   'user.create': 'Utilisateur créé',
   'user.deactivate': 'Utilisateur archivé',
+  'user.reactivate': 'Utilisateur désarchivé',
   'user.delete': 'Utilisateur supprimé',
   'user.extend': 'Accès prolongé',
   'parametre.update': 'Paramètre modifié',

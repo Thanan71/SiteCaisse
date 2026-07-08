@@ -152,6 +152,7 @@ npm run dev
 
 - `GET /api/admin/users` : liste des utilisateurs
 - `DELETE /api/admin/users/:id` : archivage / désactivation d’un utilisateur
+- `PATCH /api/admin/users/:id/reactivate` : désarchivage / réactivation d’un utilisateur
 - `PUT /api/admin/users/:id` : mise à jour d’un utilisateur
 - `POST /api/admin/users` : création d’un utilisateur
 
