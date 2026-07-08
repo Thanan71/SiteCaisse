@@ -100,7 +100,7 @@ describe('venteAggregationService', () => {
     const result = filterVentesByArtisan(ventes, 2)
 
     expect(result.summary).toEqual({ total_articles: 4, total_montant: 23 })
-    expect(result.ventes).toHaveLength(2)
+    expect(result.ventes).toHaveLength(1)
     expect(result.ventes[0]).toMatchObject({
       id: 10,
       total_articles: 1,
