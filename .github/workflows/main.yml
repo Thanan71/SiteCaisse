@@ -4,11 +4,13 @@ on:
   pull_request:
   push:
     branches:
+      - dev
       - main
       - master
 
 permissions:
   contents: read
+  statuses: write
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -37,3 +39,9 @@ jobs:
 
       - name: Run checks, tests and build
         run: npm run ci
+
+      - name: Notify Vercel
+        if: always()
+        uses: vercel/repository-dispatch/actions/status@v1
+        with:
+          name: 'Vercel - site-caisse: testing'

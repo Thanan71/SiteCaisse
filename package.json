@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "ci": "npm run check && npm test && npm run build",
+    "ci:vercel": "npm run check && npm run test:unit && npm run build",
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
@@ -18,10 +19,10 @@
     "lint": "biome lint .",
     "check": "biome check .",
     "check:fix": "biome check --write .",
-    "vercel:prepare": "biome format --write vercel.json && npm run test:e2e:setup:ci",
+    "vercel:prepare": "biome format --write vercel.json",
     "preview": "vite preview",
     "start": "node api/index.cjs",
-    "vercel-build": "npm run vercel:prepare && npm run ci"
+    "vercel-build": "npm run vercel:prepare && npm run ci:vercel"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
