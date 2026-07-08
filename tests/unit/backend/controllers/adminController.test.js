@@ -184,6 +184,68 @@ describe('adminController', () => {
     restore()
   })
 
+  it('refuse les identifiants utilisateur invalides sur les actions admin', async () => {
+    const { router, adminService, restore } = loadAdminController()
+
+    await expect(
+      invokeRoute(router, 'delete', '/users/:id', { params: { id: 'abc' } }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 400, body: { error: 'ID utilisateur invalide' } },
+    })
+    await expect(
+      invokeRoute(router, 'patch', '/users/:id/reactivate', { params: { id: 'abc' } }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 400, body: { error: 'ID utilisateur invalide' } },
+    })
+    await expect(
+      invokeRoute(router, 'patch', '/users/:id/commission', { params: { id: 'abc' } }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 400, body: { error: 'ID utilisateur invalide' } },
+    })
+    await expect(
+      invokeRoute(router, 'post', '/users/:id/reset-password', { params: { id: 'abc' } }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 400, body: { error: 'ID utilisateur invalide' } },
+    })
+    await expect(
+      invokeRoute(router, 'patch', '/users/:id/extend', { params: { id: 'abc' } }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 400, body: { error: 'ID utilisateur invalide' } },
+    })
+
+    expect(adminService.deactivateUser).not.toHaveBeenCalled()
+    expect(adminService.reactivateUser).not.toHaveBeenCalled()
+    expect(adminService.updateUserCommission).not.toHaveBeenCalled()
+    expect(adminService.resetPasswordForUser).not.toHaveBeenCalled()
+    expect(adminService.extendTemporaryUserAccess).not.toHaveBeenCalled()
+
+    restore()
+  })
+
+  it('journalise une erreur technique pendant la liste des utilisateurs', async () => {
+    const error = new Error('database down')
+    const { router, logger, restore } = loadAdminController({
+      listUsers: vi.fn(async () => {
+        throw error
+      }),
+    })
+
+    await expect(invokeRoute(router, 'get', '/users')).resolves.toMatchObject({
+      res: {
+        statusCode: 500,
+        body: { error: 'Erreur lors de la récupération des utilisateurs' },
+      },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: 'admin.users.list',
+        err: error,
+      }),
+    )
+
+    restore()
+  })
+
   it('gere les parametres et les logs avec validation des valeurs', async () => {
     const { router, parametres, logger, restore } = loadAdminController()
 
