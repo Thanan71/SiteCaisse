@@ -526,7 +526,7 @@ async function resetUserPassword(id, newPassword) {
   const password_hash = bcrypt.hashSync(newPassword, 10)
   const { error } = await supabase
     .from('users')
-    .update({ password_hash, generated_password: newPassword, password_change_required: false })
+    .update({ password_hash, generated_password: newPassword, password_change_required: true })
     .eq('id', id)
 
   if (error) throw error

@@ -256,7 +256,10 @@ export async function installApiMock(page, options = {}) {
       const id = Number(path.split('/').at(-2))
       const user = state.users.find((item) => item.id === id)
       const newPassword = `${normalizePassword(user?.nom_boutique || 'boutique')}0099`
-      if (user) user.generated_password = newPassword
+      if (user) {
+        user.generated_password = newPassword
+        user.password_change_required = true
+      }
       return json({ message: 'Mot de passe réinitialisé avec succès.', newPassword })
     }
 
