@@ -8,7 +8,7 @@ import {
   formatPrice,
   getPaymentLabel,
   parseUtcDate,
-} from '../../src/utils/formatters'
+} from '../../../../src/utils/formatters'
 
 describe('formatters', () => {
   it('formate les dates pour la France et le fuseau Europe/Paris', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import commissionService from '../../api/services/commissionService.cjs'
+import commissionService from '../../../../api/services/commissionService.cjs'
 
 const {
   ajouterCommissionAUnArtisan,
