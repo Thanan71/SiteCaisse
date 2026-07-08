@@ -5,7 +5,7 @@ import {
   exportAllRapportsToExcel,
   exportMonthToExcel,
   exportVentesToExcel,
-} from '../../src/services/excelService'
+} from '../../../../src/services/excelService'
 
 vi.mock('file-saver', () => ({
   saveAs: vi.fn(),

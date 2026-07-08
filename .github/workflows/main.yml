@@ -63,6 +63,16 @@ jobs:
       - name: Run checks, tests and build
         run: npm run ci
 
+      - name: Generate coverage report
+        run: npm run test:coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          if-no-files-found: error
+
       - name: 'notify vercel'
         if: always()
         uses: 'vercel/repository-dispatch/actions/status@v1'

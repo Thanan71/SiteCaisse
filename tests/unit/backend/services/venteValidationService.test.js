@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import validationService from '../../api/services/venteValidationService.cjs'
+import validationService from '../../../../api/services/venteValidationService.cjs'
 
 const {
   ValidationError,

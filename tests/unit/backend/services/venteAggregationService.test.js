@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import aggregationService from '../../api/services/venteAggregationService.cjs'
+import aggregationService from '../../../../api/services/venteAggregationService.cjs'
 
 const {
   filterVentesByArtisan,
