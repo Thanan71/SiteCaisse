@@ -1,6 +1,7 @@
 name: CI
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
@@ -9,6 +10,7 @@ on:
       - master
 
 permissions:
+  actions: read
   contents: read
   statuses: write
 
@@ -40,8 +42,7 @@ jobs:
       - name: Run checks, tests and build
         run: npm run ci
 
-      - name: Notify Vercel
-        if: always()
-        uses: vercel/repository-dispatch/actions/status@v1
+      - name: 'notify vercel'
+        uses: 'vercel/repository-dispatch/actions/status@v1'
         with:
           name: 'Vercel - site-caisse: testing'
