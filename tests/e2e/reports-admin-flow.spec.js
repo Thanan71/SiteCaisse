@@ -36,7 +36,7 @@ test('navigue dans les rapports globaux, artisan et mensuels', async ({ page }) 
   await expect(page.getByText('Résumé du mois')).toBeVisible()
 
   await page.getByLabel('Sélectionner un artisan').selectOption('2')
-  await expect(page.getByText('Echarpe rapport')).toBeVisible()
+  await expect(page.getByText('Echarp rapport')).toBeVisible()
   await expect(page.getByText('Vase rapport')).toBeHidden()
 
   await page.getByRole('button', { name: /Par mois/ }).click()
