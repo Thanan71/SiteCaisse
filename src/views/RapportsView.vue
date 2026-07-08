@@ -75,6 +75,12 @@
 
       <!-- Onglet : Liste des ventes (vue globale) -->
       <div v-if="activeTab === 'global' && rapportsStore.allRapports.length">
+        <div class="export-section">
+          <button class="btn btn-success" @click="exportAllToExcel">
+            📥 Télécharger tout en Excel
+          </button>
+        </div>
+
         <div class="rapport-list-wrapper">
           <RapportVentesTable
             v-for="groupe in rapportsStore.allRapports"
@@ -98,12 +104,6 @@
             commission-label-suffix=" totale"
             variant="primary"
           />
-        </div>
-
-        <div class="export-section">
-          <button class="btn btn-success" @click="exportAllToExcel">
-            📥 Télécharger tout en Excel
-          </button>
         </div>
       </div>
 
@@ -187,18 +187,18 @@
       </div>
 
       <div v-if="(activeTab === 'ventes' || activeTab === 'global') && rapportsStore.ventesArtisan.length">
+        <div class="export-section">
+          <button class="btn btn-success" @click="rapportsStore.exportToExcel(artisansStore.artisans)">
+            📥 Télécharger en Excel
+          </button>
+        </div>
+
         <div class="rapport-list-wrapper">
           <RapportVentesTable
             :ventes="rapportsStore.ventesArtisan"
             :summary="rapportsStore.summary"
             total-label="TOTAL"
           />
-        </div>
-
-        <div class="export-section">
-          <button class="btn btn-success" @click="rapportsStore.exportToExcel(artisansStore.artisans)">
-            📥 Télécharger en Excel
-          </button>
         </div>
       </div>
 
@@ -441,9 +441,15 @@ function exportSelectedArtisanMonthToExcel() {
 }
 
 .export-section {
-  margin-top: 20px;
+  background: white;
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 24px;
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
 .rapport-list-wrapper {
