@@ -78,3 +78,8 @@ jobs:
         uses: 'vercel/repository-dispatch/actions/status@v1'
         with:
           name: 'Vercel - site-caisse: testing'
+      
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
