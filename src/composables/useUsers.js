@@ -32,6 +32,7 @@ export function useUsers() {
   const showDeleteModal = ref(false)
   const userToDelete = ref(null)
   const deletingId = ref(null)
+  const reactivatingId = ref(null)
 
   // Prolongation
   const showExtendModal = ref(false)
@@ -289,6 +290,26 @@ export function useUsers() {
     }
   }
 
+  /**
+   * Réactive un compte archivé.
+   * @param {Object} user
+   */
+  async function reactivateUser(user) {
+    if (!user) return
+
+    reactivatingId.value = user.id
+
+    try {
+      await api.patch(`/api/admin/users/${user.id}/reactivate`)
+      await fetchUsers()
+    } catch (err) {
+      console.error('Erreur désarchivage:', err)
+      alert(err.response?.data?.error || 'Erreur lors du désarchivage')
+    } finally {
+      reactivatingId.value = null
+    }
+  }
+
   // ---- Prolongation ----
 
   /**
@@ -440,6 +461,7 @@ export function useUsers() {
     createSuccess,
     newUser,
     deletingId,
+    reactivatingId,
     showDeleteModal,
     userToDelete,
     showExtendModal,
@@ -479,6 +501,7 @@ export function useUsers() {
     openDeleteModal,
     closeDeleteModal,
     confirmDeleteUser,
+    reactivateUser,
 
     // Prolongation
     openExtendModal,

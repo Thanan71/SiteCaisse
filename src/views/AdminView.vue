@@ -165,12 +165,14 @@
           v-else
           :users="users"
           :deleting-id="deletingId"
+          :reactivating-id="reactivatingId"
           :extending-id="extendingId"
           :resetting-id="resettingId"
           :get-status-class="getStatusClass"
           :get-status-label="getStatusLabel"
           @delete="openDeleteModal"
           @extend="openExtendModal"
+          @reactivate="reactivateUser"
           @reset-password="openResetModal"
         />
       </div>
@@ -334,6 +336,7 @@ const {
   createSuccess,
   newUser,
   deletingId,
+  reactivatingId,
   showDeleteModal,
   userToDelete,
   showExtendModal,
@@ -367,6 +370,7 @@ const {
   openDeleteModal,
   closeDeleteModal,
   confirmDeleteUser,
+  reactivateUser,
   openExtendModal,
   closeExtendModal,
   confirmExtendUser,

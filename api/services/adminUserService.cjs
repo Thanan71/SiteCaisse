@@ -157,6 +157,29 @@ async function deactivateUser(userId, currentUserId) {
   return data
 }
 
+async function reactivateUser(userId) {
+  const supabase = getSupabase()
+  const userToReactivate = await findUserById(userId, 'id, nom, nom_boutique, role, est_actif')
+
+  if (!userToReactivate) {
+    throw new AdminUserError('Utilisateur non trouvé', 404, 'USER_NOT_FOUND')
+  }
+
+  if (userToReactivate.est_actif) {
+    return userToReactivate
+  }
+
+  const { data, error } = await supabase
+    .from('users')
+    .update({ est_actif: true })
+    .eq('id', userId)
+    .select('id, nom, nom_boutique, role, est_actif')
+    .single()
+  if (error) throw error
+
+  return data
+}
+
 async function updateUserCommission(userId, value) {
   const commissionCbPersonnalisee = parseOptionalPositiveNumber(value)
   const supabase = getSupabase()
@@ -239,6 +262,7 @@ module.exports = {
   deactivateUser,
   extendTemporaryUserAccess,
   listUsers,
+  reactivateUser,
   resetPasswordForUser,
   updateUserCommission,
 }

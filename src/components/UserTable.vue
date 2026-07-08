@@ -56,6 +56,15 @@
                 {{ deletingId === user.id ? '...' : 'Archiver' }}
               </button>
               <button
+                v-if="user.role !== 'admin' && user.est_actif === false"
+                @click="$emit('reactivate', user)"
+                class="btn btn-success btn-sm"
+                :disabled="reactivatingId === user.id"
+                title="Désarchiver le compte"
+              >
+                {{ reactivatingId === user.id ? '...' : 'Désarchiver' }}
+              </button>
+              <button
                 @click="$emit('reset-password', user)"
                 class="btn btn-warning btn-sm"
                 :disabled="resettingId === user.id"
@@ -77,13 +86,14 @@ import { formatDateTime as formatDate, formatDateSimple } from '../utils/formatt
 const props = defineProps({
   users: { type: Array, required: true },
   deletingId: { type: Number, default: null },
+  reactivatingId: { type: Number, default: null },
   extendingId: { type: Number, default: null },
   resettingId: { type: Number, default: null },
   getStatusClass: { type: Function, required: true },
   getStatusLabel: { type: Function, required: true },
 })
 
-defineEmits(['delete', 'extend', 'reset-password'])
+defineEmits(['delete', 'extend', 'reactivate', 'reset-password'])
 </script>
 
 <style scoped>

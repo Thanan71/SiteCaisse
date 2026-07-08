@@ -15,6 +15,7 @@ const {
   deactivateUser,
   extendTemporaryUserAccess,
   listUsers,
+  reactivateUser,
   resetPasswordForUser,
   updateUserCommission,
 } = require('./services/adminUserService.cjs')
@@ -188,6 +189,52 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
       req,
     })
     res.status(500).json({ error: "Erreur lors de la désactivation de l'utilisateur" })
+  }
+})
+
+/**
+ * PATCH /api/admin/users/:id/reactivate
+ * Désarchive un utilisateur en réactivant son compte.
+ * @param {number} req.params.id - ID de l'utilisateur à réactiver.
+ * @returns {Object} Message de confirmation.
+ */
+router.patch('/users/:id/reactivate', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10)
+
+    if (Number.isNaN(userId)) {
+      return res.status(400).json({ error: 'ID utilisateur invalide' })
+    }
+
+    const userToReactivate = await reactivateUser(userId)
+
+    await logAction({
+      user: req.user,
+      action: 'user.reactivate',
+      cible_type: 'user',
+      cible_id: userId,
+      details: {
+        nom: userToReactivate.nom,
+        nom_boutique: userToReactivate.nom_boutique,
+        role: userToReactivate.role,
+      },
+      req,
+    })
+
+    res.json({ message: 'Utilisateur désarchivé avec succès', user: userToReactivate })
+  } catch (err) {
+    if (sendAdminUserError(err, res)) return
+
+    console.error('Admin reactivate user error:', err)
+    await logError({
+      user: req.user,
+      err,
+      context: 'admin.users.reactivate',
+      cible_type: 'user',
+      cible_id: req.params.id,
+      req,
+    })
+    res.status(500).json({ error: "Erreur lors de la réactivation de l'utilisateur" })
   }
 })
 
