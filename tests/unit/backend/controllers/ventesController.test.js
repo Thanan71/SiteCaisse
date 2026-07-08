@@ -113,4 +113,65 @@ describe('ventesController', () => {
 
     restore()
   })
+
+  it('journalise les erreurs serveur des creations, modifications et suppressions', async () => {
+    const { router, models, logger, restore } = loadVentesController()
+    const ventePayload = {
+      articles: [{ article: 'Bol', quantite: 1, prix: 12, artisan_id: 3 }],
+      date_vente: '2026-07-08',
+      type_paiement: 'CB',
+    }
+
+    models.createVente.mockRejectedValueOnce(new Error('create failed'))
+    await expect(invokeRoute(router, 'post', '/', { body: ventePayload })).resolves.toMatchObject({
+      res: { statusCode: 500, body: { error: 'Erreur serveur' } },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'ventes.create', cible_type: 'vente' }),
+    )
+
+    models.updateVente.mockRejectedValueOnce(new Error('update failed'))
+    await expect(
+      invokeRoute(router, 'put', '/:id', {
+        body: { type_paiement: 'Cheque' },
+        params: { id: '42' },
+      }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 500, body: { error: 'Erreur serveur' } },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'ventes.update', cible_type: 'vente', cible_id: '42' }),
+    )
+
+    await expect(
+      invokeRoute(router, 'delete', '/:id', {
+        params: { id: 'abc' },
+      }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 400, body: { error: 'ID vente invalide' } },
+    })
+
+    models.deleteVente.mockResolvedValueOnce(false)
+    await expect(
+      invokeRoute(router, 'delete', '/:id', {
+        params: { id: '404' },
+      }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 404, body: { error: 'Vente non trouvée' } },
+    })
+
+    models.deleteVente.mockRejectedValueOnce(new Error('delete failed'))
+    await expect(
+      invokeRoute(router, 'delete', '/:id', {
+        params: { id: '42' },
+      }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 500, body: { error: 'Erreur serveur' } },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'ventes.delete', cible_type: 'vente', cible_id: '42' }),
+    )
+
+    restore()
+  })
 })

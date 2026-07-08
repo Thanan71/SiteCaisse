@@ -246,6 +246,149 @@ describe('adminController', () => {
     restore()
   })
 
+  it('journalise les erreurs techniques des actions admin', async () => {
+    const { router, logger, restore } = loadAdminController(
+      {
+        createUser: vi.fn(async () => {
+          throw new Error('create down')
+        }),
+        deactivateUser: vi.fn(async () => {
+          throw new Error('deactivate down')
+        }),
+        extendTemporaryUserAccess: vi.fn(async () => {
+          throw new Error('extend down')
+        }),
+        reactivateUser: vi.fn(async () => {
+          throw new Error('reactivate down')
+        }),
+        resetPasswordForUser: vi.fn(async () => {
+          throw new Error('reset down')
+        }),
+        updateUserCommission: vi.fn(async () => {
+          throw new Error('commission down')
+        }),
+      },
+      {
+        getAllParametres: vi.fn(async () => {
+          throw new Error('parametres down')
+        }),
+        updateParametre: vi.fn(async () => {
+          throw new Error('update parametre down')
+        }),
+      },
+      {
+        getActionLogs: vi.fn(async () => {
+          throw new Error('logs down')
+        }),
+      },
+    )
+
+    await expect(
+      invokeRoute(router, 'post', '/users', {
+        body: { nom: 'Zoe', nom_boutique: 'Atelier Zoe', role: 'permanent' },
+      }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 500, body: { error: "Erreur lors de la création de l'utilisateur" } },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'admin.users.create' }),
+    )
+
+    await expect(
+      invokeRoute(router, 'delete', '/users/:id', { params: { id: '3' } }),
+    ).resolves.toMatchObject({
+      res: {
+        statusCode: 500,
+        body: { error: "Erreur lors de la désactivation de l'utilisateur" },
+      },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'admin.users.deactivate', cible_id: '3' }),
+    )
+
+    await expect(
+      invokeRoute(router, 'patch', '/users/:id/reactivate', { params: { id: '3' } }),
+    ).resolves.toMatchObject({
+      res: {
+        statusCode: 500,
+        body: { error: "Erreur lors de la réactivation de l'utilisateur" },
+      },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'admin.users.reactivate', cible_id: '3' }),
+    )
+
+    await expect(
+      invokeRoute(router, 'patch', '/users/:id/commission', {
+        body: { commission_cb_personnalisee: '1.5' },
+        params: { id: '3' },
+      }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 500, body: { error: 'Erreur lors de la mise à jour de la commission' } },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'admin.users.commission_update', cible_id: '3' }),
+    )
+
+    await expect(invokeRoute(router, 'get', '/parametres')).resolves.toMatchObject({
+      res: {
+        statusCode: 500,
+        body: { error: 'Erreur lors de la récupération des paramètres' },
+      },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'admin.parametres.list' }),
+    )
+
+    await expect(
+      invokeRoute(router, 'put', '/parametres/:cle', {
+        body: { valeur: '2.25' },
+        params: { cle: 'commission_cb_permanent' },
+      }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 500, body: { error: 'Erreur lors de la mise à jour du paramètre' } },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: 'admin.parametres.update',
+        cible_id: 'commission_cb_permanent',
+      }),
+    )
+
+    await expect(invokeRoute(router, 'get', '/logs')).resolves.toMatchObject({
+      res: { statusCode: 500, body: { error: 'Erreur lors de la récupération des logs' } },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'admin.logs.list' }),
+    )
+
+    await expect(
+      invokeRoute(router, 'post', '/users/:id/reset-password', { params: { id: '3' } }),
+    ).resolves.toMatchObject({
+      res: {
+        statusCode: 500,
+        body: { error: 'Erreur lors de la réinitialisation du mot de passe' },
+      },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'admin.users.reset_password', cible_id: '3' }),
+    )
+
+    await expect(
+      invokeRoute(router, 'patch', '/users/:id/extend', {
+        body: { date_fin: '2026-08-31' },
+        params: { id: '3' },
+      }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 500, body: { error: "Erreur lors de la prolongation de l'accès" } },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'admin.users.extend', cible_id: '3' }),
+    )
+
+    restore()
+  })
+
   it('gere les parametres et les logs avec validation des valeurs', async () => {
     const { router, parametres, logger, restore } = loadAdminController()
 

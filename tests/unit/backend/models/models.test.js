@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createFakeSupabase } from '../../helpers/fakeSupabase'
 import { loadCjsWithMocks } from '../../helpers/loadCjsWithMocks'
 
@@ -61,6 +61,10 @@ function createSalesFixture() {
     ],
   })
 }
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
 
 describe('models', () => {
   it('retrouve les utilisateurs, change le mot de passe et filtre les artisans actifs', async () => {
@@ -280,6 +284,107 @@ describe('models', () => {
     expect(fake.tables.users[0].password_change_required).toBe(false)
     expect(bcrypt.compareSync('boutique1234', fake.tables.users[0].password_hash)).toBe(true)
     await expect(loaded.resetUserPassword(2, '')).rejects.toThrow('Nouveau mot de passe requis')
+
+    restore()
+  })
+
+  it('ignore le seed demo quand des utilisateurs existent deja', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const fake = createFakeSupabase({
+      users: [{ id: 1, nom: 'Alice', nom_boutique: 'Atelier Alice' }],
+    })
+    const { loaded, restore } = loadModels(fake)
+
+    await expect(loaded.seedIfEmpty()).resolves.toBeUndefined()
+
+    expect(fake.tables.users).toHaveLength(1)
+    expect(console.log).toHaveBeenCalledWith('📦 Users déjà présents, seed ignoré')
+
+    restore()
+  })
+
+  it('cree les utilisateurs demo quand la table users est vide', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const fake = createFakeSupabase({ users: [] })
+    const { loaded, restore } = loadModels(fake)
+
+    await expect(loaded.seedIfEmpty()).resolves.toBeUndefined()
+
+    expect(fake.tables.users).toHaveLength(6)
+    expect(fake.tables.users).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          nom: 'Admin',
+          nom_boutique: 'Administration',
+          generated_password: 'password123',
+          role: 'admin',
+        }),
+        expect.objectContaining({
+          nom: 'Lucas',
+          nom_boutique: 'Echoppe Lucas',
+          role: 'temporaire',
+        }),
+      ]),
+    )
+    expect(bcrypt.compareSync('password123', fake.tables.users[0].password_hash)).toBe(true)
+
+    restore()
+  })
+
+  it('met a jour le compte admin existant pendant le seed admin', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const fake = createFakeSupabase({
+      users: [
+        {
+          id: 7,
+          nom: 'Ancien admin',
+          nom_boutique: 'Admin',
+          role: 'permanent',
+          est_actif: false,
+          date_fin: '2026-07-31',
+        },
+      ],
+    })
+    const { loaded, restore } = loadModels(fake)
+
+    await expect(loaded.seedAdminIfMissing()).resolves.toBeUndefined()
+
+    expect(fake.tables.users).toHaveLength(1)
+    expect(fake.tables.users[0]).toMatchObject({
+      id: 7,
+      nom: 'Admin',
+      nom_boutique: 'Administration',
+      generated_password: 'password123',
+      role: 'admin',
+      est_actif: true,
+      password_change_required: false,
+      date_fin: null,
+    })
+    expect(bcrypt.compareSync('password123', fake.tables.users[0].password_hash)).toBe(true)
+    expect(console.log).toHaveBeenCalledWith('✅ Mot de passe admin vérifié et mis à jour')
+
+    restore()
+  })
+
+  it('cree le compte admin pendant le seed admin s il est absent', async () => {
+    vi.spyOn(console, 'log').mockImplementation(() => {})
+    const fake = createFakeSupabase({ users: [] })
+    const { loaded, restore } = loadModels(fake)
+
+    await expect(loaded.seedAdminIfMissing()).resolves.toBeUndefined()
+
+    expect(fake.tables.users).toHaveLength(1)
+    expect(fake.tables.users[0]).toMatchObject({
+      nom: 'Admin',
+      nom_boutique: 'Administration',
+      generated_password: 'password123',
+      role: 'admin',
+      est_actif: true,
+      password_change_required: false,
+      date_fin: null,
+    })
+    expect(bcrypt.compareSync('password123', fake.tables.users[0].password_hash)).toBe(true)
+    expect(console.log).toHaveBeenCalledWith('✅ Compte admin créé (Administration / password123)')
 
     restore()
   })

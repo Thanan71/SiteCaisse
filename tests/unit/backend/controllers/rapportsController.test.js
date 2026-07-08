@@ -50,7 +50,7 @@ describe('rapportsController', () => {
   })
 
   it('valide les parametres et journalise les erreurs serveur', async () => {
-    const { router, rapportService, logger, restore } = loadRapportsController()
+    const { router, models, rapportService, logger, restore } = loadRapportsController()
 
     await expect(
       invokeRoute(router, 'get', '/mensuel/:mois', { params: { mois: 'juillet' } }),
@@ -70,6 +70,46 @@ describe('rapportsController', () => {
     })
     expect(logger.logError).toHaveBeenCalledWith(
       expect.objectContaining({ context: 'rapports.list', cible_type: 'rapport' }),
+    )
+
+    rapportService.getRapportMensuel.mockRejectedValueOnce(new Error('mensuel failed'))
+    await expect(invokeRoute(router, 'get', '/mensuel')).resolves.toMatchObject({
+      res: { statusCode: 500, body: { error: 'Erreur serveur' } },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'rapports.mensuel', cible_type: 'rapport' }),
+    )
+
+    models.getAllArtisans.mockRejectedValueOnce(new Error('artisans failed'))
+    await expect(invokeRoute(router, 'get', '/artisans')).resolves.toMatchObject({
+      res: { statusCode: 500, body: { error: 'Erreur serveur' } },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'rapports.artisans', cible_type: 'rapport' }),
+    )
+
+    rapportService.getRapportParMois.mockRejectedValueOnce(new Error('mois failed'))
+    await expect(
+      invokeRoute(router, 'get', '/mensuel/:mois', { params: { mois: '2026-07' } }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 500, body: { error: 'Erreur serveur' } },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'rapports.mensuel.mois', cible_type: 'rapport' }),
+    )
+
+    rapportService.getRapportArtisan.mockRejectedValueOnce(new Error('artisan failed'))
+    await expect(
+      invokeRoute(router, 'get', '/:artisan_id', { params: { artisan_id: '2' } }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 500, body: { error: 'Erreur serveur' } },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: 'rapports.artisan',
+        cible_type: 'rapport',
+        cible_id: '2',
+      }),
     )
 
     restore()
