@@ -63,13 +63,15 @@ router.get('/mensuel', async (req, res) => {
 })
 
 /**
- * Récupère la liste de tous les artisans actifs pour le menu déroulant.
+ * Récupère la liste des artisans pour les menus déroulants.
  * @route GET /api/rapports/artisans
+ * @query {string} [include_inactive=false] - Inclut les comptes archivés pour les rapports.
  * @returns {Array<Object>} Liste des artisans (id, nom, nom_boutique, role).
  */
 router.get('/artisans', async (req, res) => {
   try {
-    const artisans = await getAllArtisans()
+    const includeInactive = req.query.include_inactive === 'true'
+    const artisans = await getAllArtisans({ includeInactive })
     res.json(artisans)
   } catch (err) {
     console.error('GET artisans error:', err)

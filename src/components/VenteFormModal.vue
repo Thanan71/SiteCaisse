@@ -80,7 +80,7 @@
               >
                 <option value="" disabled>Sélectionner un artisan</option>
                 <option v-for="artisan in artisans" :key="artisan.id" :value="artisan.id">
-                  {{ getArtisanBoutiqueLabel(artisan) }} ({{ artisan.role === 'permanent' ? 'Permanent' : 'Temporaire' }})
+                  {{ getArtisanOptionLabel(artisan) }}
                 </option>
               </select>
             </div>
@@ -134,7 +134,6 @@ const emit = defineEmits(['close', 'saved'])
 
 const ventesStore = useVentesStore()
 const artisansStore = useArtisansStore()
-const artisans = computed(() => artisansStore.artisans)
 const loading = ref(false)
 const error = ref(null)
 
@@ -163,6 +162,17 @@ const defaultForm = () => ({
 })
 
 const form = reactive(defaultForm())
+
+const selectedArtisanIds = computed(
+  () => new Set(form.articles.map((article) => String(article.artisan_id)).filter(Boolean)),
+)
+
+const artisans = computed(() => {
+  const allArtisans = artisansStore.artisans || []
+  return allArtisans.filter(
+    (artisan) => isActiveArtisan(artisan) || selectedArtisanIds.value.has(String(artisan.id)),
+  )
+})
 
 watch(
   () => props.show,
@@ -193,6 +203,19 @@ function getArtisanBoutiqueLabel(artisan) {
   return artisan.nom_boutique || artisan.nom || 'Boutique inconnue'
 }
 
+function getArtisanRoleLabel(artisan) {
+  return artisan.role === 'permanent' ? 'Permanent' : 'Temporaire'
+}
+
+function isActiveArtisan(artisan) {
+  return artisan.est_actif !== false
+}
+
+function getArtisanOptionLabel(artisan) {
+  const status = isActiveArtisan(artisan) ? '' : ', archivé'
+  return `${getArtisanBoutiqueLabel(artisan)} (${getArtisanRoleLabel(artisan)}${status})`
+}
+
 function hydrateForm() {
   if (props.mode === 'edit' && props.vente) {
     form.date_vente = props.vente.date_vente || ''
@@ -217,10 +240,8 @@ function resetForm() {
 }
 
 async function fetchArtisansIfNeeded() {
-  if (artisansStore.artisans.length > 0) return
-
   try {
-    await artisansStore.fetchArtisans()
+    await artisansStore.fetchArtisans({ includeInactive: true })
   } catch (err) {
     error.value = 'Erreur lors du chargement des artisans'
   }

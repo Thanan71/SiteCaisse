@@ -19,6 +19,12 @@ export const useArtisansStore = defineStore('artisans', {
 
   getters: {
     /**
+     * Retourne les artisans qui peuvent encore être utilisés pour de nouvelles ventes.
+     * @returns {Array} Tableau des artisans actifs.
+     */
+    actifs: (state) => state.artisans.filter((a) => a.est_actif !== false),
+
+    /**
      * Filtre et retourne uniquement les artisans avec le rôle 'permanent'.
      * @returns {Array} Tableau des artisans permanents.
      */
@@ -46,13 +52,17 @@ export const useArtisansStore = defineStore('artisans', {
     /**
      * Récupère la liste des artisans depuis l'API.
      * Met à jour la liste et gère les états de chargement et d'erreur.
+     * @param {Object} [options]
+     * @param {boolean} [options.includeInactive=false] - Inclut les comptes archivés.
      * @returns {Promise<void>}
      */
-    async fetchArtisans() {
+    async fetchArtisans({ includeInactive = false } = {}) {
       this.loading = true
       this.error = null
       try {
-        const response = await api.get('/api/rapports/artisans')
+        const response = await api.get('/api/rapports/artisans', {
+          params: { include_inactive: includeInactive ? 'true' : 'false' },
+        })
         this.artisans = response.data
       } catch (error) {
         this.error = error.response?.data?.error || 'Erreur lors du chargement des artisans'

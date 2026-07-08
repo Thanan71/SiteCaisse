@@ -1,7 +1,7 @@
 /**
  * @module adminController
  * @description Contrôleur d'administration.
- * Permet aux administrateurs de gérer les utilisateurs (liste, création, suppression)
+ * Permet aux administrateurs de gérer les utilisateurs (liste, création, archivage)
  * ainsi que les paramètres système (commissions CB).
  * Protégé par le middleware d'authentification + vérification du rôle admin.
  */
@@ -12,7 +12,7 @@ const { logAction, logError, getActionLogs } = require('./services/loggerService
 const {
   AdminUserError,
   createUser,
-  deleteUser,
+  deactivateUser,
   extendTemporaryUserAccess,
   listUsers,
   resetPasswordForUser,
@@ -147,8 +147,8 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
 
 /**
  * DELETE /api/admin/users/:id
- * Supprime un utilisateur.
- * @param {number} req.params.id - ID de l'utilisateur à supprimer.
+ * Archive un utilisateur en désactivant son compte.
+ * @param {number} req.params.id - ID de l'utilisateur à désactiver.
  * @returns {Object} Message de confirmation.
  */
 router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) => {
@@ -159,35 +159,35 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
       return res.status(400).json({ error: 'ID utilisateur invalide' })
     }
 
-    const userToDelete = await deleteUser(userId, req.user.id)
+    const userToDeactivate = await deactivateUser(userId, req.user.id)
 
     await logAction({
       user: req.user,
-      action: 'user.delete',
+      action: 'user.deactivate',
       cible_type: 'user',
       cible_id: userId,
       details: {
-        nom: userToDelete.nom,
-        nom_boutique: userToDelete.nom_boutique,
-        role: userToDelete.role,
+        nom: userToDeactivate.nom,
+        nom_boutique: userToDeactivate.nom_boutique,
+        role: userToDeactivate.role,
       },
       req,
     })
 
-    res.json({ message: 'Utilisateur supprimé avec succès' })
+    res.json({ message: 'Utilisateur désactivé avec succès' })
   } catch (err) {
     if (sendAdminUserError(err, res)) return
 
-    console.error('Admin delete user error:', err)
+    console.error('Admin deactivate user error:', err)
     await logError({
       user: req.user,
       err,
-      context: 'admin.users.delete',
+      context: 'admin.users.deactivate',
       cible_type: 'user',
       cible_id: req.params.id,
       req,
     })
-    res.status(500).json({ error: "Erreur lors de la suppression de l'utilisateur" })
+    res.status(500).json({ error: "Erreur lors de la désactivation de l'utilisateur" })
   }
 })
 

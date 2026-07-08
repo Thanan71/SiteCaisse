@@ -87,7 +87,7 @@ async function getRapportArtisan(artisanId) {
   const [data, rates, artisans] = await Promise.all([
     getVentesByArtisan(artisanId),
     getCommissionRates(),
-    getAllArtisans(),
+    getAllArtisans({ includeInactive: true }),
   ])
 
   const artisan = artisans.find((item) => Number(item.id) === Number(artisanId))

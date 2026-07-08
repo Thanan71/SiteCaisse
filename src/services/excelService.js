@@ -19,7 +19,8 @@ import { formatMonthLabel } from '../utils/formatters'
 export function exportVentesToExcel(ventes, artisans, artisanId, summary) {
   if (!ventes || ventes.length === 0) return
 
-  const artisanName = artisans.find((a) => a.id === artisanId)?.nom || 'Artisan'
+  const artisan = artisans.find((a) => String(a.id) === String(artisanId))
+  const artisanName = artisan?.nom_boutique || artisan?.nom || 'Artisan'
 
   const worksheet = buildWorksheet(ventes, summary)
 

@@ -18,10 +18,12 @@
           <option value="error">Erreur</option>
           <option value="auth.login_success">Connexion réussie</option>
           <option value="auth.login_failed">Connexion échouée</option>
+          <option value="auth.token_refused">Session refusée</option>
           <option value="vente.create">Vente créée</option>
           <option value="vente.update">Vente modifiée</option>
           <option value="vente.delete">Vente supprimée</option>
           <option value="user.create">Utilisateur créé</option>
+          <option value="user.deactivate">Utilisateur archivé</option>
           <option value="user.delete">Utilisateur supprimé</option>
           <option value="user.extend">Accès prolongé</option>
           <option value="parametre.update">Paramètre modifié</option>
@@ -103,10 +105,12 @@ const LABELS_ACTION = {
   error: 'Erreur',
   'auth.login_success': 'Connexion réussie',
   'auth.login_failed': 'Connexion échouée',
+  'auth.token_refused': 'Session refusée',
   'vente.create': 'Vente créée',
   'vente.update': 'Vente modifiée',
   'vente.delete': 'Vente supprimée',
   'user.create': 'Utilisateur créé',
+  'user.deactivate': 'Utilisateur archivé',
   'user.delete': 'Utilisateur supprimé',
   'user.extend': 'Accès prolongé',
   'parametre.update': 'Paramètre modifié',

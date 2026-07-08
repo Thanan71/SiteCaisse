@@ -22,7 +22,7 @@ function parsePositiveInteger(value, fallback) {
 function isValidISODate(dateString) {
   // Format ISO: YYYY-MM-DD
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return false
-  const date = new Date(dateString + 'T00:00:00Z')
+  const date = new Date(`${dateString}T00:00:00Z`)
   return date instanceof Date && !Number.isNaN(date.getTime())
 }
 
@@ -49,7 +49,9 @@ function validateArticles(articles, { required = true } = {}) {
 
     const quantite = Number(article.quantite)
     if (!Number.isInteger(quantite) || quantite <= 0) {
-      throw new ValidationError(`Article ${index + 1} : la quantité doit être un nombre entier supérieur à 0`)
+      throw new ValidationError(
+        `Article ${index + 1} : la quantité doit être un nombre entier supérieur à 0`,
+      )
     }
 
     const artisanId = Number(article.artisan_id)
@@ -81,7 +83,7 @@ function validateCreateVentePayload(payload = {}) {
 
 function validateUpdateVentePayload(payload = {}) {
   validateArticles(payload.articles, { required: false })
-  
+
   // Valider date_vente si elle est fournie
   if (payload.date_vente !== undefined && payload.date_vente !== null) {
     if (!isValidISODate(payload.date_vente)) {

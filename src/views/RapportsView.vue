@@ -23,7 +23,7 @@
               :key="a.id"
               :value="a.id"
             >
-              {{ a.nom }}
+              {{ formatArtisanSelectLabel(a) }}
             </option>
           </optgroup>
           <optgroup label="Artisans temporaires">
@@ -32,7 +32,7 @@
               :key="a.id"
               :value="a.id"
             >
-              {{ a.nom }}
+              {{ formatArtisanSelectLabel(a) }}
             </option>
           </optgroup>
         </select>
@@ -314,11 +314,16 @@ const allVentesFlat = computed(() => {
 })
 
 onMounted(() => {
-  artisansStore.fetchArtisans()
+  artisansStore.fetchArtisans({ includeInactive: true })
   rapportsStore.fetchAllRapports()
   // Charger les données du mois courant pour l'onglet mensuel
   rapportsStore.fetchRapportByMonth(currentMonth)
 })
+
+function formatArtisanSelectLabel(artisan) {
+  const name = artisan.nom_boutique || artisan.nom
+  return artisan.est_actif === false ? `${name} (archivé)` : name
+}
 
 function onArtisanChange() {
   activeTab.value = 'global'

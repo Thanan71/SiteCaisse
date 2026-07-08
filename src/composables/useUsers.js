@@ -1,7 +1,7 @@
 /**
  * @module useUsers
  * @description Composable encapsulant toute la logique métier de gestion des utilisateurs
- * (liste, création, suppression, prolongation, réinitialisation de mot de passe).
+ * (liste, création, archivage, prolongation, réinitialisation de mot de passe).
  * Respecte le principe de responsabilité unique en isolant les appels API
  * et l'état des utilisateurs du rendu Vue.
  */
@@ -28,7 +28,7 @@ export function useUsers() {
     date_fin: '',
   })
 
-  // Suppression
+  // Archivage / désactivation
   const showDeleteModal = ref(false)
   const userToDelete = ref(null)
   const deletingId = ref(null)
@@ -249,10 +249,10 @@ export function useUsers() {
     }
   }
 
-  // ---- Suppression ----
+  // ---- Archivage / désactivation ----
 
   /**
-   * Ouvre la modale de confirmation de suppression.
+   * Ouvre la modale de confirmation de désactivation.
    * @param {Object} user
    */
   function openDeleteModal(user) {
@@ -261,7 +261,7 @@ export function useUsers() {
   }
 
   /**
-   * Ferme la modale de suppression.
+   * Ferme la modale de désactivation.
    */
   function closeDeleteModal() {
     showDeleteModal.value = false
@@ -269,7 +269,7 @@ export function useUsers() {
   }
 
   /**
-   * Confirme et exécute la suppression d'un utilisateur.
+   * Confirme et exécute la désactivation d'un utilisateur.
    */
   async function confirmDeleteUser() {
     if (!userToDelete.value) return
@@ -282,8 +282,8 @@ export function useUsers() {
       closeDeleteModal()
       await fetchUsers()
     } catch (err) {
-      console.error('Erreur suppression:', err)
-      alert(err.response?.data?.error || 'Erreur lors de la suppression')
+      console.error('Erreur désactivation:', err)
+      alert(err.response?.data?.error || 'Erreur lors de la désactivation')
     } finally {
       deletingId.value = null
     }
@@ -426,7 +426,7 @@ export function useUsers() {
    * @returns {string}
    */
   function getStatusLabel(user) {
-    if (!user.est_actif) return 'Non'
+    if (!user.est_actif) return 'Archivé'
     if (isDateFinExpired(user.date_fin)) return 'Expiré'
     return 'Oui'
   }
@@ -475,7 +475,7 @@ export function useUsers() {
     confirmSaveCommission,
     clearCustomCommission,
 
-    // Suppression
+    // Archivage / désactivation
     openDeleteModal,
     closeDeleteModal,
     confirmDeleteUser,
