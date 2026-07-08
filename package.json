@@ -17,9 +17,10 @@
     "lint": "biome lint .",
     "check": "biome check .",
     "check:fix": "biome check --write .",
+    "vercel:prepare": "biome format --write vercel.json && npm run test:e2e:setup",
     "preview": "vite preview",
     "start": "node api/index.cjs",
-    "vercel-build": "npm run test:e2e:setup && npm run ci"
+    "vercel-build": "npm run vercel:prepare && npm run ci"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
