@@ -118,6 +118,7 @@ npm run dev
 - `npm test` : lance les tests unitaires puis E2E
 - `npm run test:unit` : lance les tests unitaires Vitest
 - `npm run test:e2e:setup` : installe Chromium pour Playwright
+- `npm run test:e2e:setup:ci` : installe Chromium et ses dépendances système en CI Linux
 - `npm run test:e2e` : lance les tests E2E Playwright
 - `npm run vercel:prepare` : prépare l'environnement Vercel avant les vérifications
 - `npm run preview` : prévisualisation du build

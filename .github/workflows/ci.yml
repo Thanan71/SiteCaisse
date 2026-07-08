@@ -33,7 +33,7 @@ jobs:
         run: npm ci
 
       - name: Install Playwright Chromium
-        run: npm run test:e2e:setup
+        run: npm run test:e2e:setup:ci
 
       - name: Run checks, tests and build
         run: npm run ci
