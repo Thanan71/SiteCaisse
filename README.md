@@ -114,6 +114,14 @@ npm run dev
 
 - `npm run dev` : démarre Vite en mode développement
 - `npm run build` : génère le build de production
+- `npm run ci` : lance Biome, les tests unitaires/E2E, puis le build
+- `npm run ci:vercel` : lance les vérifications compatibles avec le build Vercel
+- `npm test` : lance les tests unitaires puis E2E
+- `npm run test:unit` : lance les tests unitaires Vitest
+- `npm run test:e2e:setup` : installe Chromium pour Playwright
+- `npm run test:e2e:setup:ci` : installe Chromium et ses dépendances système en CI Linux
+- `npm run test:e2e` : lance les tests E2E Playwright
+- `npm run vercel:prepare` : prépare les fichiers avant le build Vercel
 - `npm run preview` : prévisualisation du build
 - `npm run start` : démarre le backend Express localement
 - `npm run format` : formate le code avec Biome
@@ -121,6 +129,11 @@ npm run dev
 - `npm run check` : vérifie le projet avec Biome
 - `npm run check:fix` : corrige les erreurs Biome automatiquement
 - `npm run vercel-build` : build utilisé par Vercel
+
+## ✅ Protection des déploiements
+
+- GitHub Actions exécute `npm run ci` sur chaque Pull Request et chaque push vers `dev`, `main` ou `master`.
+- Vercel utilise `npm run vercel-build`, qui lance Biome, les tests unitaires et le build. Les E2E navigateur restent dans GitHub Actions, puis Vercel Deployment Checks peut bloquer la promotion production tant que l'action GitHub n'est pas verte.
 
 ## 🔌 API disponibles
 

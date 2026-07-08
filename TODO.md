@@ -108,7 +108,7 @@ User Action → Vue Component → Pinia Store → API Express → Supabase/Postg
 
 ## Améliorations futures possibles
 - [ ] Mode hors-ligne (PWA)
-- [ ] Tests unitaires et E2E
+- [x] Tests unitaires et E2E
 - [ ] Notifications/alertes
 - [ ] Export PDF des rapports
 - [ ] Mode sombre

@@ -6,13 +6,23 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "ci": "npm run check && npm test && npm run build",
+    "ci:vercel": "npm run check && npm run test:unit && npm run build",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:setup": "playwright install chromium",
+    "test:e2e:setup:ci": "node scripts/setup-playwright-ci.mjs",
+    "test:e2e:ui": "playwright test --ui",
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check .",
     "check:fix": "biome check --write .",
+    "vercel:prepare": "biome format --write vercel.json",
     "preview": "vite preview",
     "start": "node api/index.cjs",
-    "vercel-build": "vite build"
+    "vercel-build": "npm run vercel:prepare && npm run ci:vercel"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.106.2",
@@ -34,7 +44,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.16",
+    "@playwright/test": "^1.61.1",
     "@vitejs/plugin-vue": "^6.0.6",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "vitest": "^3.2.7"
   }
 }
