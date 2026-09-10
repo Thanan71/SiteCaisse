@@ -32,6 +32,9 @@ test('navigue dans les rapports globaux, artisan et mensuels', async ({ page }) 
   await expect(page.getByText('Résumé global')).toBeVisible()
 
   await page.getByRole('button', { name: /Par mois/ }).click()
+  const monthInput = page.getByLabel('Sélectionner un mois :')
+  await monthInput.fill('2026-07')
+  await monthInput.dispatchEvent('change')
   await expect(page.getByRole('heading', { name: 'Juillet 2026' })).toBeVisible()
   await expect(page.getByText('Résumé du mois')).toBeVisible()
 
