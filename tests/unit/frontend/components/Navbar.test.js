@@ -33,16 +33,24 @@ beforeEach(() => {
   routerMock.push.mockClear()
 })
 
-describe('Navbar', () => {
-  it('affiche la navigation connectee et deconnecte utilisateur', async () => {
-    const wrapper = mount(Navbar, {
-      global: {
-        mocks: { $route: { path: '/admin' } },
-        stubs: {
-          RouterLink: { props: ['to'], template: '<a><slot /></a>' },
+function mountNavbar() {
+  return mount(Navbar, {
+    global: {
+      mocks: { $route: { path: '/admin' } },
+      stubs: {
+        RouterLink: {
+          emits: ['click'],
+          props: ['to'],
+          template: `<a :href="to" @click="$emit('click', $event)"><slot /></a>`,
         },
       },
-    })
+    },
+  })
+}
+
+describe('Navbar', () => {
+  it('affiche la navigation connectee et deconnecte utilisateur', async () => {
+    const wrapper = mountNavbar()
 
     expect(wrapper.text()).toContain('Site Caisse')
     expect(wrapper.text()).toContain('Admin')
@@ -52,8 +60,32 @@ describe('Navbar', () => {
       'Admin',
     ])
 
-    await wrapper.find('.btn-logout').trigger('click')
+    await wrapper.find('.navbar-user .btn-logout').trigger('click')
     expect(authStoreMock.logout).toHaveBeenCalledTimes(1)
     expect(routerMock.push).toHaveBeenCalledWith('/login')
+  })
+
+  it('ouvre et ferme le menu burger pour la navigation mobile', async () => {
+    const wrapper = mountNavbar()
+    const toggle = wrapper.find('.navbar-toggle')
+
+    expect(toggle.attributes('aria-expanded')).toBe('false')
+    expect(toggle.attributes('aria-label')).toBe('Ouvrir le menu de navigation')
+    expect(wrapper.find('.navbar-mobile-menu').exists()).toBe(false)
+
+    await toggle.trigger('click')
+
+    expect(toggle.attributes('aria-expanded')).toBe('true')
+    expect(toggle.attributes('aria-label')).toBe('Fermer le menu de navigation')
+    expect(wrapper.find('.navbar-mobile-menu').exists()).toBe(true)
+    expect(wrapper.findAll('.navbar-mobile-link').map((link) => link.text())).toEqual([
+      'Ventes',
+      'Rapports',
+      'Admin',
+    ])
+
+    await wrapper.find('.navbar-mobile-link').trigger('click')
+    expect(wrapper.find('.navbar-mobile-menu').exists()).toBe(false)
+    expect(toggle.attributes('aria-expanded')).toBe('false')
   })
 })

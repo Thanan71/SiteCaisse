@@ -150,9 +150,56 @@
     <!-- Onglet : Par mois -->
     <!-- Onglet : Journalier -->
     <div v-if="activeTab === 'journalier'">
+      <div class="day-navigation" aria-label="Navigation entre les journées de vente">
+        <button
+          type="button"
+          class="btn btn-secondary day-navigation-button"
+          data-testid="day-prev"
+          aria-label="Afficher le jour précédent"
+          @click="goToPreviousDay"
+        >
+          ◀ Précédent
+        </button>
+
+        <div class="day-navigation-current">
+          <label for="daily-date-picker">Journée affichée</label>
+          <input
+            id="daily-date-picker"
+            v-model="selectedDailyDate"
+            type="date"
+            :max="currentDateISO"
+            class="day-date-input"
+            @change="onDailyDateChange"
+          />
+          <strong class="day-date-label">{{ dailyDateLabel }}</strong>
+        </div>
+
+        <div class="day-navigation-actions">
+          <button
+            v-if="!isViewingToday"
+            type="button"
+            class="btn btn-secondary"
+            data-testid="day-today"
+            @click="goToToday"
+          >
+            Aujourd'hui
+          </button>
+          <button
+            type="button"
+            class="btn btn-secondary day-navigation-button"
+            data-testid="day-next"
+            :disabled="isViewingToday"
+            aria-label="Afficher le jour suivant"
+            @click="goToNextDay"
+          >
+            Suivant ▶
+          </button>
+        </div>
+      </div>
+
       <div v-if="ventesStore.loading && !ventesStore.ventes.length" class="loading-state">
         <div class="spinner"></div>
-        <p>Chargement des ventes du jour...</p>
+        <p>Chargement des ventes de la journée...</p>
       </div>
 
       <div v-else-if="ventesStore.error" class="error-state">
@@ -162,8 +209,8 @@
 
       <div v-else-if="!dailyVentes.length" class="empty-state">
         <div class="empty-icon">📆</div>
-        <h3>Aucune vente aujourd'hui</h3>
-        <p>Commencez par ajouter une vente</p>
+        <h3>{{ dailyEmptyTitle }}</h3>
+        <p>Aucune vente n'a été enregistrée pour cette journée</p>
       </div>
 
       <div v-else>
@@ -180,7 +227,7 @@
 
         <!-- Résumé du jour -->
         <SummaryCard
-          title="Résumé du jour"
+          :title="dailySummaryTitle"
           :total-articles="dailySummary.total_articles"
           :total-montant="dailySummary.total_montant"
           :total-cb="dailySummary.total_cb"
@@ -306,6 +353,31 @@ const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart
 const selectedMonth = ref(currentMonth)
 // Date courante ISO (YYYY-MM-DD)
 const currentDateISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+const selectedDailyDate = ref(currentDateISO)
+
+const isViewingToday = computed(() => selectedDailyDate.value === currentDateISO)
+
+const dailyDateLabel = computed(() => {
+  const date = parseIsoDate(selectedDailyDate.value)
+  if (!date) return ''
+  return new Intl.DateTimeFormat('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(date)
+})
+
+const dailyEmptyTitle = computed(() =>
+  isViewingToday.value
+    ? "Aucune vente aujourd'hui"
+    : `Aucune vente le ${formatDate(selectedDailyDate.value)}`,
+)
+
+const dailySummaryTitle = computed(() =>
+  isViewingToday.value ? 'Résumé du jour' : `Résumé du ${formatDate(selectedDailyDate.value)}`,
+)
 
 onMounted(() => {
   // Par défaut on charge les ventes du jour et le rapport du mois courant
@@ -330,12 +402,51 @@ function setActiveTab(tab) {
   }
 }
 
+function parseIsoDate(dateISO) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO || '')) return null
+  const [year, month, day] = dateISO.split('-').map(Number)
+  return new Date(Date.UTC(year, month - 1, day))
+}
+
+function shiftIsoDate(dateISO, days) {
+  const date = parseIsoDate(dateISO)
+  if (!date) return currentDateISO
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+async function onDailyDateChange() {
+  if (!selectedDailyDate.value) {
+    selectedDailyDate.value = currentDateISO
+  } else if (selectedDailyDate.value > currentDateISO) {
+    selectedDailyDate.value = currentDateISO
+  }
+  await fetchJournalier()
+}
+
+async function goToPreviousDay() {
+  selectedDailyDate.value = shiftIsoDate(selectedDailyDate.value, -1)
+  await fetchJournalier()
+}
+
+async function goToNextDay() {
+  if (isViewingToday.value) return
+  const nextDate = shiftIsoDate(selectedDailyDate.value, 1)
+  selectedDailyDate.value = nextDate > currentDateISO ? currentDateISO : nextDate
+  await fetchJournalier()
+}
+
+async function goToToday() {
+  selectedDailyDate.value = currentDateISO
+  await fetchJournalier()
+}
+
 async function fetchJournalier() {
   await ventesStore.fetchVentes({
     page: 1,
     limit: 1000,
-    date_debut: currentDateISO,
-    date_fin: currentDateISO,
+    date_debut: selectedDailyDate.value,
+    date_fin: selectedDailyDate.value,
   })
 }
 
@@ -438,7 +549,7 @@ const dailyVentes = computed(() => {
       : v.created_at
         ? new Date(v.created_at).toISOString().slice(0, 10)
         : ''
-    return dateStr === currentDateISO
+    return dateStr === selectedDailyDate.value
   })
   return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 })
@@ -584,6 +695,69 @@ async function confirmDelete() {
   font-size: 0.8rem;
 }
 
+.day-navigation {
+  display: grid;
+  grid-template-columns: auto minmax(220px, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.day-navigation-current {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.day-navigation-current label {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.day-date-input {
+  width: min(220px, 100%);
+  padding: 7px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: white;
+  color: #1e293b;
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.day-date-input:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+.day-date-label {
+  color: #1e293b;
+  font-size: 0.95rem;
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.day-navigation-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.day-navigation-button {
+  white-space: nowrap;
+}
+
 .empty-state {
   text-align: center;
   padding: 60px 20px;
@@ -689,5 +863,46 @@ async function confirmDelete() {
 .btn-pagination:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .day-navigation {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .day-navigation-current {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+
+  .day-navigation-actions {
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 600px) {
+  .ventes-page {
+    padding: 16px;
+  }
+
+  .day-navigation {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .day-navigation-button,
+  .day-navigation-actions,
+  .day-navigation-actions .btn {
+    width: 100%;
+  }
+
+  .day-navigation-actions {
+    flex-direction: column-reverse;
+  }
+
+  .day-navigation-button {
+    justify-content: center;
+  }
 }
 </style>
