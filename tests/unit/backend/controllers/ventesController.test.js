@@ -16,6 +16,11 @@ describe('ventesController', () => {
       getAllVentes: vi.fn(async () => ({ ventes: [{ id: 10 }], pagination: { page: 2 } })),
     })
 
+    await expect(invokeRoute(router, 'get', '/artisans')).resolves.toMatchObject({
+      res: { statusCode: 200, body: [artisanUser] },
+    })
+    expect(models.getAllArtisans).toHaveBeenCalledWith({ includeInactive: true })
+
     await expect(
       invokeRoute(router, 'get', '/', {
         query: { page: '2', limit: '20', type_paiement: 'CB' },
@@ -102,6 +107,14 @@ describe('ventesController', () => {
     ).resolves.toMatchObject({
       res: { statusCode: 404, body: { error: 'Vente non trouvée ou aucune modification' } },
     })
+
+    models.getAllArtisans.mockRejectedValueOnce(new Error('artisans failed'))
+    await expect(invokeRoute(router, 'get', '/artisans')).resolves.toMatchObject({
+      res: { statusCode: 500, body: { error: 'Erreur serveur' } },
+    })
+    expect(logger.logError).toHaveBeenCalledWith(
+      expect.objectContaining({ context: 'ventes.artisans', cible_type: 'vente' }),
+    )
 
     models.getAllVentes.mockRejectedValueOnce(new Error('boom'))
     await expect(invokeRoute(router, 'get', '/')).resolves.toMatchObject({
