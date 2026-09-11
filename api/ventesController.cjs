@@ -5,7 +5,7 @@
  * Toutes les routes sont protégées par le middleware d'authentification JWT.
  */
 const express = require('express')
-const { getAllVentes, createVente, updateVente, deleteVente } = require('./models.cjs')
+const { getAllArtisans, getAllVentes, createVente, updateVente, deleteVente } = require('./models.cjs')
 const { authMiddleware } = require('./authController.cjs')
 const { logAction, logError } = require('./services/loggerService.cjs')
 const {
@@ -25,6 +25,29 @@ function sendValidationError(err, res) {
   res.status(err.statusCode).json({ error: err.message })
   return true
 }
+
+/**
+ * Récupère tous les artisans disponibles pour la saisie d'une vente.
+ * Cette route est volontairement distincte des rapports : tout utilisateur authentifié
+ * peut sélectionner n'importe quel artisan, y compris un compte archivé.
+ * @route GET /api/ventes/artisans
+ * @returns {Array<Object>} Liste complète des artisans.
+ */
+router.get('/artisans', async (req, res) => {
+  try {
+    res.json(await getAllArtisans({ includeInactive: true }))
+  } catch (err) {
+    console.error('GET ventes artisans error:', err)
+    await logError({
+      user: req.user,
+      err,
+      context: 'ventes.artisans',
+      cible_type: 'vente',
+      req,
+    })
+    res.status(500).json({ error: 'Erreur serveur' })
+  }
+})
 
 /**
  * Récupère la liste des ventes avec pagination et filtres optionnels.
