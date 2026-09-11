@@ -88,7 +88,7 @@ test('affiche le message renvoye par l API quand la connexion echoue', async ({ 
   await installApiMock(page, { loginSucceeds: false })
 
   await page.goto('/login')
-  await page.getByLabel('Nom de la boutique').fill('Administration')
+  await page.getByLabel('Artisan').fill('Administration')
   await page.getByLabel('Mot de passe').fill('mauvais-secret')
   await page.getByRole('button', { name: 'Se connecter' }).click()
 
