@@ -289,12 +289,16 @@ const selectedMonth = ref(currentMonth)
 const permanents = computed(() =>
   authStore.isAdmin
     ? artisansStore.permanents
-    : artisansStore.permanents.filter((artisan) => Number(artisan.id) === Number(authStore.user?.id)),
+    : artisansStore.permanents.filter(
+        (artisan) => Number(artisan.id) === Number(authStore.user?.id),
+      ),
 )
 const temporaires = computed(() =>
   authStore.isAdmin
     ? artisansStore.temporaires
-    : artisansStore.temporaires.filter((artisan) => Number(artisan.id) === Number(authStore.user?.id)),
+    : artisansStore.temporaires.filter(
+        (artisan) => Number(artisan.id) === Number(authStore.user?.id),
+      ),
 )
 
 const selectedArtisan = computed(() => {
