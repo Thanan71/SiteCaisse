@@ -93,7 +93,7 @@
                       <option value="" disabled>Choisir un artisan...</option>
                       <optgroup
                         v-if="permanentArtisans.length"
-                        label="Boutiques permanentes"
+                        label="Artisans permanents"
                       >
                         <option
                           v-for="artisan in permanentArtisans"
