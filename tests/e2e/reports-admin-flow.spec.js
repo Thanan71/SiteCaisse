@@ -67,7 +67,7 @@ test('gere utilisateurs, commissions et logs dans l administration', async ({ pa
 
   await page.getByRole('button', { name: 'Commissions' }).click()
   await page.getByLabel('Commission générale - Artisans permanents (%)').fill('1.75')
-  await page.getByLabel('Commission générale - Artisans temporaires (%)').fill('2.75')
+  await page.getByLabel('Commission générale - Artisans invités (%)').fill('2.75')
   await page.getByRole('button', { name: 'Enregistrer les commissions' }).click()
   await expect(page.getByText('Commissions CB mises à jour avec succès !')).toBeVisible()
 
