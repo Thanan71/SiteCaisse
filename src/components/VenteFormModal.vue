@@ -82,7 +82,7 @@
                   />
                 </div>
                 <div class="form-group form-group-artisan">
-                  <label :for="fieldId(`article-artisan-${index}`)">Boutique</label>
+                  <label :for="fieldId(`article-artisan-${index}`)">Artisan</label>
                   <div class="artisan-select-wrapper">
                     <select
                       :id="fieldId(`article-artisan-${index}`)"
@@ -90,7 +90,7 @@
                       class="artisan-select"
                       required
                     >
-                      <option value="" disabled>Choisir une boutique...</option>
+                      <option value="" disabled>Choisir un artisan...</option>
                       <optgroup
                         v-if="permanentArtisans.length"
                         label="Boutiques permanentes"
