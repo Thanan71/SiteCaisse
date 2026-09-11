@@ -5,7 +5,13 @@
  * Toutes les routes sont protégées par le middleware d'authentification JWT.
  */
 const express = require('express')
-const { getAllArtisans, getAllVentes, createVente, updateVente, deleteVente } = require('./models.cjs')
+const {
+  getAllArtisans,
+  getAllVentes,
+  createVente,
+  updateVente,
+  deleteVente,
+} = require('./models.cjs')
 const { authMiddleware } = require('./authController.cjs')
 const { logAction, logError } = require('./services/loggerService.cjs')
 const {
