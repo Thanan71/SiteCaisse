@@ -58,11 +58,23 @@ export function formatDateSimple(dateStr, fallback = '—') {
  */
 export function parseUtcDate(str) {
   if (!str) return null
-  // Si déjà un timezone explicite (Z ou +/-HH:MM), new Date() le gère correctement
-  // On vérifie la présence de 'Z' ou d'un offset +/- après les minutes
-  if (/[Zz]/.test(str) || /\d[+-]\d{2}:\d{2}$/.test(str)) return new Date(str)
-  // Sinon forcer UTC
-  return new Date(`${str}Z`)
+
+  const value = String(str).trim()
+  if (!value) return null
+
+  let normalized = value
+
+  // Les champs SQL DATE arrivent sous la forme YYYY-MM-DD.
+  // Ajouter uniquement "Z" produit YYYY-MM-DDZ, format non standard rejeté par Safari.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    normalized = `${value}T00:00:00Z`
+  } else if (!/[Zz]$/.test(value) && !/[+-]\d{2}:\d{2}$/.test(value)) {
+    // Timestamp ISO sans timezone : conserver le comportement historique en le traitant comme UTC.
+    normalized = `${value}Z`
+  }
+
+  const date = new Date(normalized)
+  return Number.isNaN(date.getTime()) ? null : date
 }
 
 export function formatDateWithTime(dateStr, timestampStr, fallback = '-') {

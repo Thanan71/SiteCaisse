@@ -27,8 +27,17 @@ describe('formatters', () => {
     expect(formatPrice(12.5)).toContain('€')
   })
 
-  it('interprete les timestamps sans timezone comme UTC', () => {
+  it('normalise les dates ISO de facon compatible avec Safari', () => {
+    expect(parseUtcDate('2026-07-08').toISOString()).toBe('2026-07-08T00:00:00.000Z')
     expect(parseUtcDate('2026-07-08T12:34:00').toISOString()).toBe('2026-07-08T12:34:00.000Z')
     expect(parseUtcDate('2026-07-08T12:34:00Z').toISOString()).toBe('2026-07-08T12:34:00.000Z')
+    expect(parseUtcDate('2026-07-08T14:34:00+02:00').toISOString()).toBe('2026-07-08T12:34:00.000Z')
+  })
+
+  it('rejette les dates invalides au lieu de propager Invalid Date', () => {
+    expect(parseUtcDate('pas-une-date')).toBeNull()
+    expect(formatDate('pas-une-date', 'n/a')).toBe('n/a')
+    expect(formatDateTime('pas-une-date', 'n/a')).toBe('n/a')
+    expect(formatDateWithTime('pas-une-date', null, 'n/a')).toBe('n/a')
   })
 })
