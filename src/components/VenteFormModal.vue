@@ -245,6 +245,7 @@ watch(
     hydrateForm()
     await fetchArtisansIfNeeded()
   },
+  { immediate: true },
 )
 
 watch(
