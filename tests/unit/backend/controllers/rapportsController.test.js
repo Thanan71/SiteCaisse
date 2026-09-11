@@ -22,7 +22,9 @@ describe('rapportsController', () => {
     await expect(invokeRoute(router, 'get', '/', { user: adminUser })).resolves.toMatchObject({
       res: { statusCode: 200, body: { global: true } },
     })
-    await expect(invokeRoute(router, 'get', '/mensuel', { user: adminUser })).resolves.toMatchObject({
+    await expect(
+      invokeRoute(router, 'get', '/mensuel', { user: adminUser }),
+    ).resolves.toMatchObject({
       res: { statusCode: 200, body: { mensuel: true } },
     })
     await expect(
@@ -152,7 +154,9 @@ describe('rapportsController', () => {
     )
 
     rapportService.getRapportMensuel.mockRejectedValueOnce(new Error('mensuel failed'))
-    await expect(invokeRoute(router, 'get', '/mensuel', { user: adminUser })).resolves.toMatchObject({
+    await expect(
+      invokeRoute(router, 'get', '/mensuel', { user: adminUser }),
+    ).resolves.toMatchObject({
       res: { statusCode: 500, body: { error: 'Erreur serveur' } },
     })
     expect(logger.logError).toHaveBeenCalledWith(
