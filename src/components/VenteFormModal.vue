@@ -307,7 +307,7 @@ function resetForm() {
 
 async function fetchArtisansIfNeeded() {
   try {
-    await artisansStore.fetchArtisans({ includeInactive: true })
+    await artisansStore.fetchSaleArtisans()
   } catch (err) {
     error.value = 'Erreur lors du chargement des artisans'
   }
