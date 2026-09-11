@@ -112,6 +112,10 @@ export async function installApiMock(page, options = {}) {
       return json(state.user)
     }
 
+    if (method === 'GET' && path === '/api/ventes/artisans') {
+      return json(state.artisans)
+    }
+
     if (method === 'GET' && path === '/api/rapports/artisans') {
       return json(state.artisans)
     }

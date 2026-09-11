@@ -55,6 +55,7 @@ export function loadVentesController(modelOverrides = {}) {
   const models = {
     createVente: vi.fn(async () => 42),
     deleteVente: vi.fn(async () => true),
+    getAllArtisans: vi.fn(async () => [artisanUser]),
     getAllVentes: vi.fn(async () => ({ ventes: [], pagination: { page: 1 } })),
     updateVente: vi.fn(async () => true),
     ...modelOverrides,

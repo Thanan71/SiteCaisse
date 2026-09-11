@@ -7,7 +7,7 @@ import { artisansFixture, ventesFixture } from '../../fixtures/salesFixtures'
 
 const artisansStoreMock = vi.hoisted(() => ({
   artisans: [],
-  fetchArtisans: vi.fn(async () => []),
+  fetchSaleArtisans: vi.fn(async () => []),
 }))
 
 const ventesStoreMock = vi.hoisted(() => ({
@@ -28,8 +28,8 @@ const ventes = ventesFixture
 
 beforeEach(() => {
   artisansStoreMock.artisans = artisans
-  artisansStoreMock.fetchArtisans.mockClear()
-  artisansStoreMock.fetchArtisans.mockResolvedValue(artisans)
+  artisansStoreMock.fetchSaleArtisans.mockClear()
+  artisansStoreMock.fetchSaleArtisans.mockResolvedValue(artisans)
 
   ventesStoreMock.addVente.mockClear()
   ventesStoreMock.addVente.mockResolvedValue({ id: 1 })
@@ -48,7 +48,7 @@ describe('VenteFormModal', () => {
     const optionLabels = select.findAll('option').map((option) => option.text())
     const groupLabels = select.findAll('optgroup').map((group) => group.attributes('label'))
 
-    expect(artisansStoreMock.fetchArtisans).toHaveBeenCalledWith({ includeInactive: true })
+    expect(artisansStoreMock.fetchSaleArtisans).toHaveBeenCalledOnce()
     expect(groupLabels).toEqual(['Artisans permanents', 'Invités'])
     expect(optionLabels).toContain('Atelier Alice')
     expect(optionLabels).toContain('Boutique Bruno (Invité) — archivé')
