@@ -38,10 +38,7 @@ beforeEach(() => {
 })
 
 describe('VenteFormModal', () => {
-  it('affiche des libelles de boutique simples et distingue clairement les invites', async () => {
-    artisansStoreMock.artisans = [artisans[0], { ...artisans[1], est_actif: true }]
-    artisansStoreMock.fetchArtisans.mockResolvedValue(artisansStoreMock.artisans)
-
+  it('affiche tous les artisans, y compris les comptes archivés', async () => {
     const wrapper = mount(VenteFormModal, {
       props: { mode: 'create', show: true },
     })
@@ -51,10 +48,14 @@ describe('VenteFormModal', () => {
     const optionLabels = select.findAll('option').map((option) => option.text())
     const groupLabels = select.findAll('optgroup').map((group) => group.attributes('label'))
 
+    expect(artisansStoreMock.fetchArtisans).toHaveBeenCalledWith({ includeInactive: true })
     expect(groupLabels).toEqual(['Artisans permanents', 'Invités'])
     expect(optionLabels).toContain('Atelier Alice')
-    expect(optionLabels).toContain('Boutique Bruno (Invité)')
+    expect(optionLabels).toContain('Boutique Bruno (Invité) — archivé')
     expect(optionLabels).not.toContain('Atelier Alice (Permanent)')
+
+    await select.setValue('3')
+    expect(select.element.value).toBe('3')
     expect(wrapper.find('.artisan-select-hint').text()).toContain('(Invité)')
   })
 
