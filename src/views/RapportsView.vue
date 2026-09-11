@@ -3,7 +3,9 @@
     <div class="page-header">
       <div>
         <h1>Rapports</h1>
-        <p class="page-subtitle">Consultez les ventes par artisan</p>
+        <p class="page-subtitle">
+          {{ authStore.isAdmin ? 'Consultez les ventes par artisan' : 'Consultez votre rapport' }}
+        </p>
       </div>
     </div>
 
@@ -15,8 +17,9 @@
           v-model="selectedArtisanId"
           @change="onArtisanChange"
           class="artisan-select"
+          :disabled="!authStore.isAdmin"
         >
-          <option value="">-- Tous les artisans --</option>
+          <option v-if="authStore.isAdmin" value="">-- Tous les artisans --</option>
           <optgroup label="Artisans permanents">
             <option
               v-for="a in permanents"
@@ -268,11 +271,13 @@ import SummaryCard from '../components/SummaryCard.vue'
 import TabNav from '../components/TabNav.vue'
 import { exportAllRapportsToExcel, exportMonthToExcel } from '../services/excelService'
 import { useArtisansStore } from '../store/artisans'
+import { useAuthStore } from '../store/auth'
 import { useRapportsStore } from '../store/rapports'
 import { formatMonthLabel, formatPrice } from '../utils/formatters'
 
 const rapportsStore = useRapportsStore()
 const artisansStore = useArtisansStore()
+const authStore = useAuthStore()
 const selectedArtisanId = ref('')
 const activeTab = ref('global')
 
@@ -281,8 +286,20 @@ const now = new Date()
 const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 const selectedMonth = ref(currentMonth)
 
-const permanents = computed(() => artisansStore.permanents)
-const temporaires = computed(() => artisansStore.temporaires)
+const permanents = computed(() =>
+  authStore.isAdmin
+    ? artisansStore.permanents
+    : artisansStore.permanents.filter(
+        (artisan) => Number(artisan.id) === Number(authStore.user?.id),
+      ),
+)
+const temporaires = computed(() =>
+  authStore.isAdmin
+    ? artisansStore.temporaires
+    : artisansStore.temporaires.filter(
+        (artisan) => Number(artisan.id) === Number(authStore.user?.id),
+      ),
+)
 
 const selectedArtisan = computed(() => {
   if (!selectedArtisanId.value) return null
@@ -314,8 +331,17 @@ const allVentesFlat = computed(() => {
 })
 
 onMounted(() => {
-  artisansStore.fetchArtisans({ includeInactive: true })
-  rapportsStore.fetchAllRapports()
+  artisansStore.fetchArtisans({ includeInactive: authStore.isAdmin })
+
+  if (authStore.isAdmin) {
+    rapportsStore.fetchAllRapports()
+  } else {
+    selectedArtisanId.value = String(authStore.user?.id || '')
+    if (selectedArtisanId.value) {
+      rapportsStore.fetchVentesByArtisan(selectedArtisanId.value)
+    }
+  }
+
   // Charger les données du mois courant pour l'onglet mensuel
   rapportsStore.fetchRapportByMonth(currentMonth)
 })
@@ -326,6 +352,11 @@ function formatArtisanSelectLabel(artisan) {
 }
 
 function onArtisanChange() {
+  if (!authStore.isAdmin) {
+    selectedArtisanId.value = String(authStore.user?.id || '')
+    return
+  }
+
   activeTab.value = 'global'
   if (selectedArtisanId.value) {
     rapportsStore.fetchVentesByArtisan(selectedArtisanId.value)
