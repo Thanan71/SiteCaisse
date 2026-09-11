@@ -66,7 +66,7 @@
               <tr v-for="user in customCommissionUsers" :key="user.id">
                 <td>{{ user.nom }}</td>
                 <td>{{ user.nom_boutique }}</td>
-                <td>{{ user.role === 'temporaire' ? 'Temporaire' : 'Permanent' }}</td>
+                <td>{{ user.role === 'temporaire' ? 'Invité' : 'Permanent' }}</td>
                 <td>
                   <span class="commission-rate">
                     {{ formatCommissionRate(user.commission_cb_personnalisee) }}
@@ -132,7 +132,7 @@
               <select id="role" v-model="newUser.role" required @change="onRoleChange">
                 <option value="" disabled>Sélectionner un rôle</option>
                 <option value="permanent">Permanent</option>
-                <option value="temporaire">Temporaire</option>
+                <option value="temporaire">Invité</option>
               </select>
             </div>
             <div v-if="newUser.role === 'temporaire'" class="form-group">

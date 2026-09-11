@@ -292,7 +292,7 @@ export async function authenticate(page, user = connectedUser) {
 
 export async function loginThroughUi(page) {
   await page.goto('/login')
-  await page.getByLabel('Nom de la boutique').fill('Administration')
+  await page.getByLabel('Artisan').fill('Administration')
   await page.getByLabel('Mot de passe').fill('password123')
   await page.getByRole('button', { name: 'Se connecter' }).click()
   await page.waitForURL('/')

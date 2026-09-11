@@ -83,16 +83,38 @@
                 </div>
                 <div class="form-group form-group-artisan">
                   <label :for="fieldId(`article-artisan-${index}`)">Artisan</label>
-                  <select
-                    :id="fieldId(`article-artisan-${index}`)"
-                    v-model="article.artisan_id"
-                    required
-                  >
-                    <option value="" disabled>Sélectionner un artisan</option>
-                    <option v-for="artisan in artisans" :key="artisan.id" :value="artisan.id">
-                      {{ getArtisanOptionLabel(artisan) }}
-                    </option>
-                  </select>
+                  <div class="artisan-select-wrapper">
+                    <select
+                      :id="fieldId(`article-artisan-${index}`)"
+                      v-model="article.artisan_id"
+                      class="artisan-select"
+                      required
+                    >
+                      <option value="" disabled>Choisir un artisan...</option>
+                      <optgroup
+                        v-if="permanentArtisans.length"
+                        label="Artisans permanents"
+                      >
+                        <option
+                          v-for="artisan in permanentArtisans"
+                          :key="artisan.id"
+                          :value="artisan.id"
+                        >
+                          {{ getArtisanOptionLabel(artisan) }}
+                        </option>
+                      </optgroup>
+                      <optgroup v-if="guestArtisans.length" label="Invités">
+                        <option
+                          v-for="artisan in guestArtisans"
+                          :key="artisan.id"
+                          :value="artisan.id"
+                        >
+                          {{ getArtisanOptionLabel(artisan) }}
+                        </option>
+                      </optgroup>
+                    </select>
+                    <span class="artisan-select-hint">Les invités sont indiqués par “(Invité)”.</span>
+                  </div>
                 </div>
                 <div class="form-group form-group-price">
                   <label :for="fieldId(`article-price-${index}`)">Prix (€)</label>
@@ -192,6 +214,14 @@ const artisans = computed(() => {
   )
 })
 
+const permanentArtisans = computed(() =>
+  sortArtisansByBoutique(artisans.value.filter((artisan) => artisan.role === 'permanent')),
+)
+
+const guestArtisans = computed(() =>
+  sortArtisansByBoutique(artisans.value.filter((artisan) => artisan.role === 'temporaire')),
+)
+
 const totalQuantity = computed(() =>
   form.articles.reduce((total, article) => total + Math.max(0, Number(article.quantite) || 0), 0),
 )
@@ -242,8 +272,12 @@ function getArtisanBoutiqueLabel(artisan) {
   return artisan.nom_boutique || artisan.nom || 'Boutique inconnue'
 }
 
-function getArtisanRoleLabel(artisan) {
-  return artisan.role === 'permanent' ? 'Permanent' : 'Temporaire'
+function sortArtisansByBoutique(items) {
+  return [...items].sort((a, b) =>
+    getArtisanBoutiqueLabel(a).localeCompare(getArtisanBoutiqueLabel(b), 'fr-FR', {
+      sensitivity: 'base',
+    }),
+  )
 }
 
 function isActiveArtisan(artisan) {
@@ -251,8 +285,9 @@ function isActiveArtisan(artisan) {
 }
 
 function getArtisanOptionLabel(artisan) {
-  const status = isActiveArtisan(artisan) ? '' : ', archivé'
-  return `${getArtisanBoutiqueLabel(artisan)} (${getArtisanRoleLabel(artisan)}${status})`
+  const guestLabel = artisan.role === 'temporaire' ? ' (Invité)' : ''
+  const archivedLabel = isActiveArtisan(artisan) ? '' : ' — archivé'
+  return `${getArtisanBoutiqueLabel(artisan)}${guestLabel}${archivedLabel}`
 }
 
 function hydrateForm() {
@@ -506,7 +541,7 @@ async function handleSubmit() {
 }
 
 .article-fields {
-  grid-template-columns: 1fr 80px 160px 110px;
+  grid-template-columns: minmax(170px, 1fr) 80px minmax(210px, 260px) 110px;
 }
 
 .form-group-article,
@@ -514,6 +549,46 @@ async function handleSubmit() {
 .form-group-artisan,
 .form-group-price {
   margin-bottom: 0;
+}
+
+.artisan-select-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.artisan-select {
+  min-height: 42px;
+  width: 100%;
+  padding: 9px 34px 9px 12px;
+  border: 2px solid #cbd5e1;
+  border-radius: 9px;
+  background-color: white;
+  color: #1e293b;
+  cursor: pointer;
+  font-weight: 600;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    background-color 0.2s;
+}
+
+.artisan-select:hover {
+  border-color: #94a3b8;
+  background-color: #f8fafc;
+}
+
+.artisan-select:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  background-color: white;
+}
+
+.artisan-select-hint {
+  color: #64748b;
+  font-size: 0.7rem;
+  line-height: 1.25;
 }
 
 .btn-sm {

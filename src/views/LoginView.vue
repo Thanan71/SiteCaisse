@@ -9,7 +9,7 @@
 
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="form-group">
-          <label for="nom-boutique">Nom de la boutique</label>
+          <label for="nom-boutique">Artisan</label>
           <input
             id="nom-boutique"
             v-model="nomBoutique"

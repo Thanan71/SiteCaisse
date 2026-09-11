@@ -100,7 +100,7 @@ export function exportMonthToExcel(groupes, total, parametres, mois) {
       'Commission CB (€)': '',
     })
     globalRows.push({
-      Artisan: 'Temporaire',
+      Artisan: 'Invité',
       'Total articles': '',
       'Total montant (€)': '',
       'Total CB (€)': '',
@@ -196,7 +196,7 @@ export function exportAllRapportsToExcel(groupes, total, parametres) {
       'Commission CB (€)': '',
     })
     globalRows.push({
-      Artisan: 'Temporaire',
+      Artisan: 'Invité',
       'Total articles': '',
       'Total montant (€)': '',
       'Total CB (€)': '',

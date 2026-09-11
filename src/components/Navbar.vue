@@ -41,7 +41,7 @@
                 : 'badge-temporaire'
           "
         >
-          {{ authStore.isAdmin ? 'Admin' : authStore.isPermanent ? 'Permanent' : 'Temporaire' }}
+          {{ authStore.isAdmin ? 'Admin' : authStore.isPermanent ? 'Permanent' : 'Invité' }}
         </span>
       </span>
       <button type="button" class="btn-logout" @click="handleLogout">Déconnexion</button>
@@ -108,7 +108,7 @@
                   : 'badge-temporaire'
             "
           >
-            {{ authStore.isAdmin ? 'Admin' : authStore.isPermanent ? 'Permanent' : 'Temporaire' }}
+            {{ authStore.isAdmin ? 'Admin' : authStore.isPermanent ? 'Permanent' : 'Invité' }}
           </span>
         </div>
         <button type="button" class="btn-logout mobile-logout" @click="handleLogout">

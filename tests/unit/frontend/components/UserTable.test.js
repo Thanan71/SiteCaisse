@@ -53,7 +53,7 @@ describe('UserTable', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('Temporaire')
+    expect(wrapper.text()).toContain('Invité')
     expect(wrapper.text()).toContain('admin1234')
 
     await wrapper
