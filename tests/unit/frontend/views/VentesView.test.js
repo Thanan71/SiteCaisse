@@ -148,6 +148,13 @@ function mountVentesView() {
   return { fixtures, wrapper }
 }
 
+function shiftIsoDate(dateISO, days) {
+  const [year, month, day] = dateISO.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
 describe('VentesView', () => {
   it('charge les ventes du jour et le rapport mensuel au montage', async () => {
     const { fixtures, wrapper } = mountVentesView()
@@ -164,6 +171,33 @@ describe('VentesView', () => {
     expect(api.get).toHaveBeenCalledWith(`/api/rapports/mensuel/${fixtures.currentMonth}`)
     expect(wrapper.find('[data-testid="ventes-count"]').text()).toBe('1')
     expect(wrapper.text()).toContain('Résumé du jour')
+  })
+
+  it('navigue entre les jours puis permet de revenir a aujourd hui', async () => {
+    const { fixtures, wrapper } = mountVentesView()
+    await flushPromises()
+
+    const previousDate = shiftIsoDate(fixtures.currentDateISO, -1)
+    await wrapper.find('[data-testid="day-prev"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('#daily-date-picker').element.value).toBe(previousDate)
+    expect(api.get).toHaveBeenLastCalledWith('/api/ventes', {
+      params: {
+        date_debut: previousDate,
+        date_fin: previousDate,
+        limit: 1000,
+        page: 1,
+      },
+    })
+    expect(wrapper.find('[data-testid="day-today"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="day-next"]').attributes('disabled')).toBeUndefined()
+
+    await wrapper.find('[data-testid="day-today"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('#daily-date-picker').element.value).toBe(fixtures.currentDateISO)
+    expect(wrapper.find('[data-testid="day-next"]').attributes('disabled')).toBeDefined()
   })
 
   it('applique puis reinitialise les filtres sans changer de responsabilite', async () => {

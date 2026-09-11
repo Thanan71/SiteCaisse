@@ -83,4 +83,28 @@ describe('VenteFormModal', () => {
     })
     expect(editWrapper.emitted('saved')).toHaveLength(1)
   })
+
+  it('affiche le total et place le focus sur un nouvel article', async () => {
+    const wrapper = mount(VenteFormModal, {
+      attachTo: document.body,
+      props: { mode: 'create', show: true },
+    })
+    await flushPromises()
+
+    await wrapper.find('#create-vente-article-name-0').setValue('Bol')
+    await wrapper.find('#create-vente-article-qty-0').setValue(2)
+    await wrapper.find('#create-vente-article-price-0').setValue(12)
+
+    expect(wrapper.find('.sale-summary').text()).toContain('2 articles')
+    expect(wrapper.find('.sale-summary').text()).toMatch(/24,00\s*€/)
+
+    await wrapper.find('.section-title .btn').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.findAll('.article-row')).toHaveLength(2)
+    expect(wrapper.find('.sale-summary').text()).toContain('2 lignes')
+    expect(document.activeElement?.id).toBe('create-vente-article-name-1')
+
+    wrapper.unmount()
+  })
 })
