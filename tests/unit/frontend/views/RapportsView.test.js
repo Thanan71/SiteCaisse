@@ -138,8 +138,11 @@ function setupApiResponses() {
   }
 }
 
-function mountRapportsView() {
+function mountRapportsView({ user = { id: 99, nom: 'Admin', nom_boutique: 'Administration', role: 'admin' } } = {}) {
   const fixtures = setupApiResponses()
+  window.localStorage.setItem('token', 'test-token')
+  window.localStorage.setItem('user', JSON.stringify(user))
+
   const wrapper = mount(RapportsView, {
     global: { stubs: rapportsViewStubs },
   })
@@ -196,6 +199,29 @@ describe('RapportsView', () => {
       2,
       fixtures.artisanSummary,
     )
+  })
+
+  it('verrouille un artisan sur son propre rapport', async () => {
+    const { wrapper } = mountRapportsView({
+      user: {
+        id: 2,
+        nom: 'Bruno',
+        nom_boutique: 'Boutique Bruno',
+        role: 'temporaire',
+      },
+    })
+    await flushPromises()
+
+    const artisanSelect = wrapper.find('#artisan-select')
+    expect(artisanSelect.element.disabled).toBe(true)
+    expect(artisanSelect.element.value).toBe('2')
+    expect(artisanSelect.text()).toContain('Boutique Bruno')
+    expect(artisanSelect.text()).not.toContain('Atelier Alice')
+    expect(artisanSelect.text()).not.toContain('Tous les artisans')
+
+    expect(api.get).toHaveBeenCalledWith('/api/rapports/2')
+    expect(api.get).not.toHaveBeenCalledWith('/api/rapports')
+    expect(wrapper.text()).toContain('Consultez votre rapport')
   })
 
   it('alimente les graphiques avec les ventes aplaties en vue globale', async () => {
