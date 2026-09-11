@@ -51,7 +51,7 @@ describe('VenteFormModal', () => {
     const optionLabels = select.findAll('option').map((option) => option.text())
     const groupLabels = select.findAll('optgroup').map((group) => group.attributes('label'))
 
-    expect(groupLabels).toEqual(['Boutiques permanentes', 'Invités'])
+    expect(groupLabels).toEqual(['Artisans permanents', 'Invités'])
     expect(optionLabels).toContain('Atelier Alice')
     expect(optionLabels).toContain('Boutique Bruno (Invité)')
     expect(optionLabels).not.toContain('Atelier Alice (Permanent)')
