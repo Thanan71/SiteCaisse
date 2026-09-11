@@ -39,10 +39,7 @@ beforeEach(() => {
 
 describe('VenteFormModal', () => {
   it('affiche des libelles de boutique simples et distingue clairement les invites', async () => {
-    artisansStoreMock.artisans = [
-      artisans[0],
-      { ...artisans[1], est_actif: true },
-    ]
+    artisansStoreMock.artisans = [artisans[0], { ...artisans[1], est_actif: true }]
     artisansStoreMock.fetchArtisans.mockResolvedValue(artisansStoreMock.artisans)
 
     const wrapper = mount(VenteFormModal, {
