@@ -138,7 +138,9 @@ function setupApiResponses() {
   }
 }
 
-function mountRapportsView({ user = { id: 99, nom: 'Admin', nom_boutique: 'Administration', role: 'admin' } } = {}) {
+function mountRapportsView({
+  user = { id: 99, nom: 'Admin', nom_boutique: 'Administration', role: 'admin' },
+} = {}) {
   const fixtures = setupApiResponses()
   window.localStorage.setItem('token', 'test-token')
   window.localStorage.setItem('user', JSON.stringify(user))
