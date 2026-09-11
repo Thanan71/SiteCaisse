@@ -27,7 +27,7 @@
           </td>
           <td class="col-role">
             <span class="role-badge" :class="'role-' + user.role">
-              {{ user.role === 'admin' ? 'Admin' : user.role === 'permanent' ? 'Permanent' : 'Temporaire' }}
+              {{ user.role === 'admin' ? 'Admin' : user.role === 'permanent' ? 'Permanent' : 'Invité' }}
             </span>
           </td>
           <td class="col-actif">
