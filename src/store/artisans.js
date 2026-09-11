@@ -71,5 +71,24 @@ export const useArtisansStore = defineStore('artisans', {
         this.loading = false
       }
     },
+
+    /**
+     * Récupère la liste complète des artisans pour la saisie des ventes.
+     * Contrairement aux rapports, cette liste n'est pas limitée à l'artisan connecté.
+     * @returns {Promise<void>}
+     */
+    async fetchSaleArtisans() {
+      this.loading = true
+      this.error = null
+      try {
+        const response = await api.get('/api/ventes/artisans')
+        this.artisans = response.data
+      } catch (error) {
+        this.error = error.response?.data?.error || 'Erreur lors du chargement des artisans'
+        throw error
+      } finally {
+        this.loading = false
+      }
+    },
   },
 })
