@@ -215,11 +215,11 @@ const artisans = computed(() => {
 })
 
 const permanentArtisans = computed(() =>
-  artisans.value.filter((artisan) => artisan.role === 'permanent'),
+  sortArtisansByBoutique(artisans.value.filter((artisan) => artisan.role === 'permanent')),
 )
 
 const guestArtisans = computed(() =>
-  artisans.value.filter((artisan) => artisan.role === 'temporaire'),
+  sortArtisansByBoutique(artisans.value.filter((artisan) => artisan.role === 'temporaire')),
 )
 
 const totalQuantity = computed(() =>
@@ -270,6 +270,14 @@ function fieldId(name) {
 
 function getArtisanBoutiqueLabel(artisan) {
   return artisan.nom_boutique || artisan.nom || 'Boutique inconnue'
+}
+
+function sortArtisansByBoutique(items) {
+  return [...items].sort((a, b) =>
+    getArtisanBoutiqueLabel(a).localeCompare(getArtisanBoutiqueLabel(b), 'fr-FR', {
+      sensitivity: 'base',
+    }),
+  )
 }
 
 function isActiveArtisan(artisan) {
