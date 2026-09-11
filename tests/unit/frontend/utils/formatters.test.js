@@ -31,9 +31,7 @@ describe('formatters', () => {
     expect(parseUtcDate('2026-07-08').toISOString()).toBe('2026-07-08T00:00:00.000Z')
     expect(parseUtcDate('2026-07-08T12:34:00').toISOString()).toBe('2026-07-08T12:34:00.000Z')
     expect(parseUtcDate('2026-07-08T12:34:00Z').toISOString()).toBe('2026-07-08T12:34:00.000Z')
-    expect(parseUtcDate('2026-07-08T14:34:00+02:00').toISOString()).toBe(
-      '2026-07-08T12:34:00.000Z',
-    )
+    expect(parseUtcDate('2026-07-08T14:34:00+02:00').toISOString()).toBe('2026-07-08T12:34:00.000Z')
   })
 
   it('rejette les dates invalides au lieu de propager Invalid Date', () => {
