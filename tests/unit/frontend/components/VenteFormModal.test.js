@@ -38,6 +38,29 @@ beforeEach(() => {
 })
 
 describe('VenteFormModal', () => {
+  it('affiche des libelles de boutique simples et distingue clairement les invites', async () => {
+    artisansStoreMock.artisans = [
+      artisans[0],
+      { ...artisans[1], est_actif: true },
+    ]
+    artisansStoreMock.fetchArtisans.mockResolvedValue(artisansStoreMock.artisans)
+
+    const wrapper = mount(VenteFormModal, {
+      props: { mode: 'create', show: true },
+    })
+    await flushPromises()
+
+    const select = wrapper.find('#create-vente-article-artisan-0')
+    const optionLabels = select.findAll('option').map((option) => option.text())
+    const groupLabels = select.findAll('optgroup').map((group) => group.attributes('label'))
+
+    expect(groupLabels).toEqual(['Boutiques permanentes', 'Invités'])
+    expect(optionLabels).toContain('Atelier Alice')
+    expect(optionLabels).toContain('Boutique Bruno (Invité)')
+    expect(optionLabels).not.toContain('Atelier Alice (Permanent)')
+    expect(wrapper.find('.artisan-select-hint').text()).toContain('(Invité)')
+  })
+
   it('cree et modifie une vente depuis la modale', async () => {
     const createWrapper = mount(VenteFormModal, {
       props: { mode: 'create', show: true },
