@@ -38,5 +38,17 @@ describe('artisans store', () => {
     expect(store.temporaires).toHaveLength(1)
     expect(store.getArtisanName(1)).toBe('Atelier Alice')
     expect(store.getArtisanName(999)).toBe('Artisan inconnu')
+
+    api.get.mockResolvedValueOnce({
+      data: [
+        { id: 1, nom: 'Alice', nom_boutique: 'Atelier Alice', role: 'permanent' },
+        { id: 2, nom: 'Bob', nom_boutique: 'Boutique Bob', role: 'temporaire' },
+      ],
+    })
+
+    await store.fetchSaleArtisans()
+
+    expect(api.get).toHaveBeenLastCalledWith('/api/ventes/artisans')
+    expect(store.artisans).toHaveLength(2)
   })
 })
