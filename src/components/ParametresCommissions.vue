@@ -24,7 +24,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label for="commission-temporaire">Commission générale - Artisans temporaires (%)</label>
+          <label for="commission-temporaire">Commission générale - Artisans invités (%)</label>
           <div class="input-with-suffix">
             <input
               id="commission-temporaire"
