@@ -203,16 +203,7 @@ const defaultForm = () => ({
 
 const form = reactive(defaultForm())
 
-const selectedArtisanIds = computed(
-  () => new Set(form.articles.map((article) => String(article.artisan_id)).filter(Boolean)),
-)
-
-const artisans = computed(() => {
-  const allArtisans = artisansStore.artisans || []
-  return allArtisans.filter(
-    (artisan) => isActiveArtisan(artisan) || selectedArtisanIds.value.has(String(artisan.id)),
-  )
-})
+const artisans = computed(() => artisansStore.artisans || [])
 
 const permanentArtisans = computed(() =>
   sortArtisansByBoutique(artisans.value.filter((artisan) => artisan.role === 'permanent')),
@@ -254,6 +245,7 @@ watch(
     hydrateForm()
     await fetchArtisansIfNeeded()
   },
+  { immediate: true },
 )
 
 watch(
