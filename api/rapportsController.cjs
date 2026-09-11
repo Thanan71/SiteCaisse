@@ -20,12 +20,41 @@ const router = express.Router()
 
 router.use(authMiddleware)
 
+function isAdmin(user) {
+  return user?.role === 'admin'
+}
+
+function canAccessArtisan(user, artisanId) {
+  return isAdmin(user) || Number(user?.id) === Number(artisanId)
+}
+
+function filterRapportToArtisan(rapport, artisanId) {
+  const groupe = (rapport.groupes || []).find(
+    (item) => Number(item.artisan_id) === Number(artisanId),
+  )
+
+  return {
+    ...rapport,
+    groupes: groupe ? [groupe] : [],
+    total: groupe?.summary || {
+      total_articles: 0,
+      total_montant: 0,
+      total_cb: 0,
+      total_commission: 0,
+    },
+  }
+}
+
 /**
  * Récupère les ventes de tous les artisans groupées par artisan.
  * @route GET /api/rapports
  * @returns {Object} Groupes de ventes par artisan avec résumé global et commissions CB.
  */
 router.get('/', async (req, res) => {
+  if (!isAdmin(req.user)) {
+    return res.status(403).json({ error: 'Accès réservé aux administrateurs' })
+  }
+
   try {
     res.json(await getRapportGlobal())
   } catch (err) {
@@ -47,6 +76,10 @@ router.get('/', async (req, res) => {
  * @returns {Object} Ventes groupées par mois avec résumé global.
  */
 router.get('/mensuel', async (req, res) => {
+  if (!isAdmin(req.user)) {
+    return res.status(403).json({ error: 'Accès réservé aux administrateurs' })
+  }
+
   try {
     res.json(await getRapportMensuel())
   } catch (err) {
@@ -71,8 +104,15 @@ router.get('/mensuel', async (req, res) => {
 router.get('/artisans', async (req, res) => {
   try {
     const includeInactive = req.query.include_inactive === 'true'
-    const artisans = await getAllArtisans({ includeInactive })
-    res.json(artisans)
+    const artisans = await getAllArtisans({
+      includeInactive: isAdmin(req.user) ? includeInactive : true,
+    })
+
+    if (isAdmin(req.user)) {
+      return res.json(artisans)
+    }
+
+    res.json(artisans.filter((artisan) => Number(artisan.id) === Number(req.user.id)))
   } catch (err) {
     console.error('GET artisans error:', err)
     await logError({
@@ -100,7 +140,8 @@ router.get('/mensuel/:mois', async (req, res) => {
       return res.status(400).json({ error: 'Format de mois invalide. Utilisez YYYY-MM' })
     }
 
-    res.json(await getRapportParMois(mois))
+    const rapport = await getRapportParMois(mois)
+    res.json(isAdmin(req.user) ? rapport : filterRapportToArtisan(rapport, req.user.id))
   } catch (err) {
     console.error('GET rapport mensuel par mois error:', err)
     await logError({
@@ -127,6 +168,10 @@ router.get('/:artisan_id', async (req, res) => {
 
     if (Number.isNaN(artisan_id)) {
       return res.status(400).json({ error: 'ID artisan invalide' })
+    }
+
+    if (!canAccessArtisan(req.user, artisan_id)) {
+      return res.status(403).json({ error: 'Vous ne pouvez consulter que votre propre rapport' })
     }
 
     res.json(await getRapportArtisan(artisan_id))
