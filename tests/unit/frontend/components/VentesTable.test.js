@@ -6,7 +6,7 @@ import { artisansFixture, ventesFixture } from '../../fixtures/salesFixtures'
 
 const artisansStoreMock = vi.hoisted(() => ({
   artisans: [],
-  fetchArtisans: vi.fn(async () => []),
+  fetchSaleArtisans: vi.fn(async () => []),
   getArtisanName: vi.fn(),
 }))
 
@@ -19,8 +19,8 @@ const ventes = ventesFixture
 
 beforeEach(() => {
   artisansStoreMock.artisans = artisans
-  artisansStoreMock.fetchArtisans.mockClear()
-  artisansStoreMock.fetchArtisans.mockResolvedValue(artisans)
+  artisansStoreMock.fetchSaleArtisans.mockClear()
+  artisansStoreMock.fetchSaleArtisans.mockResolvedValue(artisans)
   artisansStoreMock.getArtisanName.mockReset()
   artisansStoreMock.getArtisanName.mockImplementation((id) => {
     if (id === 2) return 'Atelier Alice'
@@ -51,6 +51,7 @@ describe('VentesTable', () => {
       },
     })
 
+    expect(artisansStoreMock.fetchSaleArtisans).toHaveBeenCalledOnce()
     expect(wrapper.text()).toContain('Atelier Alice')
     expect(wrapper.text()).toContain('Admin')
     expect(wrapper.text()).toContain('Bol')
