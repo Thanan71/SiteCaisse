@@ -135,9 +135,7 @@ const { getVisibleItems, isExpanded, toggleExpanded } = useExpandableRows()
 const artisansStore = useArtisansStore()
 
 onMounted(() => {
-  if (!artisansStore.artisans || artisansStore.artisans.length === 0) {
-    artisansStore.fetchArtisans({ includeInactive: true }).catch(() => {})
-  }
+  artisansStore.fetchSaleArtisans().catch(() => {})
 })
 
 function getArtisansForVente(vente) {
