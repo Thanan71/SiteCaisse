@@ -59,11 +59,61 @@ describe('VentesTable', () => {
 
     await wrapper.find('.btn-expand').trigger('click')
     expect(wrapper.text()).toContain('Tasse')
-    expect(wrapper.text()).toContain('Commission CB personnalisée')
+    expect(wrapper.text()).toContain('Commission personnalisée')
+    expect(wrapper.find('.commission-label').text()).toContain('32,00')
+    expect(wrapper.find('.commission-label').text()).toContain(', CB)')
 
     await wrapper.find('button[title="Modifier"]').trigger('click')
     await wrapper.find('button[title="Supprimer"]').trigger('click')
     expect(wrapper.emitted('edit')[0]).toEqual([ventes[0]])
     expect(wrapper.emitted('delete')[0]).toEqual([10])
+  })
+
+  it.each([
+    false,
+    true,
+  ])('affiche la commission invite sur tous les paiements (personnalisee : %s)', (personnalisee) => {
+    const wrapper = mount(VentesTable, {
+      props: {
+        summary: {
+          assiette_commission: 'tous_paiements',
+          commission_cb: 5,
+          commission_personnalisee: personnalisee,
+          taux_commission: 10,
+          total_articles: 3,
+          total_cb: 20,
+          total_montant: 50,
+        },
+        ventes: [],
+      },
+    })
+
+    const label = wrapper.find('.commission-label').text()
+    expect(label).toContain(personnalisee ? 'Commission personnalisée' : 'Commission (')
+    expect(label).toContain('10% sur 50,00')
+    expect(label).toContain('tous paiements')
+    expect(label).not.toContain('20,00')
+    expect(wrapper.find('.commission-value').text()).toContain('5,00')
+  })
+
+  it('affiche uniquement le montant CB comme assiette pour un permanent', () => {
+    const wrapper = mount(VentesTable, {
+      props: {
+        summary: {
+          assiette_commission: 'cb',
+          commission_cb: 2,
+          taux_commission: 10,
+          total_articles: 3,
+          total_cb: 20,
+          total_montant: 50,
+        },
+        ventes: [],
+      },
+    })
+
+    const label = wrapper.find('.commission-label').text()
+    expect(label).toContain('10% sur 20,00')
+    expect(label).toContain(', CB)')
+    expect(label).not.toContain('50,00')
   })
 })

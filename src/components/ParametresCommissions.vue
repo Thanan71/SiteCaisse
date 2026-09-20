@@ -1,8 +1,9 @@
 <template>
   <div>
-    <h2>Commissions CB générales</h2>
+    <h2>Commissions générales</h2>
     <p class="parametres-info">
-      Les commissions CB sont calculées en pourcentage du montant total des ventes par carte bancaire.
+      Pour les artisans permanents, la commission s'applique uniquement aux ventes par carte bancaire.
+      Pour les artisans invités, elle s'applique à tous les moyens de paiement.
     </p>
     <form @submit.prevent="$emit('save')" class="parametres-form">
       <div class="form-row">

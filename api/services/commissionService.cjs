@@ -1,31 +1,40 @@
 /**
  * @module commissionService
- * @description Service de calcul des commissions CB.
- * Responsabilité unique : calculer les commissions sur les paiements par carte bancaire.
+ * @description Service de calcul des commissions selon le rôle de l'artisan.
+ * Invités (temporaires) : tous les paiements. Permanents : carte bancaire uniquement.
  */
 'use strict'
 
 /**
- * Calcule les commissions CB pour un ensemble de ventes.
+ * Calcule la commission et conserve séparément le total des paiements CB.
  * @param {Array} ventes - Les ventes à analyser (doivent contenir `type_paiement` et `articles[]` avec `prix` et `quantite`).
  * @param {number} tauxCommission - Le taux de commission en pourcentage (ex: 1.5 pour 1.5%).
- * @returns {{total_cb: number, commission_cb: number}}
- * Un objet contenant le total des paiements CB et la commission calculée.
+ * @param {string} role - Rôle de l'artisan ('permanent' ou 'temporaire').
+ * @returns {{total_cb: number, commission_cb: number, assiette_commission: string}}
+ * Le champ historique `commission_cb` contient la commission de l'assiette applicable.
  */
-function calculerCommissionsCB(ventes, tauxCommission) {
-  const ventesCB = ventes.filter((v) => v.type_paiement === 'CB')
-
+function calculerCommissions(ventes, tauxCommission, role = 'permanent') {
+  const tousPaiements = role === 'temporaire'
   let totalCB = 0
-  for (const v of ventesCB) {
+  let baseCommission = 0
+
+  for (const v of ventes) {
+    const paiementCB = v.type_paiement === 'CB'
     const articles = v.articles || [{ prix: v.prix, quantite: v.quantite }]
     for (const art of articles) {
-      totalCB += (art.prix || 0) * (art.quantite || 0)
+      const montant = (art.prix || 0) * (art.quantite || 0)
+      if (paiementCB) totalCB += montant
+      if (tousPaiements || paiementCB) baseCommission += montant
     }
   }
 
-  const commission = totalCB * (tauxCommission / 100)
+  const commission = baseCommission * (tauxCommission / 100)
 
-  return { total_cb: totalCB, commission_cb: Math.round(commission * 100) / 100 }
+  return {
+    total_cb: totalCB,
+    commission_cb: Math.round(commission * 100) / 100,
+    assiette_commission: tousPaiements ? 'tous_paiements' : 'cb',
+  }
 }
 
 function parseTauxPersonnalise(value) {
@@ -48,7 +57,7 @@ function getTauxCommission(role, tauxPermanent, tauxTemporaire, tauxPersonnalise
 }
 
 /**
- * Ajoute les informations de commission CB aux résumés des groupes de ventes.
+ * Ajoute les informations de commission aux résumés des groupes de ventes.
  * @param {Array} groupes - Groupes de ventes par artisan (chacun avec `ventes` et `summary`).
  * @param {number} tauxPermanent - Taux de commission pour les permanents.
  * @param {number} tauxTemporaire - Taux de commission pour les temporaires.
@@ -67,16 +76,15 @@ function ajouterCommissionsAuxGroupes(groupes, tauxPermanent, tauxTemporaire) {
       g.commission_cb_personnalisee,
     )
 
-    const cb = calculerCommissionsCB(g.ventes, taux)
-    totalGlobalCB += cb.total_cb
-    totalGlobalCommission += cb.commission_cb
+    const commission = calculerCommissions(g.ventes, taux, role)
+    totalGlobalCB += commission.total_cb
+    totalGlobalCommission += commission.commission_cb
 
     return {
       ...g,
       summary: {
         ...g.summary,
-        total_cb: cb.total_cb,
-        commission_cb: cb.commission_cb,
+        ...commission,
         taux_commission: taux,
         commission_personnalisee: personnalise,
       },
@@ -91,7 +99,7 @@ function ajouterCommissionsAuxGroupes(groupes, tauxPermanent, tauxTemporaire) {
 }
 
 /**
- * Ajoute les informations de commission CB au résumé d'un seul artisan.
+ * Ajoute les informations de commission au résumé d'un seul artisan.
  * @param {Object} data - Données de l'artisan contenant `ventes` et `summary`.
  * @param {Array} data.ventes - Ventes de l'artisan.
  * @param {Object} data.summary - Résumé actuel.
@@ -114,14 +122,13 @@ function ajouterCommissionAUnArtisan(
     tauxTemporaire,
     tauxPersonnalise,
   )
-  const cb = calculerCommissionsCB(data.ventes, taux || 0)
+  const commission = calculerCommissions(data.ventes, taux || 0, role)
 
   return {
     ...data,
     summary: {
       ...data.summary,
-      total_cb: cb.total_cb,
-      commission_cb: cb.commission_cb,
+      ...commission,
       taux_commission: taux || 0,
       commission_personnalisee: personnalise,
     },
@@ -129,7 +136,7 @@ function ajouterCommissionAUnArtisan(
 }
 
 module.exports = {
-  calculerCommissionsCB,
+  calculerCommissions,
   ajouterCommissionsAuxGroupes,
   ajouterCommissionAUnArtisan,
   getTauxCommission,

@@ -279,7 +279,7 @@
             :total-cb="rapportsStore.rapportMois.total.total_cb"
             :total-commission="rapportsStore.rapportMois.total.total_commission"
             :commission-detail="rapportsStore.rapportMois.total.total_commission > 0 && rapportsStore.rapportMois.parametres
-              ? `Taux généraux : Permanent ${rapportsStore.rapportMois.parametres.commission_cb_permanent}% / Invité ${rapportsStore.rapportMois.parametres.commission_cb_temporaire}%`
+              ? `Taux généraux : Permanent (CB) ${rapportsStore.rapportMois.parametres.commission_cb_permanent}% / Invité (tous paiements) ${rapportsStore.rapportMois.parametres.commission_cb_temporaire}%`
               : ''"
             variant="warning"
           />

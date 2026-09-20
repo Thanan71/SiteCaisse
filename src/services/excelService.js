@@ -13,7 +13,7 @@ import { formatMonthLabel } from '../utils/formatters'
  * @param {Array} ventes - Liste des ventes à exporter (avec articles[] imbriqué).
  * @param {Array} artisans - Liste des artisans (pour trouver le nom).
  * @param {number} artisanId - ID de l'artisan sélectionné.
- * @param {Object} summary - Résumé des ventes { total_articles, total_montant, total_cb, commission_cb, taux_commission }.
+ * @param {Object} summary - Résumé des ventes, commission et assiette_commission ('cb' ou 'tous_paiements').
  * @returns {void}
  */
 export function exportVentesToExcel(ventes, artisans, artisanId, summary) {
@@ -69,8 +69,9 @@ export function exportMonthToExcel(groupes, total, parametres, mois) {
     'Total articles': g.summary.total_articles,
     'Total montant (€)': g.summary.total_montant.toFixed(2),
     'Total CB (€)': (g.summary.total_cb || 0).toFixed(2),
+    'Assiette commission': formatCommissionScope(g.summary),
     'Taux commission (%)': g.summary.taux_commission || 0,
-    'Commission CB (€)': (g.summary.commission_cb || 0).toFixed(2),
+    'Commission (€)': (g.summary.commission_cb || 0).toFixed(2),
   }))
 
   globalRows.push({
@@ -78,8 +79,9 @@ export function exportMonthToExcel(groupes, total, parametres, mois) {
     'Total articles': total.total_articles,
     'Total montant (€)': total.total_montant.toFixed(2),
     'Total CB (€)': (total.total_cb || 0).toFixed(2),
+    'Assiette commission': '',
     'Taux commission (%)': '',
-    'Commission CB (€)': (total.total_commission || 0).toFixed(2),
+    'Commission (€)': (total.total_commission || 0).toFixed(2),
   })
 
   if (parametres) {
@@ -88,24 +90,27 @@ export function exportMonthToExcel(groupes, total, parametres, mois) {
       'Total articles': '',
       'Total montant (€)': '',
       'Total CB (€)': '',
+      'Assiette commission': '',
       'Taux commission (%)': '',
-      'Commission CB (€)': '',
+      'Commission (€)': '',
     })
     globalRows.push({
       Artisan: 'Permanent',
       'Total articles': '',
       'Total montant (€)': '',
       'Total CB (€)': '',
+      'Assiette commission': 'CB',
       'Taux commission (%)': parametres.commission_cb_permanent || '',
-      'Commission CB (€)': '',
+      'Commission (€)': '',
     })
     globalRows.push({
       Artisan: 'Invité',
       'Total articles': '',
       'Total montant (€)': '',
       'Total CB (€)': '',
+      'Assiette commission': 'Tous paiements',
       'Taux commission (%)': parametres.commission_cb_temporaire || '',
-      'Commission CB (€)': '',
+      'Commission (€)': '',
     })
   }
 
@@ -115,6 +120,7 @@ export function exportMonthToExcel(groupes, total, parametres, mois) {
     { wch: 15 },
     { wch: 18 },
     { wch: 15 },
+    { wch: 22 },
     { wch: 18 },
     { wch: 18 },
   ]
@@ -163,8 +169,9 @@ export function exportAllRapportsToExcel(groupes, total, parametres) {
     'Total articles': g.summary.total_articles,
     'Total montant (€)': g.summary.total_montant.toFixed(2),
     'Total CB (€)': (g.summary.total_cb || 0).toFixed(2),
+    'Assiette commission': formatCommissionScope(g.summary),
     'Taux commission (%)': g.summary.taux_commission || 0,
-    'Commission CB (€)': (g.summary.commission_cb || 0).toFixed(2),
+    'Commission (€)': (g.summary.commission_cb || 0).toFixed(2),
   }))
 
   // Ligne des totaux globaux
@@ -173,8 +180,9 @@ export function exportAllRapportsToExcel(groupes, total, parametres) {
     'Total articles': total.total_articles,
     'Total montant (€)': total.total_montant.toFixed(2),
     'Total CB (€)': (total.total_cb || 0).toFixed(2),
+    'Assiette commission': '',
     'Taux commission (%)': '',
-    'Commission CB (€)': (total.total_commission || 0).toFixed(2),
+    'Commission (€)': (total.total_commission || 0).toFixed(2),
   })
 
   // Ligne d'information sur les taux
@@ -184,24 +192,27 @@ export function exportAllRapportsToExcel(groupes, total, parametres) {
       'Total articles': '',
       'Total montant (€)': '',
       'Total CB (€)': '',
+      'Assiette commission': '',
       'Taux commission (%)': '',
-      'Commission CB (€)': '',
+      'Commission (€)': '',
     })
     globalRows.push({
       Artisan: 'Permanent',
       'Total articles': '',
       'Total montant (€)': '',
       'Total CB (€)': '',
+      'Assiette commission': 'CB',
       'Taux commission (%)': parametres.commission_cb_permanent || '',
-      'Commission CB (€)': '',
+      'Commission (€)': '',
     })
     globalRows.push({
       Artisan: 'Invité',
       'Total articles': '',
       'Total montant (€)': '',
       'Total CB (€)': '',
+      'Assiette commission': 'Tous paiements',
       'Taux commission (%)': parametres.commission_cb_temporaire || '',
-      'Commission CB (€)': '',
+      'Commission (€)': '',
     })
   }
 
@@ -211,8 +222,9 @@ export function exportAllRapportsToExcel(groupes, total, parametres) {
     { wch: 15 }, // Total articles
     { wch: 18 }, // Total montant
     { wch: 15 }, // Total CB
+    { wch: 22 }, // Assiette commission
     { wch: 18 }, // Taux commission
-    { wch: 18 }, // Commission CB
+    { wch: 18 }, // Commission
   ]
   globalSheet['!cols'] = globalColWidths
   XLSX.utils.book_append_sheet(workbook, globalSheet, 'Résumé global')
@@ -228,7 +240,7 @@ export function exportAllRapportsToExcel(groupes, total, parametres) {
 /**
  * Construit une worksheet (feuille) à partir d'un tableau de ventes et d'un résumé.
  * @param {Array} ventes - Liste des ventes (avec articles[] imbriqué).
- * @param {Object} summary - Résumé { total_articles, total_montant, total_cb, commission_cb, taux_commission }.
+ * @param {Object} summary - Résumé des ventes, commission et assiette_commission ('cb' ou 'tous_paiements').
  * @returns {Object} Worksheet XLSX.
  */
 function buildWorksheet(ventes, summary) {
@@ -260,11 +272,11 @@ function buildWorksheet(ventes, summary) {
     'Vendu par': '',
   })
 
-  // Ajouter la ligne de commission CB si elle existe
+  // Ajouter la commission avec l'assiette applicable au rôle de l'artisan.
   if (summary.commission_cb && summary.commission_cb > 0) {
-    const commissionLabel = summary.commission_personnalisee
-      ? 'Commission CB personnalisée'
-      : 'Commission CB'
+    const tousPaiements = summary.assiette_commission === 'tous_paiements'
+    const commissionLabel = `Commission ${tousPaiements ? 'tous paiements' : 'CB'}${summary.commission_personnalisee ? ' personnalisée' : ''}`
+    const baseCommission = tousPaiements ? summary.total_montant : summary.total_cb || 0
 
     data.push({
       Date: '',
@@ -272,7 +284,9 @@ function buildWorksheet(ventes, summary) {
       Quantité: '',
       'Prix unitaire (€)': '',
       'Total (€)': `-${summary.commission_cb.toFixed(2)}`,
-      'Type de paiement': `sur ${(summary.total_cb || 0).toFixed(2)}€ de CB`,
+      'Type de paiement': tousPaiements
+        ? `sur ${baseCommission.toFixed(2)}€ tous paiements`
+        : `sur ${baseCommission.toFixed(2)}€ de CB`,
       'Vendu par': '',
     })
   }
@@ -282,16 +296,20 @@ function buildWorksheet(ventes, summary) {
   // Ajuster la largeur des colonnes
   const colWidths = [
     { wch: 12 }, // Date
-    { wch: 30 }, // Article
+    { wch: 50 }, // Article et libellé de commission
     { wch: 10 }, // Quantité
     { wch: 15 }, // Prix unitaire
     { wch: 12 }, // Total
-    { wch: 25 }, // Paiement
+    { wch: 35 }, // Paiement et assiette de commission
     { wch: 15 }, // Vendeur
   ]
   worksheet['!cols'] = colWidths
 
   return worksheet
+}
+
+function formatCommissionScope(summary) {
+  return summary.assiette_commission === 'tous_paiements' ? 'Tous paiements' : 'CB'
 }
 
 /**

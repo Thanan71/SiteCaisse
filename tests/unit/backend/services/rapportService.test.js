@@ -24,17 +24,25 @@ describe('rapportService', () => {
       {
         artisan_id: 1,
         artisan_role: 'permanent',
-        ventes: [{ type_paiement: 'CB', articles: [{ prix: 100, quantite: 1 }] }],
-        summary: { total_articles: 1, total_montant: 100 },
+        ventes: [
+          { type_paiement: 'CB', articles: [{ prix: 100, quantite: 1 }] },
+          { type_paiement: 'Espece', articles: [{ prix: 50, quantite: 1 }] },
+          { type_paiement: 'Cheque', articles: [{ prix: 50, quantite: 1 }] },
+        ],
+        summary: { total_articles: 3, total_montant: 200 },
       },
       {
         artisan_id: 2,
         artisan_role: 'temporaire',
-        ventes: [{ type_paiement: 'CB', articles: [{ prix: 50, quantite: 2 }] }],
-        summary: { total_articles: 2, total_montant: 100 },
+        ventes: [
+          { type_paiement: 'CB', articles: [{ prix: 50, quantite: 2 }] },
+          { type_paiement: 'Espece', articles: [{ prix: 50, quantite: 1 }] },
+          { type_paiement: 'Cheque', articles: [{ prix: 50, quantite: 1 }] },
+        ],
+        summary: { total_articles: 4, total_montant: 200 },
       },
     ],
-    total: { total_articles: 3, total_montant: 200 },
+    total: { total_articles: 7, total_montant: 400 },
   }
 
   it('enrichit le rapport global avec les commissions', async () => {
@@ -45,13 +53,14 @@ describe('rapportService', () => {
     const result = await loaded.getRapportGlobal()
 
     expect(result.total).toEqual({
-      total_articles: 3,
-      total_montant: 200,
+      total_articles: 7,
+      total_montant: 400,
       total_cb: 200,
-      total_commission: 4,
+      total_commission: 6.5,
     })
     expect(result.groupes[0].summary.commission_cb).toBe(1.5)
-    expect(result.groupes[1].summary.commission_cb).toBe(2.5)
+    expect(result.groupes[1].summary.commission_cb).toBe(5)
+    expect(result.groupes[1].summary.assiette_commission).toBe('tous_paiements')
     expect(result.parametres).toEqual({
       commission_cb_permanent: 1.5,
       commission_cb_temporaire: 2.5,
@@ -64,7 +73,7 @@ describe('rapportService', () => {
     const models = {
       getAllVentesGroupedByMonth: vi.fn(async () => ({
         mois: [{ mois: '2026-07', ...groupedData }],
-        total: { total_articles: 3, total_montant: 200 },
+        total: groupedData.total,
       })),
       getVentesByMonth: vi.fn(async () => groupedData),
     }
@@ -75,11 +84,11 @@ describe('rapportService', () => {
 
     expect(mensuel.mois[0].total).toMatchObject({
       total_cb: 200,
-      total_commission: 4,
+      total_commission: 6.5,
     })
     expect(juillet.total).toMatchObject({
       total_cb: 200,
-      total_commission: 4,
+      total_commission: 6.5,
     })
     expect(models.getVentesByMonth).toHaveBeenCalledWith('2026-07')
 
@@ -89,8 +98,8 @@ describe('rapportService', () => {
   it('applique la commission personnalisee sur un rapport artisan', async () => {
     const { loaded, restore } = loadRapportService({
       getVentesByArtisan: vi.fn(async () => ({
-        ventes: [{ type_paiement: 'CB', articles: [{ prix: 100, quantite: 1 }] }],
-        summary: { total_articles: 1, total_montant: 100 },
+        ventes: groupedData.groupes[1].ventes,
+        summary: groupedData.groupes[1].summary,
       })),
       getAllArtisans: vi.fn(async () => [
         {
@@ -105,9 +114,10 @@ describe('rapportService', () => {
 
     expect(result.summary).toMatchObject({
       total_cb: 100,
-      commission_cb: 3,
+      commission_cb: 6,
       taux_commission: 3,
       commission_personnalisee: true,
+      assiette_commission: 'tous_paiements',
     })
 
     restore()

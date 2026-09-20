@@ -177,7 +177,7 @@ Le fichier `supabase-schema.sql` déclare :
 - `users` : comptes, rôles, état actif, mot de passe, date de fin pour accès temporaire
 - `ventes` : en-têtes de vente avec paiement, vendeur et date
 - `vente_articles` : lignes d’articles vendus, avec quantité, prix et artisan attribué par ligne
-- `parametres` : paramètres système, notamment les taux de commission CB
+- `parametres` : paramètres système, notamment les taux de commission
 - `action_logs` : journalisation des actions utilisateur et erreurs
 
 ## 🔐 Rôles et autorisations
@@ -185,6 +185,10 @@ Le fichier `supabase-schema.sql` déclare :
 - `admin` : accès à la page Admin et gestion des utilisateurs
 - `permanent` : accès complet à la caisse et aux rapports
 - `temporaire` : accès limité avec date d’expiration possible
+
+Les commissions des invités (`temporaire`) s'appliquent à tous les moyens de paiement :
+carte bancaire, espèces et chèques. Celles des permanents s'appliquent uniquement aux
+paiements par carte bancaire. Cette assiette reste identique avec un taux général ou personnalisé.
 
 ## 📄 Notes importantes
 

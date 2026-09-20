@@ -49,7 +49,7 @@ describe('useCommissions', () => {
     expect(api.put).toHaveBeenNthCalledWith(2, '/api/admin/parametres/commission_cb_temporaire', {
       valeur: '2.75',
     })
-    expect(commissions.commissionsSuccess.value).toBe('Commissions CB mises à jour avec succès !')
+    expect(commissions.commissionsSuccess.value).toBe('Commissions mises à jour avec succès !')
 
     vi.advanceTimersByTime(3000)
     expect(commissions.commissionsSuccess.value).toBe('')

@@ -68,8 +68,8 @@
         <tr v-if="summary.commission_cb > 0" class="commission-row">
           <td :colspan="commissionLabelColspan" class="text-right">
             <span class="commission-label">
-              {{ summary.commission_personnalisee ? 'Commission CB personnalisée' : 'Commission CB' }}
-              ({{ summary.taux_commission }}% sur {{ formatPrice(summary.total_cb) }})
+              {{ summary.commission_personnalisee ? 'Commission personnalisée' : 'Commission' }}
+              ({{ summary.taux_commission }}% sur {{ formatPrice(commissionBase) }}, {{ commissionScope }})
             </span>
           </td>
           <td class="text-right">
@@ -133,6 +133,14 @@ defineEmits(['edit', 'delete'])
 const { getVisibleItems, isExpanded, toggleExpanded } = useExpandableRows()
 
 const artisansStore = useArtisansStore()
+
+const commissionOnAllPayments = computed(
+  () => props.summary?.assiette_commission === 'tous_paiements',
+)
+const commissionBase = computed(() =>
+  commissionOnAllPayments.value ? props.summary?.total_montant : props.summary?.total_cb,
+)
+const commissionScope = computed(() => (commissionOnAllPayments.value ? 'tous paiements' : 'CB'))
 
 onMounted(() => {
   artisansStore.fetchSaleArtisans().catch(() => {})

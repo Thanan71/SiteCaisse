@@ -21,7 +21,7 @@ describe('SummaryCard', () => {
 
     expect(summary.text()).toContain('Synthese')
     expect(summary.text()).toContain('32,00')
-    expect(summary.text()).toContain('Commission CB artisan')
+    expect(summary.text()).toContain('Commission artisan')
     expect(summary.classes()).toContain('summary-success')
   })
 })

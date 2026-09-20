@@ -76,7 +76,7 @@ function setupApiResponses() {
     {
       artisan_id: 1,
       artisan_nom: 'Atelier Alice',
-      summary: { total_articles: 1, total_cb: 24, total_commission: 1, total_montant: 24 },
+      summary: { total_articles: 1, total_cb: 24, commission_cb: 1, total_montant: 24 },
       ventes: [{ id: 10, total_montant: 24, type_paiement: 'CB' }],
     },
   ]
@@ -95,12 +95,20 @@ function setupApiResponses() {
       {
         artisan_id: 2,
         artisan_nom: 'Boutique Bruno',
-        summary: { total_articles: 2, total_cb: 0, total_commission: 0, total_montant: 30 },
+        summary: {
+          total_articles: 2,
+          total_cb: 0,
+          commission_cb: 0.75,
+          total_montant: 30,
+          taux_commission: 2.5,
+          assiette_commission: 'tous_paiements',
+          commission_personnalisee: false,
+        },
         ventes: artisanVentes,
       },
     ],
     parametres,
-    total: { total_articles: 3, total_cb: 24, total_commission: 1, total_montant: 54 },
+    total: { total_articles: 3, total_cb: 24, total_commission: 1.75, total_montant: 54 },
   }
 
   api.get.mockImplementation((url) => {
@@ -263,9 +271,42 @@ describe('RapportsView', () => {
 
     expect(exportMonthToExcel).toHaveBeenLastCalledWith(
       [fixtures.monthlyRapport.groupes[1]],
-      fixtures.monthlyRapport.groupes[1].summary,
+      { ...fixtures.monthlyRapport.groupes[1].summary, total_commission: 0.75 },
       fixtures.parametres,
       fixtures.currentMonth,
     )
+  })
+
+  it.each([
+    {
+      taux: 2.5,
+      commission: 0.75,
+      personnalise: false,
+      detail: 'Taux général : 2.5% (tous paiements)',
+    },
+    {
+      taux: 3,
+      commission: 0.9,
+      personnalise: true,
+      detail: 'Taux personnalisé : 3% (tous paiements)',
+    },
+    { taux: 0, commission: 0, personnalise: true, detail: '' },
+  ])('affiche la commission mensuelle invite au taux $taux', async (scenario) => {
+    const { fixtures, wrapper } = mountRapportsView()
+    const summary = fixtures.monthlyRapport.groupes[1].summary
+    summary.taux_commission = scenario.taux
+    summary.commission_cb = scenario.commission
+    summary.commission_personnalisee = scenario.personnalise
+    await flushPromises()
+
+    await wrapper.find('#artisan-select').setValue('2')
+    await flushPromises()
+    await wrapper.find('[data-testid="tab-mensuel"]').trigger('click')
+    await flushPromises()
+
+    const card = wrapper.findComponent('[data-testid="summary-card"]')
+    expect(card.props('totalCb')).toBe(0)
+    expect(card.props('totalCommission')).toBe(scenario.commission)
+    expect(card.props('commissionDetail')).toBe(scenario.detail)
   })
 })

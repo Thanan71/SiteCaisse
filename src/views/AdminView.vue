@@ -15,7 +15,7 @@
     />
 
     <template v-if="activePanel === 'commissions'">
-      <!-- Section Paramètres : Commissions CB -->
+      <!-- Section Paramètres : Commissions générales -->
       <div class="card parametres-card">
         <parametres-commissions
           :commission-permanent="commissionPermanent"
@@ -36,6 +36,7 @@
             <h2>Commissions personnalisées</h2>
             <p class="section-description">
               Une commission personnalisée remplace le taux général uniquement pour l'artisan choisi.
+              Elle s'applique à tous les moyens de paiement pour les invités et uniquement à la CB pour les permanents.
             </p>
           </div>
           <button
@@ -382,7 +383,7 @@ const {
   getStatusLabel,
 } = useUsers()
 
-// Commissions CB : logique extraite dans useCommissions
+// Commissions : logique extraite dans useCommissions
 const {
   commissionPermanent,
   commissionTemporaire,

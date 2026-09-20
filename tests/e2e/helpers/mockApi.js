@@ -384,6 +384,7 @@ function createRapportArtisan(state, artisanId) {
       commission_cb: 0,
       taux_commission: result.taux_commission,
       commission_personnalisee: result.commission_personnalisee,
+      assiette_commission: result.assiette_commission,
     }),
     {
       total_articles: 0,
@@ -391,10 +392,13 @@ function createRapportArtisan(state, artisanId) {
       total_cb: 0,
       commission_cb: 0,
       taux_commission: getCommissionRate(state, artisan),
-      commission_personnalisee: artisan?.commission_cb_personnalisee !== null,
+      commission_personnalisee: artisan?.commission_cb_personnalisee != null,
+      assiette_commission: artisan?.role === 'temporaire' ? 'tous_paiements' : 'cb',
     },
   )
-  summary.commission_cb = Math.round(summary.total_cb * summary.taux_commission) / 100
+  const montantCommission =
+    summary.assiette_commission === 'tous_paiements' ? summary.total_montant : summary.total_cb
+  summary.commission_cb = Math.round(montantCommission * summary.taux_commission) / 100
 
   return { ventes, summary }
 }

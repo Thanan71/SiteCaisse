@@ -15,7 +15,7 @@
         <span class="stat-value stat-value-cb">{{ formatPrice(totalCb) }}</span>
       </div>
       <div v-if="totalCommission > 0" class="stat">
-        <span class="stat-label">Commission CB{{ commissionLabelSuffix }}</span>
+        <span class="stat-label">Commission{{ commissionLabelSuffix }}</span>
         <span class="stat-value stat-value-commission">{{ formatPrice(totalCommission) }}</span>
       </div>
     </div>

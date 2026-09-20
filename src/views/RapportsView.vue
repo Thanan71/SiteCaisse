@@ -102,7 +102,7 @@
             :total-cb="rapportsStore.totalGlobal.total_cb"
             :total-commission="rapportsStore.totalGlobal.total_commission"
             :commission-detail="rapportsStore.totalGlobal.total_commission > 0 && rapportsStore.totalAllParams
-              ? `Taux généraux : Permanent ${rapportsStore.totalAllParams.commission_cb_permanent}% / Invité ${rapportsStore.totalAllParams.commission_cb_temporaire}%`
+              ? `Taux généraux : Permanent (CB) ${rapportsStore.totalAllParams.commission_cb_permanent}% / Invité (tous paiements) ${rapportsStore.totalAllParams.commission_cb_temporaire}%`
               : ''"
             commission-label-suffix=" totale"
             variant="primary"
@@ -158,7 +158,7 @@
                 :total-cb="rapportsStore.rapportMois.total.total_cb"
                 :total-commission="rapportsStore.rapportMois.total.total_commission"
                 :commission-detail="rapportsStore.rapportMois.total.total_commission > 0 && rapportsStore.rapportMois.parametres
-                  ? `Taux généraux : Permanent ${rapportsStore.rapportMois.parametres.commission_cb_permanent}% / Invité ${rapportsStore.rapportMois.parametres.commission_cb_temporaire}%`
+                  ? `Taux généraux : Permanent (CB) ${rapportsStore.rapportMois.parametres.commission_cb_permanent}% / Invité (tous paiements) ${rapportsStore.rapportMois.parametres.commission_cb_temporaire}%`
                   : ''"
                 variant="warning"
               />
@@ -246,10 +246,8 @@
                 :total-articles="selectedArtisanRapportMoisGroup.summary.total_articles"
                 :total-montant="selectedArtisanRapportMoisGroup.summary.total_montant"
                 :total-cb="selectedArtisanRapportMoisGroup.summary.total_cb"
-                :total-commission="selectedArtisanRapportMoisGroup.summary.total_commission"
-                :commission-detail="selectedArtisanRapportMoisGroup.summary.total_commission > 0 && rapportsStore.rapportMois?.parametres
-                  ? `Taux généraux : Permanent ${rapportsStore.rapportMois.parametres.commission_cb_permanent}% / Invité ${rapportsStore.rapportMois.parametres.commission_cb_temporaire}%`
-                  : ''"
+                :total-commission="selectedArtisanRapportMoisGroup.summary.commission_cb"
+                :commission-detail="selectedArtisanCommissionDetail"
                 commission-label-suffix=" totale"
                 variant="warning"
               />
@@ -315,6 +313,14 @@ const selectedArtisanRapportMoisGroup = computed(() => {
       (g) => String(g.artisan_id) === String(selectedArtisanId.value),
     ) || null
   )
+})
+
+const selectedArtisanCommissionDetail = computed(() => {
+  const summary = selectedArtisanRapportMoisGroup.value?.summary
+  if (!summary || summary.commission_cb <= 0) return ''
+  const tauxLabel = summary.commission_personnalisee ? 'Taux personnalisé' : 'Taux général'
+  const scope = summary.assiette_commission === 'tous_paiements' ? 'tous paiements' : 'CB'
+  return `${tauxLabel} : ${summary.taux_commission}% (${scope})`
 })
 
 /**
@@ -399,7 +405,10 @@ function exportSelectedArtisanMonthToExcel() {
   if (!selectedArtisanRapportMoisGroup.value) return
   exportMonthToExcel(
     [selectedArtisanRapportMoisGroup.value],
-    selectedArtisanRapportMoisGroup.value.summary,
+    {
+      ...selectedArtisanRapportMoisGroup.value.summary,
+      total_commission: selectedArtisanRapportMoisGroup.value.summary.commission_cb,
+    },
     rapportsStore.rapportMois?.parametres,
     selectedMonth.value,
   )

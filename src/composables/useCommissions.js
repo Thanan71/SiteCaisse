@@ -1,6 +1,6 @@
 /**
  * @module composables/useCommissions
- * @description Composable pour la gestion des paramètres de commissions CB.
+ * @description Composable pour la gestion des paramètres de commissions.
  * Extrait la logique de fetch/save des commissions depuis AdminView.
  */
 import { ref } from 'vue'
@@ -14,7 +14,7 @@ export function useCommissions() {
   const commissionsSuccess = ref('')
 
   /**
-   * Charge les paramètres de commissions CB depuis l'API.
+   * Charge les paramètres de commissions depuis l'API.
    */
   async function fetchParametres() {
     try {
@@ -28,7 +28,7 @@ export function useCommissions() {
   }
 
   /**
-   * Enregistre les taux de commission CB.
+   * Enregistre les taux de commission.
    */
   async function handleSaveCommissions() {
     savingCommissions.value = true
@@ -42,7 +42,7 @@ export function useCommissions() {
       await api.put('/api/admin/parametres/commission_cb_temporaire', {
         valeur: commissionTemporaire.value,
       })
-      commissionsSuccess.value = 'Commissions CB mises à jour avec succès !'
+      commissionsSuccess.value = 'Commissions mises à jour avec succès !'
       setTimeout(() => {
         commissionsSuccess.value = ''
       }, 3000)
