@@ -84,7 +84,8 @@ describe('excelService', () => {
       summary,
     )
 
-    expect(XLSX.utils.json_to_sheet).toHaveBeenCalledWith([
+    const rows = XLSX.utils.json_to_sheet.mock.calls[0][0]
+    expect(rows.slice(0, 4)).toEqual([
       {
         Date: '2026-07-08',
         Article: 'Bol',
@@ -122,6 +123,7 @@ describe('excelService', () => {
         'Vendu par': '',
       },
     ])
+    expect(rows).toContainEqual(expect.objectContaining({ Article: 'Artisan : Atelier Alice' }))
     expect(saveAs).toHaveBeenCalledWith(expect.any(Blob), 'Rapport_Atelier Alice_2026-07-08.xlsx')
   })
 
@@ -135,6 +137,8 @@ describe('excelService', () => {
       commission: 1.55,
       libelle: 'Commission tous paiements (2.5%)',
       base: 'sur 62.00€ tous paiements',
+      ventesAFacturer: 32,
+      totalAFacturer: 30.45,
     },
     {
       cas: 'invite au taux personnalise avec tous les moyens de paiement',
@@ -145,6 +149,8 @@ describe('excelService', () => {
       commission: 2.48,
       libelle: 'Commission tous paiements personnalisée (4%)',
       base: 'sur 62.00€ tous paiements',
+      ventesAFacturer: 62,
+      totalAFacturer: 59.52,
     },
     {
       cas: 'invite au taux general sans paiement CB',
@@ -155,6 +161,8 @@ describe('excelService', () => {
       commission: 0.75,
       libelle: 'Commission tous paiements (2.5%)',
       base: 'sur 30.00€ tous paiements',
+      ventesAFacturer: 0,
+      totalAFacturer: -0.75,
     },
     {
       cas: 'invite au taux personnalise sans paiement CB',
@@ -165,6 +173,8 @@ describe('excelService', () => {
       commission: 1.2,
       libelle: 'Commission tous paiements personnalisée (4%)',
       base: 'sur 30.00€ tous paiements',
+      ventesAFacturer: 30,
+      totalAFacturer: 28.8,
     },
     {
       cas: 'permanent au taux general avec tous les moyens de paiement',
@@ -175,6 +185,8 @@ describe('excelService', () => {
       commission: 0.8,
       libelle: 'Commission CB (2.5%)',
       base: 'sur 32.00€ de CB',
+      ventesAFacturer: 32,
+      totalAFacturer: 31.2,
     },
     {
       cas: 'permanent au taux personnalise avec tous les moyens de paiement',
@@ -185,8 +197,30 @@ describe('excelService', () => {
       commission: 1.28,
       libelle: 'Commission CB personnalisée (4%)',
       base: 'sur 32.00€ de CB',
+      ventesAFacturer: 32,
+      totalAFacturer: 30.72,
     },
-  ])('exporte la bonne assiette pour un $cas', (scenario) => {
+    {
+      cas: 'invite au taux personnalise de zero pour cent',
+      assiette: 'tous_paiements',
+      personnalisee: true,
+      taux: 0,
+      sansCB: false,
+      commission: 0,
+      ventesAFacturer: 62,
+      totalAFacturer: 62,
+    },
+    {
+      cas: 'permanent sans paiement CB',
+      assiette: 'cb',
+      personnalisee: false,
+      taux: 2.5,
+      sansCB: true,
+      commission: 0,
+      ventesAFacturer: 0,
+      totalAFacturer: 0,
+    },
+  ])('exporte la bonne assiette et le montant a facturer pour un $cas', (scenario) => {
     exportVentesToExcel(
       scenario.sansCB ? ventesMixtes.slice(1) : ventesMixtes,
       [{ id: 1, nom: 'Alice' }],
@@ -203,11 +237,28 @@ describe('excelService', () => {
     )
 
     const rows = XLSX.utils.json_to_sheet.mock.calls[0][0]
-    expect(rows.at(-1)).toMatchObject({
-      Article: scenario.libelle,
-      'Total (€)': `-${scenario.commission.toFixed(2)}`,
-      'Type de paiement': scenario.base,
-    })
+    if (scenario.commission > 0) {
+      expect(rows).toContainEqual(
+        expect.objectContaining({
+          Article: scenario.libelle,
+          'Total (€)': `-${scenario.commission.toFixed(2)}`,
+          'Type de paiement': scenario.base,
+        }),
+      )
+    }
+    const invite = scenario.assiette === 'tous_paiements'
+    expect(rows).toContainEqual(expect.objectContaining({ Article: 'À FACTURER' }))
+    expect(rows.slice(-3)).toMatchObject([
+      {
+        Article: invite && scenario.personnalisee ? '+ Toutes les ventes' : '+ Ventes CB',
+        'Total (€)': scenario.ventesAFacturer,
+      },
+      {
+        Article: invite ? '- Frais de fonctionnement' : '- Frais CB',
+        'Total (€)': scenario.commission ? -scenario.commission : 0,
+      },
+      { Article: 'TOTAL À FACTURER', 'Total (€)': scenario.totalAFacturer },
+    ])
     expect(rows).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ 'Type de paiement': 'Espèce' }),
@@ -235,8 +286,22 @@ describe('excelService', () => {
             assiette_commission: 'tous_paiements',
           },
         },
+        {
+          artisan_id: 3,
+          artisan_nom: 'Invite personnalise',
+          ventes: ventesMixtes,
+          summary: {
+            ...summary,
+            total_articles: 5,
+            total_montant: 62,
+            commission_cb: 2.48,
+            taux_commission: 4,
+            commission_personnalisee: true,
+            assiette_commission: 'tous_paiements',
+          },
+        },
       ],
-      { total_articles: 8, total_montant: 94, total_cb: 64, total_commission: 2.35 },
+      { total_articles: 13, total_montant: 156, total_cb: 96, total_commission: 4.83 },
       { commission_cb_permanent: 1.5, commission_cb_temporaire: 2.5 },
       '2026-07',
     )
@@ -254,10 +319,55 @@ describe('excelService', () => {
       'Assiette commission': 'Tous paiements',
       'Commission (€)': '1.55',
     })
-    expect(rows[2]).toMatchObject({ Artisan: totalLabel, 'Commission (€)': '2.35' })
-    expect(rows[4]).toMatchObject({ Artisan: 'Permanent', 'Assiette commission': 'CB' })
-    expect(rows[5]).toMatchObject({ Artisan: 'Invité', 'Assiette commission': 'Tous paiements' })
+    expect(rows[2]).toMatchObject({
+      Artisan: 'Invite personnalise',
+      'Total montant (€)': '62.00',
+      'Total CB (€)': '32.00',
+      'Commission (€)': '2.48',
+    })
+    expect(rows[3]).toMatchObject({ Artisan: totalLabel, 'Commission (€)': '4.83' })
+    expect(rows[5]).toMatchObject({ Artisan: 'Permanent', 'Assiette commission': 'CB' })
+    expect(rows[6]).toMatchObject({ Artisan: 'Invité', 'Assiette commission': 'Tous paiements' })
     expect(rows.every((row) => !Object.hasOwn(row, 'Commission CB (€)'))).toBe(true)
+
+    const facturations = [
+      {
+        artisan: 'Permanent',
+        ventes: 32,
+        libelleVentes: '+ Ventes CB',
+        frais: -0.8,
+        libelleFrais: '- Frais CB',
+        total: 31.2,
+      },
+      {
+        artisan: 'Invite',
+        ventes: 32,
+        libelleVentes: '+ Ventes CB',
+        frais: -1.55,
+        libelleFrais: '- Frais de fonctionnement',
+        total: 30.45,
+      },
+      {
+        artisan: 'Invite personnalise',
+        ventes: 62,
+        libelleVentes: '+ Toutes les ventes',
+        frais: -2.48,
+        libelleFrais: '- Frais de fonctionnement',
+        total: 59.52,
+      },
+    ]
+    for (const [index, facturation] of facturations.entries()) {
+      const artisanRows = XLSX.utils.json_to_sheet.mock.calls[index][0]
+      expect(artisanRows).toContainEqual(expect.objectContaining({ Article: 'À FACTURER' }))
+      expect(artisanRows).toContainEqual(
+        expect.objectContaining({ Article: `Artisan : ${facturation.artisan}` }),
+      )
+      expect(artisanRows.slice(-3)).toMatchObject([
+        { Article: facturation.libelleVentes, 'Total (€)': facturation.ventes },
+        { Article: facturation.libelleFrais, 'Total (€)': facturation.frais },
+        { Article: 'TOTAL À FACTURER', 'Total (€)': facturation.total },
+      ])
+    }
   })
 
   it('exporte un rapport mensuel multi-onglets', () => {

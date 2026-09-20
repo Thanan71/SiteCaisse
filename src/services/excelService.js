@@ -22,7 +22,7 @@ export function exportVentesToExcel(ventes, artisans, artisanId, summary) {
   const artisan = artisans.find((a) => String(a.id) === String(artisanId))
   const artisanName = artisan?.nom_boutique || artisan?.nom || 'Artisan'
 
-  const worksheet = buildWorksheet(ventes, summary)
+  const worksheet = buildWorksheet(ventes, summary, artisanName)
 
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Rapport')
@@ -55,7 +55,7 @@ export function exportMonthToExcel(groupes, total, parametres, mois) {
       : groupe.artisan_id !== null && groupe.artisan_id !== undefined
         ? `Artisan #${groupe.artisan_id}`
         : 'Artisan inconnu'
-    const worksheet = buildWorksheet(groupe.ventes, groupe.summary)
+    const worksheet = buildWorksheet(groupe.ventes, groupe.summary, groupe.artisan_nom || sheetName)
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
   }
 
@@ -155,7 +155,7 @@ export function exportAllRapportsToExcel(groupes, total, parametres) {
       : groupe.artisan_id !== null && groupe.artisan_id !== undefined
         ? `Artisan #${groupe.artisan_id}`
         : 'Artisan inconnu'
-    const worksheet = buildWorksheet(groupe.ventes, groupe.summary)
+    const worksheet = buildWorksheet(groupe.ventes, groupe.summary, groupe.artisan_nom || sheetName)
     XLSX.utils.book_append_sheet(workbook, worksheet, sheetName)
   }
 
@@ -241,9 +241,10 @@ export function exportAllRapportsToExcel(groupes, total, parametres) {
  * Construit une worksheet (feuille) à partir d'un tableau de ventes et d'un résumé.
  * @param {Array} ventes - Liste des ventes (avec articles[] imbriqué).
  * @param {Object} summary - Résumé des ventes, commission et assiette_commission ('cb' ou 'tous_paiements').
+ * @param {string} artisanName - Nom de l'artisan affiché dans la partie à facturer.
  * @returns {Object} Worksheet XLSX.
  */
-function buildWorksheet(ventes, summary) {
+function buildWorksheet(ventes, summary, artisanName) {
   // Aplatir les ventes avec leurs articles en lignes individuelles
   const data = []
   for (const v of ventes) {
@@ -291,7 +292,36 @@ function buildWorksheet(ventes, summary) {
     })
   }
 
+  const invite = summary.assiette_commission === 'tous_paiements'
+  const invitePersonnalise = invite && summary.commission_personnalisee
+  const ventesAFacturer = invitePersonnalise ? summary.total_montant : summary.total_cb || 0
+  // commission_cb contient déjà tous les frais applicables, y compris pour les invités.
+  const frais = summary.commission_cb || 0
+  const fraisLabel = invite ? 'Frais de fonctionnement' : 'Frais CB'
+
+  data.push({}, { Article: 'À FACTURER' }, { Article: `Artisan : ${artisanName}` })
+  const creditRow = data.length + 2 // La première ligne Excel contient les en-têtes.
+  data.push(
+    {
+      Article: invitePersonnalise ? '+ Toutes les ventes' : '+ Ventes CB',
+      'Total (€)': ventesAFacturer,
+    },
+    { Article: `- ${fraisLabel}`, 'Total (€)': frais ? -frais : 0 },
+    {
+      Article: 'TOTAL À FACTURER',
+      'Total (€)': Math.round((ventesAFacturer - frais) * 100) / 100,
+    },
+  )
+
   const worksheet = XLSX.utils.json_to_sheet(data)
+  for (let row = creditRow; row <= creditRow + 2; row++) {
+    const cell = worksheet[`E${row}`]
+    if (cell) cell.z = '#,##0.00" €"'
+  }
+  const totalAFacturerCell = worksheet[`E${creditRow + 2}`]
+  if (totalAFacturerCell) {
+    totalAFacturerCell.f = `ROUND(SUM(E${creditRow}:E${creditRow + 1}),2)`
+  }
 
   // Ajuster la largeur des colonnes
   const colWidths = [
@@ -299,7 +329,7 @@ function buildWorksheet(ventes, summary) {
     { wch: 50 }, // Article et libellé de commission
     { wch: 10 }, // Quantité
     { wch: 15 }, // Prix unitaire
-    { wch: 12 }, // Total
+    { wch: 18 }, // Total et montants à facturer
     { wch: 35 }, // Paiement et assiette de commission
     { wch: 15 }, // Vendeur
   ]

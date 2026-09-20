@@ -190,6 +190,17 @@ Les commissions des invités (`temporaire`) s'appliquent à tous les moyens de p
 carte bancaire, espèces et chèques. Celles des permanents s'appliquent uniquement aux
 paiements par carte bancaire. Cette assiette reste identique avec un taux général ou personnalisé.
 
+Chaque feuille artisan des exports Excel comprend une partie « À facturer » :
+
+- Permanent : ventes CB moins frais CB.
+- Invité sans taux personnalisé : ventes CB moins frais de fonctionnement.
+- Invité avec taux personnalisé, même à 0 % : toutes les ventes moins les frais de fonctionnement
+  (toutes les commissions).
+
+La ligne « TOTAL À FACTURER » additionne les ventes retenues et les frais déduits. Les frais
+reprennent les commissions calculées ci-dessus ; le total peut être négatif si les frais
+dépassent les ventes retenues.
+
 ## 📄 Notes importantes
 
 - Le frontend stocke le `token` JWT et les données utilisateur dans `localStorage`
