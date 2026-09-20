@@ -138,7 +138,8 @@ describe('excelService', () => {
       libelle: 'Commission tous paiements (2.5%)',
       base: 'sur 62.00€ tous paiements',
       ventesAFacturer: 32,
-      totalAFacturer: 30.45,
+      fraisAFacturer: 0.8,
+      totalAFacturer: 31.2,
     },
     {
       cas: 'invite au taux personnalise avec tous les moyens de paiement',
@@ -150,6 +151,7 @@ describe('excelService', () => {
       libelle: 'Commission tous paiements personnalisée (4%)',
       base: 'sur 62.00€ tous paiements',
       ventesAFacturer: 62,
+      fraisAFacturer: 2.48,
       totalAFacturer: 59.52,
     },
     {
@@ -162,7 +164,8 @@ describe('excelService', () => {
       libelle: 'Commission tous paiements (2.5%)',
       base: 'sur 30.00€ tous paiements',
       ventesAFacturer: 0,
-      totalAFacturer: -0.75,
+      fraisAFacturer: 0,
+      totalAFacturer: 0,
     },
     {
       cas: 'invite au taux personnalise sans paiement CB',
@@ -174,6 +177,7 @@ describe('excelService', () => {
       libelle: 'Commission tous paiements personnalisée (4%)',
       base: 'sur 30.00€ tous paiements',
       ventesAFacturer: 30,
+      fraisAFacturer: 1.2,
       totalAFacturer: 28.8,
     },
     {
@@ -186,6 +190,7 @@ describe('excelService', () => {
       libelle: 'Commission CB (2.5%)',
       base: 'sur 32.00€ de CB',
       ventesAFacturer: 32,
+      fraisAFacturer: 0.8,
       totalAFacturer: 31.2,
     },
     {
@@ -198,6 +203,7 @@ describe('excelService', () => {
       libelle: 'Commission CB personnalisée (4%)',
       base: 'sur 32.00€ de CB',
       ventesAFacturer: 32,
+      fraisAFacturer: 1.28,
       totalAFacturer: 30.72,
     },
     {
@@ -208,6 +214,7 @@ describe('excelService', () => {
       sansCB: false,
       commission: 0,
       ventesAFacturer: 62,
+      fraisAFacturer: 0,
       totalAFacturer: 62,
     },
     {
@@ -218,6 +225,7 @@ describe('excelService', () => {
       sansCB: true,
       commission: 0,
       ventesAFacturer: 0,
+      fraisAFacturer: 0,
       totalAFacturer: 0,
     },
   ])('exporte la bonne assiette et le montant a facturer pour un $cas', (scenario) => {
@@ -255,7 +263,7 @@ describe('excelService', () => {
       },
       {
         Article: invite ? '- Frais de fonctionnement' : '- Frais CB',
-        'Total (€)': scenario.commission ? -scenario.commission : 0,
+        'Total (€)': scenario.fraisAFacturer ? -scenario.fraisAFacturer : 0,
       },
       { Article: 'TOTAL À FACTURER', 'Total (€)': scenario.totalAFacturer },
     ])
@@ -343,9 +351,9 @@ describe('excelService', () => {
         artisan: 'Invite',
         ventes: 32,
         libelleVentes: '+ Ventes CB',
-        frais: -1.55,
+        frais: -0.8,
         libelleFrais: '- Frais de fonctionnement',
-        total: 30.45,
+        total: 31.2,
       },
       {
         artisan: 'Invite personnalise',

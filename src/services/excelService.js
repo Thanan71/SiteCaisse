@@ -295,8 +295,11 @@ function buildWorksheet(ventes, summary, artisanName) {
   const invite = summary.assiette_commission === 'tous_paiements'
   const invitePersonnalise = invite && summary.commission_personnalisee
   const ventesAFacturer = invitePersonnalise ? summary.total_montant : summary.total_cb || 0
-  // commission_cb contient déjà tous les frais applicables, y compris pour les invités.
-  const frais = summary.commission_cb || 0
+  // Sans taux personnalisé, seuls les frais sur les ventes CB sont à facturer à l'invité.
+  const frais =
+    invite && !summary.commission_personnalisee
+      ? Math.round((summary.total_cb || 0) * ((summary.taux_commission || 0) / 100) * 100) / 100
+      : summary.commission_cb || 0
   const fraisLabel = invite ? 'Frais de fonctionnement' : 'Frais CB'
 
   data.push({}, { Article: 'À FACTURER' }, { Article: `Artisan : ${artisanName}` })

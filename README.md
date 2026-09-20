@@ -193,13 +193,14 @@ paiements par carte bancaire. Cette assiette reste identique avec un taux géné
 Chaque feuille artisan des exports Excel comprend une partie « À facturer » :
 
 - Permanent : ventes CB moins frais CB.
-- Invité sans taux personnalisé : ventes CB moins frais de fonctionnement.
+- Invité sans taux personnalisé : ventes CB moins frais de fonctionnement calculés uniquement
+  sur ces ventes CB, au taux général des invités.
 - Invité avec taux personnalisé, même à 0 % : toutes les ventes moins les frais de fonctionnement
   (toutes les commissions).
 
-La ligne « TOTAL À FACTURER » additionne les ventes retenues et les frais déduits. Les frais
-reprennent les commissions calculées ci-dessus ; le total peut être négatif si les frais
-dépassent les ventes retenues.
+La ligne « TOTAL À FACTURER » additionne les ventes retenues et les frais déduits, arrondis au
+centime. Sans ventes CB, les frais et le total à facturer d'un invité sans taux personnalisé
+sont nuls. Cette règle de facturation est distincte du calcul des commissions des rapports.
 
 ## 📄 Notes importantes
 
