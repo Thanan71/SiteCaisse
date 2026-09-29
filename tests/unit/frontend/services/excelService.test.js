@@ -137,9 +137,10 @@ describe('excelService', () => {
       commission: 1.55,
       libelle: 'Commission tous paiements (2.5%)',
       base: 'sur 62.00€ tous paiements',
-      ventesAFacturer: 32,
+      ventesAFacturer: 62,
       fraisAFacturer: 0.8,
-      totalAFacturer: 31.2,
+      especesAFacturer: 20,
+      totalAFacturer: 41.2,
     },
     {
       cas: 'invite au taux personnalise avec tous les moyens de paiement',
@@ -163,9 +164,10 @@ describe('excelService', () => {
       commission: 0.75,
       libelle: 'Commission tous paiements (2.5%)',
       base: 'sur 30.00€ tous paiements',
-      ventesAFacturer: 0,
+      ventesAFacturer: 30,
       fraisAFacturer: 0,
-      totalAFacturer: 0,
+      especesAFacturer: 20,
+      totalAFacturer: 10,
     },
     {
       cas: 'invite au taux personnalise sans paiement CB',
@@ -255,18 +257,32 @@ describe('excelService', () => {
       )
     }
     const invite = scenario.assiette === 'tous_paiements'
+    const inviteTauxGeneral = invite && !scenario.personnalisee
     expect(rows).toContainEqual(expect.objectContaining({ Article: 'À FACTURER' }))
-    expect(rows.slice(-3)).toMatchObject([
+    const lignesFacturation = [
       {
-        Article: invite && scenario.personnalisee ? '+ Toutes les ventes' : '+ Ventes CB',
+        Article: invite && scenario.personnalisee
+          ? '+ Toutes les ventes'
+          : inviteTauxGeneral
+            ? '+ Ventes globales'
+            : '+ Ventes CB',
         'Total (€)': scenario.ventesAFacturer,
       },
+    ]
+    if (inviteTauxGeneral) {
+      lignesFacturation.push({
+        Article: '- Espèces',
+        'Total (€)': -scenario.especesAFacturer,
+      })
+    }
+    lignesFacturation.push(
       {
         Article: invite ? '- Frais de fonctionnement' : '- Frais CB',
         'Total (€)': scenario.fraisAFacturer ? -scenario.fraisAFacturer : 0,
       },
       { Article: 'TOTAL À FACTURER', 'Total (€)': scenario.totalAFacturer },
-    ])
+    )
+    expect(rows.slice(-lignesFacturation.length)).toMatchObject(lignesFacturation)
     expect(rows).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ 'Type de paiement': 'Espèce' }),

@@ -294,36 +294,62 @@ function buildWorksheet(ventes, summary, artisanName) {
 
   const invite = summary.assiette_commission === 'tous_paiements'
   const invitePersonnalise = invite && summary.commission_personnalisee
-  const ventesAFacturer = invitePersonnalise ? summary.total_montant : summary.total_cb || 0
-  // Sans taux personnalisé, seuls les frais sur les ventes CB sont à facturer à l'invité.
+  const inviteTauxGeneral = invite && !summary.commission_personnalisee
+  const ventesAFacturer = invite ? summary.total_montant : summary.total_cb || 0
+  const totalEspeces = inviteTauxGeneral
+    ? ventes.reduce((total, vente) => {
+        if (vente.type_paiement !== 'Espece') return total
+        const articles = vente.articles || [{ prix: vente.prix, quantite: vente.quantite }]
+        return (
+          total +
+          articles.reduce(
+            (sousTotal, article) => sousTotal + (article.prix || 0) * (article.quantite || 0),
+            0,
+          )
+        )
+      }, 0)
+    : 0
+  const especesAFacturer = Math.round(totalEspeces * 100) / 100
+  // Pour l'invité au taux général, seuls les frais calculés sur les ventes CB sont déduits.
   const frais =
-    invite && !summary.commission_personnalisee
+    inviteTauxGeneral
       ? Math.round((summary.total_cb || 0) * ((summary.taux_commission || 0) / 100) * 100) / 100
       : summary.commission_cb || 0
   const fraisLabel = invite ? 'Frais de fonctionnement' : 'Frais CB'
 
   data.push({}, { Article: 'À FACTURER' }, { Article: `Artisan : ${artisanName}` })
   const creditRow = data.length + 2 // La première ligne Excel contient les en-têtes.
-  data.push(
+  const facturationRows = [
     {
-      Article: invitePersonnalise ? '+ Toutes les ventes' : '+ Ventes CB',
+      Article: invitePersonnalise
+        ? '+ Toutes les ventes'
+        : inviteTauxGeneral
+          ? '+ Ventes globales'
+          : '+ Ventes CB',
       'Total (€)': ventesAFacturer,
     },
+  ]
+  if (inviteTauxGeneral) {
+    facturationRows.push({ Article: '- Espèces', 'Total (€)': especesAFacturer ? -especesAFacturer : 0 })
+  }
+  facturationRows.push(
     { Article: `- ${fraisLabel}`, 'Total (€)': frais ? -frais : 0 },
     {
       Article: 'TOTAL À FACTURER',
-      'Total (€)': Math.round((ventesAFacturer - frais) * 100) / 100,
+      'Total (€)': Math.round((ventesAFacturer - especesAFacturer - frais) * 100) / 100,
     },
   )
+  data.push(...facturationRows)
 
   const worksheet = XLSX.utils.json_to_sheet(data)
-  for (let row = creditRow; row <= creditRow + 2; row++) {
+  const totalRow = creditRow + facturationRows.length - 1
+  for (let row = creditRow; row <= totalRow; row++) {
     const cell = worksheet[`E${row}`]
     if (cell) cell.z = '#,##0.00" €"'
   }
-  const totalAFacturerCell = worksheet[`E${creditRow + 2}`]
+  const totalAFacturerCell = worksheet[`E${totalRow}`]
   if (totalAFacturerCell) {
-    totalAFacturerCell.f = `ROUND(SUM(E${creditRow}:E${creditRow + 1}),2)`
+    totalAFacturerCell.f = `ROUND(SUM(E${creditRow}:E${totalRow - 1}),2)`
   }
 
   // Ajuster la largeur des colonnes

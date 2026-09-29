@@ -29,8 +29,9 @@ const cases = [
     taux: 2.5,
     commissionTotale: 15,
     fraisAFacturer: 2.5,
-    credit: 100,
-    net: 97.5,
+    credit: 600,
+    especes: 200,
+    net: 397.5,
   },
   {
     nom: 'Invite general sans CB',
@@ -40,8 +41,9 @@ const cases = [
     taux: 2.5,
     commissionTotale: 12.5,
     fraisAFacturer: 0,
-    credit: 0,
-    net: 0,
+    credit: 500,
+    especes: 200,
+    net: 300,
   },
   {
     nom: 'Invite general arrondi',
@@ -51,8 +53,9 @@ const cases = [
     taux: 2.5,
     commissionTotale: 12.76,
     fraisAFacturer: 0.26,
-    credit: 10.2,
-    net: 9.94,
+    credit: 510.2,
+    especes: 200,
+    net: 309.94,
   },
   {
     nom: 'Invite personnalise',
@@ -153,14 +156,25 @@ describe('partie a facturer dans les fichiers XLSX generes', () => {
       }
 
       const [creditAddress] = labels.find(([, cell]) => cell.v.startsWith('+ '))
-      const [feeAddress] = labels.find(([, cell]) => cell.v.startsWith('- '))
-      expect(worksheet[feeAddress].v).toBe(
-        scenario.assiette === 'cb' ? '- Frais CB' : '- Frais de fonctionnement',
-      )
+      const feeLabel = scenario.assiette === 'cb' ? '- Frais CB' : '- Frais de fonctionnement'
+      const [feeAddress] = labels.find(([, cell]) => cell.v === feeLabel)
       const [totalAddress] = labels.find(([, cell]) => cell.v === 'TOTAL À FACTURER')
       const creditCell = creditAddress.replace('B', 'E')
       const feeCell = feeAddress.replace('B', 'E')
+      expect(worksheet[creditAddress].v).toBe(
+        scenario.assiette === 'cb'
+          ? '+ Ventes CB'
+          : scenario.perso
+            ? '+ Toutes les ventes'
+            : '+ Ventes globales',
+      )
       expect(worksheet[creditCell]).toMatchObject({ t: 'n', v: scenario.credit, z: '#,##0.00" €"' })
+      const cashAddress = labels.find(([, cell]) => cell.v === '- Espèces')?.[0]
+      if (scenario.assiette === 'tous_paiements' && !scenario.perso) {
+        expect(worksheet[cashAddress.replace('B', 'E')].v).toBe(-scenario.especes)
+      } else {
+        expect(cashAddress).toBeUndefined()
+      }
       expect(worksheet[feeCell]).toMatchObject({
         t: 'n',
         v: scenario.fraisAFacturer ? -scenario.fraisAFacturer : 0,
