@@ -23,8 +23,8 @@
             <label :for="fieldId('paiement')">Type de paiement</label>
             <select :id="fieldId('paiement')" v-model="form.type_paiement" required>
               <option v-if="mode === 'create'" value="" disabled>Choisir</option>
-              <option value="CB">Carte Bancaire</option>
               <option value="Espece">Espèce</option>
+              <option value="CB">Carte Bancaire</option>
               <option value="Cheque">Chèque</option>
             </select>
           </div>
