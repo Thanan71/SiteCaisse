@@ -258,14 +258,16 @@ describe('excelService', () => {
     }
     const invite = scenario.assiette === 'tous_paiements'
     const inviteTauxGeneral = invite && !scenario.personnalisee
+    const libelleVentes =
+      invite && scenario.personnalisee
+        ? '+ Toutes les ventes'
+        : inviteTauxGeneral
+          ? '+ Ventes globales'
+          : '+ Ventes CB'
     expect(rows).toContainEqual(expect.objectContaining({ Article: 'À FACTURER' }))
     const lignesFacturation = [
       {
-        Article: invite && scenario.personnalisee
-          ? '+ Toutes les ventes'
-          : inviteTauxGeneral
-            ? '+ Ventes globales'
-            : '+ Ventes CB',
+        Article: libelleVentes,
         'Total (€)': scenario.ventesAFacturer,
       },
     ]
@@ -365,11 +367,12 @@ describe('excelService', () => {
       },
       {
         artisan: 'Invite',
-        ventes: 32,
-        libelleVentes: '+ Ventes CB',
+        ventes: 62,
+        libelleVentes: '+ Ventes globales',
+        especes: -20,
         frais: -0.8,
         libelleFrais: '- Frais de fonctionnement',
-        total: 31.2,
+        total: 41.2,
       },
       {
         artisan: 'Invite personnalise',
@@ -386,11 +389,17 @@ describe('excelService', () => {
       expect(artisanRows).toContainEqual(
         expect.objectContaining({ Article: `Artisan : ${facturation.artisan}` }),
       )
-      expect(artisanRows.slice(-3)).toMatchObject([
+      const lignesFacturation = [
         { Article: facturation.libelleVentes, 'Total (€)': facturation.ventes },
+      ]
+      if (facturation.especes !== undefined) {
+        lignesFacturation.push({ Article: '- Espèces', 'Total (€)': facturation.especes })
+      }
+      lignesFacturation.push(
         { Article: facturation.libelleFrais, 'Total (€)': facturation.frais },
         { Article: 'TOTAL À FACTURER', 'Total (€)': facturation.total },
-      ])
+      )
+      expect(artisanRows.slice(-lignesFacturation.length)).toMatchObject(lignesFacturation)
     }
   })
 

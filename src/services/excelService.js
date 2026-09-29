@@ -311,10 +311,9 @@ function buildWorksheet(ventes, summary, artisanName) {
     : 0
   const especesAFacturer = Math.round(totalEspeces * 100) / 100
   // Pour l'invité au taux général, seuls les frais calculés sur les ventes CB sont déduits.
-  const frais =
-    inviteTauxGeneral
-      ? Math.round((summary.total_cb || 0) * ((summary.taux_commission || 0) / 100) * 100) / 100
-      : summary.commission_cb || 0
+  const frais = inviteTauxGeneral
+    ? Math.round((summary.total_cb || 0) * ((summary.taux_commission || 0) / 100) * 100) / 100
+    : summary.commission_cb || 0
   const fraisLabel = invite ? 'Frais de fonctionnement' : 'Frais CB'
 
   data.push({}, { Article: 'À FACTURER' }, { Article: `Artisan : ${artisanName}` })
@@ -330,7 +329,10 @@ function buildWorksheet(ventes, summary, artisanName) {
     },
   ]
   if (inviteTauxGeneral) {
-    facturationRows.push({ Article: '- Espèces', 'Total (€)': especesAFacturer ? -especesAFacturer : 0 })
+    facturationRows.push({
+      Article: '- Espèces',
+      'Total (€)': especesAFacturer ? -especesAFacturer : 0,
+    })
   }
   facturationRows.push(
     { Article: `- ${fraisLabel}`, 'Total (€)': frais ? -frais : 0 },
