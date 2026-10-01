@@ -106,6 +106,26 @@ User Action → Vue Component → Pinia Store → API Express → Supabase/Postg
               Mise à jour UI ← Store ← Réponse JSON  ← Contrôleur
 ```
 
+## Rôle Dev et boîte à idées
+
+### 6. Rôle Dev
+- [ ] Ajouter un rôle `dev` au-dessus du rôle `admin`
+- [ ] Définir une hiérarchie claire des permissions : `dev > admin > permanent/temporaire`
+- [ ] Permettre au rôle `dev` d'accéder à toutes les fonctionnalités administrateur
+- [ ] Ajouter des fonctionnalités réservées au rôle `dev`
+- [ ] Adapter les middlewares backend pour reconnaître et sécuriser le rôle `dev`
+- [ ] Adapter le frontend (router, navbar, stores et composants) pour gérer le rôle `dev`
+- [ ] Ajouter des tests unitaires et E2E sur les permissions du rôle `dev`
+
+### 7. Suggestions / boîte à idées
+- [ ] Ajouter un formulaire "Suggestion / Boîte à idées" accessible aux utilisateurs connectés
+- [ ] Permettre de saisir au minimum un titre et une description
+- [ ] Enregistrer les suggestions en base de données avec l'auteur et la date de création
+- [ ] Ajouter un espace de consultation des suggestions réservé au rôle `dev`
+- [ ] Empêcher les admins et les artisans de consulter la liste complète des suggestions
+- [ ] Permettre au rôle `dev` de marquer une suggestion comme nouvelle, en cours, acceptée ou refusée
+- [ ] Ajouter les tests backend, frontend et E2E associés
+
 ## Améliorations futures possibles
 - [ ] Mode hors-ligne (PWA)
 - [x] Tests unitaires et E2E
