@@ -149,6 +149,19 @@ User Action → Vue Component → Pinia Store → API Express → Supabase/Postg
   - [ ] Ne jamais afficher dans l'interface des non-dev un lien ou un compteur révélant la liste privée des suggestions
   - [ ] Prévoir une pagination ou un chargement progressif si le volume de suggestions augmente
 
+## Fiabilisation des rapports
+
+### 8. Robustesse des calculs et récupération des données
+- [ ] Fiabiliser la récupération des ventes utilisées dans les rapports lorsque la base grossit
+- [ ] Ajouter une pagination ou un chargement par lots pour éviter les limites de lignes Supabase sur les requêtes dites "sans pagination"
+- [ ] Vérifier également l'exhaustivité du chargement des lignes `vente_articles`
+- [ ] Garantir que les totaux par artisan restent exacts au-delà de 1 000 ventes et/ou 1 000 lignes d'articles
+- [ ] Ajouter des tests avec un volume de données supérieur aux limites par défaut de l'API
+- [ ] Comparer les calculs de rapports avec les données réelles de production dès que le projet Supabase SiteCaisse est accessible
+- [ ] Ajouter un contrôle de cohérence entre total global, totaux par artisan et totaux mensuels
+- [ ] Documenter les limites et hypothèses du calcul des rapports
+- [ ] Étudier le besoin de figer historiquement le rôle et le taux de commission appliqués au moment de la vente afin qu'un changement futur de taux ne recalcule pas rétroactivement les anciens rapports
+
 ## Améliorations futures possibles
 - [ ] Mode hors-ligne (PWA)
 - [x] Tests unitaires et E2E
