@@ -86,14 +86,11 @@ async function listUsers(actor) {
   const { data, error } = await supabase
     .from('users')
     .select(USER_LIST_SELECT)
+    .neq('role', 'dev')
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return (data || []).map((user) => {
-    if (user.role !== 'dev' || actor.role === 'dev') return user
-    const { generated_password: _generatedPassword, ...visibleUser } = user
-    return visibleUser
-  })
+  return data || []
 }
 
 async function createUser({ nom, nom_boutique, role, date_fin }, actor) {

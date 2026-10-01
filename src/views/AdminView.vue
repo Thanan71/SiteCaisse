@@ -167,7 +167,6 @@
         <UserTable
           v-else
           :users="users"
-          :can-manage-dev="authStore.isDev"
           :deleting-id="deletingId"
           :reactivating-id="reactivatingId"
           :extending-id="extendingId"

@@ -114,6 +114,8 @@ RETURNING id, nom_boutique, role;
 Le mot de passe reste celui du compte. Se reconnecter pour afficher la navigation Dev.
 Les Dev peuvent ensuite créer d'autres comptes Dev ou admin depuis l'administration.
 Les admins peuvent créer uniquement des artisans et ne peuvent modifier les comptes Dev.
+Les comptes Dev et leurs mots de passe sont exclus de la liste des utilisateurs,
+y compris pour un Dev connecté, et ne sont pas renvoyés par l'API de cette liste.
 
 5. Lancer l’application
 

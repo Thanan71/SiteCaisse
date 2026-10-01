@@ -258,13 +258,7 @@ export async function installApiMock(page, options = {}) {
     }
 
     if (method === 'GET' && path === '/api/admin/users') {
-      return json(
-        state.users.map((user) =>
-          user.role === 'dev' && state.user.role !== 'dev'
-            ? { ...user, generated_password: null }
-            : user,
-        ),
-      )
+      return json(state.users.filter((user) => user.role !== 'dev'))
     }
 
     if (method === 'POST' && path === '/api/admin/users') {
