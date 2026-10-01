@@ -86,6 +86,8 @@ describe('models', () => {
           role: 'temporaire',
           est_actif: false,
         },
+        { id: 3, nom: 'Admin', role: 'admin', est_actif: true },
+        { id: 4, nom: 'Developpeur', role: 'dev', est_actif: true },
       ],
     })
     const { loaded, restore } = loadModels(fake)
@@ -363,6 +365,31 @@ describe('models', () => {
     expect(bcrypt.compareSync('password123', fake.tables.users[0].password_hash)).toBe(true)
     expect(console.log).toHaveBeenCalledWith('✅ Mot de passe admin vérifié et mis à jour')
 
+    restore()
+  })
+
+  it.each([
+    'Administration',
+    'Admin',
+  ])('preserve le compte dev %s pendant le seed admin', async (nomBoutique) => {
+    const users = [
+      {
+        id: 7,
+        nom: 'Developpeur',
+        nom_boutique: nomBoutique,
+        role: 'dev',
+        password_hash: 'hash-prive',
+        generated_password: null,
+        est_actif: false,
+        password_change_required: true,
+      },
+    ]
+    const fake = createFakeSupabase({ users })
+    const { loaded, restore } = loadModels(fake)
+
+    await loaded.seedAdminIfMissing()
+
+    expect(fake.tables.users).toEqual(users)
     restore()
   })
 

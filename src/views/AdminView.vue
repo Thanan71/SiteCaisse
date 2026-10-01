@@ -134,6 +134,8 @@
                 <option value="" disabled>Sélectionner un rôle</option>
                 <option value="permanent">Permanent</option>
                 <option value="temporaire">Invité</option>
+                <option v-if="authStore.isDev" value="admin">Admin</option>
+                <option v-if="authStore.isDev" value="dev">Dev</option>
               </select>
             </div>
             <div v-if="newUser.role === 'temporaire'" class="form-group">
@@ -165,6 +167,7 @@
         <UserTable
           v-else
           :users="users"
+          :can-manage-dev="authStore.isDev"
           :deleting-id="deletingId"
           :reactivating-id="reactivatingId"
           :extending-id="extendingId"
@@ -324,9 +327,11 @@ import UserTable from '../components/UserTable.vue'
 import { useCommissions } from '../composables/useCommissions'
 import { useLogs } from '../composables/useLogs'
 import { useUsers } from '../composables/useUsers'
+import { useAuthStore } from '../store/auth'
 import { formatDateSimple } from '../utils/formatters'
 
 const activePanel = ref('users')
+const authStore = useAuthStore()
 
 // Utilisateurs : toute la logique métier extraite dans le composable
 const {
@@ -412,7 +417,9 @@ const minDate = computed(() => {
   return today.toISOString().split('T')[0]
 })
 
-const artisanUsers = computed(() => users.value.filter((user) => user.role !== 'admin'))
+const artisanUsers = computed(() =>
+  users.value.filter((user) => ['permanent', 'temporaire'].includes(user.role)),
+)
 
 function hasCustomCommission(user) {
   return user.commission_cb_personnalisee !== null && user.commission_cb_personnalisee !== undefined

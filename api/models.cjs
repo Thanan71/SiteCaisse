@@ -547,11 +547,13 @@ async function seedAdminIfMissing() {
 
   const { data: existingAdmins } = await supabase
     .from('users')
-    .select('id, nom_boutique')
+    .select('id, nom_boutique, role')
     .in('nom_boutique', [adminBoutique, legacyAdminBoutique])
 
   const existingAdmin =
     existingAdmins?.find((user) => user.nom_boutique === adminBoutique) || existingAdmins?.[0]
+  // Un compte promu dev conserve son rôle et ses identifiants au redémarrage.
+  if (existingAdmin?.role === 'dev') return
   if (existingAdmin) {
     // Mettre à jour le mot de passe pour garantir qu'il soit valide
     const { error: updateError } = await supabase

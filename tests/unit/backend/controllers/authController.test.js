@@ -1,6 +1,8 @@
 import bcrypt from 'bcryptjs'
+import express from 'express'
 import jwt from 'jsonwebtoken'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import permissions from '../../../../api/services/permissionService.cjs'
 import { invokeRoute } from '../../helpers/routeTestUtils'
 import { JWT_SECRET, loadAuthController } from './controllerTestUtils'
 
@@ -9,10 +11,68 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.restoreAllMocks()
 })
 
 describe('authController', () => {
+  it.each([
+    ['dev', 'admin', 'requireDev', 403],
+    ['admin', 'dev', 'requireDev', 200],
+    ['dev', 'permanent', 'requireAdmin', 403],
+    ['permanent', 'dev', 'requireAdmin', 200],
+  ])('applique le role courant %s -> %s avec %s', async (tokenRole, currentRole, guard, status) => {
+    const { authMiddleware, restore } = loadAuthController({
+      findUserById: vi.fn(async () => ({
+        id: 2,
+        nom: 'Equipe',
+        role: currentRole,
+        est_actif: true,
+      })),
+    })
+    const router = express.Router()
+    router.get('/protected', authMiddleware, permissions[guard], (req, res) => res.json(req.user))
+    const token = jwt.sign({ id: 2, role: tokenRole }, JWT_SECRET)
+
+    const { res, req } = await invokeRoute(router, 'get', '/protected', {
+      headers: { authorization: `Bearer ${token}` },
+    })
+
+    expect(res.statusCode).toBe(status)
+    expect(req.user.role).toBe(currentRole)
+    restore()
+  })
+
+  it.each([
+    ['2026-09-30', 403],
+    ['2026-10-01', 200],
+    ['2026-10-02', 200],
+  ])('verifie la fin d acces %s meme avec un token valide', async (dateFin, status) => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-01T12:00:00Z'))
+    const user = { id: 2, role: 'temporaire', est_actif: true, date_fin: dateFin }
+    const { router, logger, restore } = loadAuthController({
+      findUserById: vi.fn(async () => user),
+    })
+    const token = jwt.sign({ id: 2, role: 'temporaire' }, JWT_SECRET)
+
+    const { res } = await invokeRoute(router, 'get', '/me', {
+      headers: { authorization: `Bearer ${token}` },
+    })
+
+    expect(res.statusCode).toBe(status)
+    if (status === 403) {
+      expect(res.body.error).toBe('Votre accès a expiré. Contactez un administrateur.')
+      expect(logger.logAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: 'auth.token_refused',
+          details: { reason: 'expired_access', date_fin: dateFin },
+        }),
+      )
+    }
+    restore()
+  })
+
   it('connecte un utilisateur actif et journalise la connexion', async () => {
     const user = {
       id: 2,

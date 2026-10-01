@@ -7,6 +7,7 @@
  */
 const express = require('express')
 const { authMiddleware } = require('./authController.cjs')
+const { isAdminRole, requireAdmin: adminMiddleware } = require('./services/permissionService.cjs')
 const { getAllParametres, updateParametre } = require('./services/parametresService.cjs')
 const { logAction, logError, getActionLogs } = require('./services/loggerService.cjs')
 const {
@@ -22,21 +23,6 @@ const {
 
 const router = express.Router()
 
-/**
- * Middleware de vérification du rôle admin.
- * Doit être utilisé APRÈS authMiddleware.
- * @param {import('express').Request} req - Requête Express.
- * @param {import('express').Response} res - Réponse Express.
- * @param {import('express').NextFunction} next - Fonction suivante.
- * @returns {void}
- */
-function adminMiddleware(req, res, next) {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Accès réservé aux administrateurs' })
-  }
-  next()
-}
-
 function sendAdminUserError(err, res) {
   if (!(err instanceof AdminUserError)) return false
   res.status(err.statusCode).json({ error: err.message })
@@ -50,7 +36,7 @@ function sendAdminUserError(err, res) {
  */
 router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    res.json(await listUsers())
+    res.json(await listUsers(req.user))
   } catch (err) {
     console.error('Admin list users error:', err)
     await logError({
@@ -69,7 +55,7 @@ router.get('/users', authMiddleware, adminMiddleware, async (req, res) => {
  * Crée un nouvel utilisateur.
  * @param {string} req.body.nom - Nom de l'utilisateur.
  * @param {string} req.body.nom_boutique - Nom de boutique de l'utilisateur.
- * @param {string} req.body.role - Rôle de l'utilisateur ('permanent', 'temporaire').
+ * @param {string} req.body.role - Rôle ('permanent', 'temporaire', 'admin', 'dev').
  * @param {string} [req.body.date_fin] - Date de fin pour les temporaires (format YYYY-MM-DD).
  * @returns {Object} Utilisateur créé (sans le password_hash) et mot de passe généré.
  */
@@ -81,8 +67,14 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Nom, nom de boutique et rôle requis' })
     }
 
-    if (!['permanent', 'temporaire'].includes(role)) {
-      return res.status(400).json({ error: 'Le rôle doit être "permanent" ou "temporaire"' })
+    if (!['permanent', 'temporaire', 'admin', 'dev'].includes(role)) {
+      return res.status(400).json({ error: 'Rôle invalide' })
+    }
+
+    if (isAdminRole(role) && req.user.role !== 'dev') {
+      return res
+        .status(403)
+        .json({ error: 'Seuls les développeurs peuvent créer des comptes admin ou dev' })
     }
 
     // Si le rôle est temporaire, une date de fin est obligatoire
@@ -99,12 +91,13 @@ router.post('/users', authMiddleware, adminMiddleware, async (req, res) => {
         .json({ error: 'Un utilisateur permanent ne peut pas avoir de date de fin' })
     }
 
-    const { user, newPassword } = await createUser({
-      nom,
-      nom_boutique,
-      role,
-      date_fin,
-    })
+    if (isAdminRole(role) && date_fin) {
+      return res
+        .status(400)
+        .json({ error: 'Un compte admin ou dev ne peut pas avoir de date de fin' })
+    }
+
+    const { user, newPassword } = await createUser({ nom, nom_boutique, role, date_fin }, req.user)
 
     await logAction({
       user: req.user,
@@ -160,7 +153,7 @@ router.delete('/users/:id', authMiddleware, adminMiddleware, async (req, res) =>
       return res.status(400).json({ error: 'ID utilisateur invalide' })
     }
 
-    const userToDeactivate = await deactivateUser(userId, req.user.id)
+    const userToDeactivate = await deactivateUser(userId, req.user)
 
     await logAction({
       user: req.user,
@@ -206,7 +199,7 @@ router.patch('/users/:id/reactivate', authMiddleware, adminMiddleware, async (re
       return res.status(400).json({ error: 'ID utilisateur invalide' })
     }
 
-    const userToReactivate = await reactivateUser(userId)
+    const userToReactivate = await reactivateUser(userId, req.user)
 
     await logAction({
       user: req.user,
@@ -254,6 +247,7 @@ router.patch('/users/:id/commission', authMiddleware, adminMiddleware, async (re
     const { previousUser, user } = await updateUserCommission(
       userId,
       req.body?.commission_cb_personnalisee,
+      req.user,
     )
 
     await logAction({
@@ -400,7 +394,7 @@ router.post('/users/:id/reset-password', authMiddleware, adminMiddleware, async 
       return res.status(400).json({ error: 'ID utilisateur invalide' })
     }
 
-    const { user, newPassword } = await resetPasswordForUser(userId)
+    const { user, newPassword } = await resetPasswordForUser(userId, req.user)
 
     await logAction({
       user: req.user,
@@ -447,7 +441,7 @@ router.patch('/users/:id/extend', authMiddleware, adminMiddleware, async (req, r
     }
 
     const { date_fin } = req.body
-    const { user, nouvelleDateFin } = await extendTemporaryUserAccess(userId, date_fin)
+    const { user, nouvelleDateFin } = await extendTemporaryUserAccess(userId, date_fin, req.user)
 
     await logAction({
       user: req.user,

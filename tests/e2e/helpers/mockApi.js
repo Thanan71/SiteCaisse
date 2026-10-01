@@ -24,6 +24,13 @@ const defaultArtisans = [
   },
 ]
 
+const parisDateFormatter = new Intl.DateTimeFormat('en', {
+  timeZone: 'Europe/Paris',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+
 export async function installApiMock(page, options = {}) {
   const state = {
     loginSucceeds: options.loginSucceeds !== false,
@@ -51,6 +58,8 @@ export async function installApiMock(page, options = {}) {
       ],
     ),
     ventes: clone(options.ventes || []),
+    suggestions: clone(options.suggestions || []),
+    suggestionFailures: options.suggestionFailures || 0,
     parametres: {
       commission_cb_permanent: '1.50',
       commission_cb_temporaire: '2.50',
@@ -110,6 +119,73 @@ export async function installApiMock(page, options = {}) {
 
     if (method === 'GET' && path === '/api/auth/me') {
       return json(state.user)
+    }
+
+    if (path.startsWith('/api/admin/') && !['admin', 'dev'].includes(state.user.role)) {
+      return json({ error: 'Accès réservé aux administrateurs' }, 403)
+    }
+
+    if (method === 'POST' && path === '/api/suggestions') {
+      if (options.suggestionDelayMs) {
+        await new Promise((resolve) => setTimeout(resolve, options.suggestionDelayMs))
+      }
+      if (state.suggestionFailures > 0) {
+        state.suggestionFailures--
+        return json({ error: "Impossible d'envoyer la suggestion. Réessayez." }, 500)
+      }
+      const payload = request.postDataJSON()
+      const suggestion = {
+        id: nextId(state.suggestions),
+        titre: payload.titre.trim(),
+        description: payload.description.trim(),
+        statut: 'nouvelle',
+        auteur_id: state.user.id,
+        auteur_nom: state.user.nom,
+        auteur_nom_boutique: state.user.nom_boutique,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
+      state.suggestions.unshift(suggestion)
+      return json({ suggestion }, 201)
+    }
+
+    if (path === '/api/suggestions' || path.startsWith('/api/suggestions/')) {
+      if (state.user.role !== 'dev') {
+        return json({ error: 'Accès réservé au rôle Dev' }, 403)
+      }
+      if (method === 'GET' && path === '/api/suggestions') {
+        const params = url.searchParams
+        const pageNumber = Number(params.get('page') || 1)
+        const limit = Number(params.get('limit') || 20)
+        const direction = params.get('ordre') === 'asc' ? 1 : -1
+        const suggestions = state.suggestions
+          .filter((item) => {
+            if (params.get('statut') && item.statut !== params.get('statut')) return false
+            const parts = Object.fromEntries(
+              parisDateFormatter
+                .formatToParts(new Date(item.created_at))
+                .map(({ type, value }) => [type, value]),
+            )
+            const date = `${parts.year}-${parts.month}-${parts.day}`
+            if (params.get('date_debut') && date < params.get('date_debut')) return false
+            if (params.get('date_fin') && date > params.get('date_fin')) return false
+            return true
+          })
+          .sort((a, b) => direction * (a.created_at.localeCompare(b.created_at) || a.id - b.id))
+        return json({
+          suggestions: suggestions.slice((pageNumber - 1) * limit, pageNumber * limit),
+          total: suggestions.length,
+          page: pageNumber,
+          limit,
+        })
+      }
+      if (method === 'PATCH' && /^\/api\/suggestions\/\d+\/statut$/.test(path)) {
+        const suggestion = state.suggestions.find((item) => item.id === Number(path.split('/')[3]))
+        if (!suggestion) return json({ error: 'Suggestion introuvable' }, 404)
+        suggestion.statut = request.postDataJSON().statut
+        suggestion.updated_at = new Date().toISOString()
+        return json({ suggestion })
+      }
     }
 
     if (method === 'GET' && path === '/api/ventes/artisans') {
@@ -182,11 +258,20 @@ export async function installApiMock(page, options = {}) {
     }
 
     if (method === 'GET' && path === '/api/admin/users') {
-      return json(state.users)
+      return json(
+        state.users.map((user) =>
+          user.role === 'dev' && state.user.role !== 'dev'
+            ? { ...user, generated_password: null }
+            : user,
+        ),
+      )
     }
 
     if (method === 'POST' && path === '/api/admin/users') {
       const payload = request.postDataJSON()
+      if (['admin', 'dev'].includes(payload.role) && state.user.role !== 'dev') {
+        return json({ error: 'Accès réservé au rôle Dev' }, 403)
+      }
       const id = nextId(state.users)
       const user = {
         id,
@@ -197,7 +282,7 @@ export async function installApiMock(page, options = {}) {
         ...payload,
       }
       state.users.unshift(user)
-      if (user.role !== 'admin') {
+      if (['permanent', 'temporaire'].includes(user.role)) {
         state.artisans.push({
           id,
           nom: user.nom,

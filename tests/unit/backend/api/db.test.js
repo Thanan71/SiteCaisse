@@ -58,7 +58,7 @@ beforeEach(() => {
   previousEnv = { ...process.env }
   delete process.env.VITE_PUBLIC_SUPABASE_URL
   delete process.env.VITE_PUBLIC_SUPABASE_ANON_KEY
-  delete process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key'
 })
 
 afterEach(() => {
@@ -96,27 +96,26 @@ describe('db', () => {
     )
   })
 
-  it('utilise la cle anon si aucune cle service role n est disponible', () => {
+  it('refuse la cle anon pour acceder aux comptes et suggestions prives', () => {
     const client = { from: vi.fn() }
     const createClient = vi.fn(() => client)
     const db = loadDb({ createClient })
 
     process.env.VITE_PUBLIC_SUPABASE_URL = 'https://sitecaisse.supabase.co'
     process.env.VITE_PUBLIC_SUPABASE_ANON_KEY = 'anon-key'
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY
 
-    expect(db.getSupabase()).toBe(client)
-    expect(createClient).toHaveBeenCalledWith(
-      'https://sitecaisse.supabase.co',
-      'anon-key',
-      expect.any(Object),
+    expect(() => db.getSupabase()).toThrow(
+      'Variables VITE_PUBLIC_SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY requises',
     )
+    expect(createClient).not.toHaveBeenCalled()
   })
 
-  it('refuse de demarrer sans les variables Supabase publiques', () => {
+  it('refuse de demarrer sans l URL Supabase', () => {
     const db = loadDb()
 
     expect(() => db.getSupabase()).toThrow(
-      'Variables VITE_PUBLIC_SUPABASE_URL et VITE_PUBLIC_SUPABASE_ANON_KEY requises',
+      'Variables VITE_PUBLIC_SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY requises',
     )
   })
 

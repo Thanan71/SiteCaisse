@@ -19,6 +19,7 @@ describe('api index', () => {
     const ventesRouter = express.Router()
     const rapportsRouter = express.Router()
     const adminRouter = express.Router()
+    const suggestionsRouter = express.Router()
     const seedAdminIfMissing = vi.fn(async () => {})
 
     const { loaded: app, restore } = loadCjsWithMocks('api/index.cjs', {
@@ -27,6 +28,7 @@ describe('api index', () => {
       'api/models.cjs': { seedAdminIfMissing },
       'api/rapportsController.cjs': rapportsRouter,
       'api/ventesController.cjs': ventesRouter,
+      'api/suggestionsController.cjs': suggestionsRouter,
     })
 
     expect(seedAdminIfMissing).toHaveBeenCalledTimes(1)
@@ -42,6 +44,7 @@ describe('api index', () => {
         expect.stringContaining('\\/api\\/ventes'),
         expect.stringContaining('\\/api\\/rapports'),
         expect.stringContaining('\\/api\\/admin'),
+        expect.stringContaining('\\/api\\/suggestions'),
       ]),
     )
 

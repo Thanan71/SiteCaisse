@@ -20,14 +20,14 @@
           <td class="col-nom">{{ user.nom }}</td>
           <td class="col-boutique" :title="user.nom_boutique">{{ user.nom_boutique }}</td>
           <td class="col-password">
-            <span v-if="user.generated_password" class="password-chip">
+            <span v-if="user.generated_password && (user.role !== 'dev' || canManageDev)" class="password-chip">
               {{ user.generated_password }}
             </span>
             <span v-else class="password-empty">—</span>
           </td>
           <td class="col-role">
             <span class="role-badge" :class="'role-' + user.role">
-              {{ user.role === 'admin' ? 'Admin' : user.role === 'permanent' ? 'Permanent' : 'Invité' }}
+              {{ user.role === 'dev' ? 'Dev' : user.role === 'admin' ? 'Admin' : user.role === 'permanent' ? 'Permanent' : 'Invité' }}
             </span>
           </td>
           <td class="col-actif">
@@ -47,7 +47,7 @@
                 {{ extendingId === user.id ? '...' : 'Prolonger' }}
               </button>
               <button
-                v-if="user.role !== 'admin' && user.est_actif !== false"
+                v-if="['permanent', 'temporaire'].includes(user.role) && user.est_actif !== false"
                 @click="$emit('delete', user)"
                 class="btn btn-danger btn-sm"
                 :disabled="deletingId === user.id"
@@ -56,7 +56,7 @@
                 {{ deletingId === user.id ? '...' : 'Archiver' }}
               </button>
               <button
-                v-if="user.role !== 'admin' && user.est_actif === false"
+                v-if="['permanent', 'temporaire'].includes(user.role) && user.est_actif === false"
                 @click="$emit('reactivate', user)"
                 class="btn btn-success btn-sm"
                 :disabled="reactivatingId === user.id"
@@ -65,6 +65,7 @@
                 {{ reactivatingId === user.id ? '...' : 'Désarchiver' }}
               </button>
               <button
+                v-if="user.role !== 'dev' || canManageDev"
                 @click="$emit('reset-password', user)"
                 class="btn btn-warning btn-sm"
                 :disabled="resettingId === user.id"
@@ -85,6 +86,7 @@ import { formatDateTime as formatDate, formatDateSimple } from '../utils/formatt
 
 const props = defineProps({
   users: { type: Array, required: true },
+  canManageDev: { type: Boolean, default: false },
   deletingId: { type: Number, default: null },
   reactivatingId: { type: Number, default: null },
   extendingId: { type: Number, default: null },
@@ -172,7 +174,8 @@ defineEmits(['delete', 'extend', 'reactivate', 'reset-password'])
   font-weight: 500;
 }
 
-.role-admin {
+.role-admin,
+.role-dev {
   background: #f3e8ff;
   color: #9333ea;
 }

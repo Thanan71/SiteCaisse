@@ -8,6 +8,7 @@
 const express = require('express')
 const { getAllArtisans } = require('./models.cjs')
 const { authMiddleware } = require('./authController.cjs')
+const { isAdminRole } = require('./services/permissionService.cjs')
 const {
   getRapportArtisan,
   getRapportGlobal,
@@ -21,7 +22,7 @@ const router = express.Router()
 router.use(authMiddleware)
 
 function isAdmin(user) {
-  return user?.role === 'admin'
+  return isAdminRole(user?.role)
 }
 
 function canAccessArtisan(user, artisanId) {
