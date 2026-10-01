@@ -27,6 +27,38 @@ async function navigate(path, storage) {
 }
 
 describe('router', () => {
+  it.each([
+    'admin',
+    'dev',
+    'permanent',
+    'temporaire',
+  ])('autorise les suggestions au role %s', async (role) => {
+    const route = await navigate('/suggestions', { token: 'token', user: JSON.stringify({ role }) })
+    expect(route.name).toBe('Suggestions')
+  })
+
+  it.each([
+    'admin',
+    'dev',
+    'permanent',
+    'temporaire',
+  ])('protege la liste dev pour le role %s', async (role) => {
+    const route = await navigate('/dev/suggestions', {
+      token: 'token',
+      user: JSON.stringify({ role }),
+    })
+    expect(route.name).toBe(role === 'dev' ? 'DevSuggestions' : 'Ventes')
+  })
+
+  it('autorise dev a administrer et protege les suggestions sans connexion', async () => {
+    expect(
+      (await navigate('/admin', { token: 'token', user: JSON.stringify({ role: 'dev' }) })).name,
+    ).toBe('Admin')
+    window.localStorage.clear()
+    expect((await navigate('/suggestions')).name).toBe('Login')
+    expect((await navigate('/dev/suggestions')).name).toBe('Login')
+  })
+
   it('declare les routes publiques, protegees et admin', async () => {
     const router = await loadRouter()
     const routes = router.getRoutes()

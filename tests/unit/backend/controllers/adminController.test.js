@@ -11,6 +11,48 @@ afterEach(() => {
 })
 
 describe('adminController', () => {
+  it.each(['admin', 'dev'])('reserve la creation du role %s aux developpeurs', async (role) => {
+    const { router, adminService, restore } = loadAdminController({
+      createUser: vi.fn(async (payload) => ({
+        user: { id: 5, ...payload },
+        newPassword: 'generated1234',
+      })),
+    })
+    const body = { nom: 'Equipe', nom_boutique: 'Equipe', role }
+    const developer = { ...adminUser, id: 10, role: 'dev' }
+
+    await expect(invokeRoute(router, 'post', '/users', { body })).resolves.toMatchObject({
+      res: { statusCode: 403 },
+    })
+    expect(adminService.createUser).not.toHaveBeenCalled()
+
+    await expect(
+      invokeRoute(router, 'post', '/users', { body, user: developer }),
+    ).resolves.toMatchObject({ res: { statusCode: 201, body: { user: { role } } } })
+    expect(adminService.createUser).toHaveBeenCalledWith(body, developer)
+
+    await expect(
+      invokeRoute(router, 'post', '/users', {
+        body: { ...body, date_fin: '2099-12-31' },
+        user: developer,
+      }),
+    ).resolves.toMatchObject({ res: { statusCode: 400 } })
+    expect(adminService.createUser).toHaveBeenCalledTimes(1)
+    restore()
+  })
+
+  it('accorde au dev les droits administrateur sur les utilisateurs, parametres et logs', async () => {
+    const { router, adminService, restore } = loadAdminController()
+    const developer = { ...adminUser, id: 10, role: 'dev' }
+    for (const path of ['/users', '/parametres', '/logs']) {
+      await expect(invokeRoute(router, 'get', path, { user: developer })).resolves.toMatchObject({
+        res: { statusCode: 200 },
+      })
+    }
+    expect(adminService.listUsers).toHaveBeenCalledWith(developer)
+    restore()
+  })
+
   it('refuse les non-admin et liste les utilisateurs pour un admin', async () => {
     const { router, adminService, restore } = loadAdminController()
 
@@ -27,6 +69,7 @@ describe('adminController', () => {
       res: { statusCode: 200, body: [adminUser] },
     })
     expect(adminService.listUsers).toHaveBeenCalledTimes(1)
+    expect(adminService.listUsers).toHaveBeenCalledWith(adminUser)
 
     restore()
   })
@@ -40,10 +83,10 @@ describe('adminController', () => {
 
     await expect(
       invokeRoute(router, 'post', '/users', {
-        body: { nom: 'Zoe', nom_boutique: 'Atelier Zoe', role: 'admin' },
+        body: { nom: 'Zoe', nom_boutique: 'Atelier Zoe', role: 'inconnu' },
       }),
     ).resolves.toMatchObject({
-      res: { statusCode: 400, body: { error: 'Le rôle doit être "permanent" ou "temporaire"' } },
+      res: { statusCode: 400, body: { error: 'Rôle invalide' } },
     })
 
     await expect(
@@ -87,12 +130,15 @@ describe('adminController', () => {
         },
       },
     })
-    expect(adminService.createUser).toHaveBeenCalledWith({
-      date_fin: undefined,
-      nom: 'Zoe',
-      nom_boutique: 'Atelier Zoe',
-      role: 'permanent',
-    })
+    expect(adminService.createUser).toHaveBeenCalledWith(
+      {
+        date_fin: undefined,
+        nom: 'Zoe',
+        nom_boutique: 'Atelier Zoe',
+        role: 'permanent',
+      },
+      adminUser,
+    )
     expect(logger.logAction).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'user.create', cible_id: 3 }),
     )
@@ -127,7 +173,7 @@ describe('adminController', () => {
     ).resolves.toMatchObject({
       res: { statusCode: 200, body: { message: 'Utilisateur désactivé avec succès' } },
     })
-    expect(adminService.deactivateUser).toHaveBeenCalledWith(3, adminUser.id)
+    expect(adminService.deactivateUser).toHaveBeenCalledWith(3, adminUser)
 
     await expect(
       invokeRoute(router, 'patch', '/users/:id/reactivate', { params: { id: '3' } }),
@@ -140,6 +186,7 @@ describe('adminController', () => {
         },
       },
     })
+    expect(adminService.reactivateUser).toHaveBeenCalledWith(3, adminUser)
 
     await expect(
       invokeRoute(router, 'patch', '/users/:id/commission', {
@@ -155,7 +202,7 @@ describe('adminController', () => {
         },
       },
     })
-    expect(adminService.updateUserCommission).toHaveBeenCalledWith(3, '1.5')
+    expect(adminService.updateUserCommission).toHaveBeenCalledWith(3, '1.5', adminUser)
 
     await expect(
       invokeRoute(router, 'post', '/users/:id/reset-password', { params: { id: '3' } }),
@@ -165,6 +212,7 @@ describe('adminController', () => {
         body: { message: 'Mot de passe réinitialisé avec succès.', newPassword: 'reset1234' },
       },
     })
+    expect(adminService.resetPasswordForUser).toHaveBeenCalledWith(3, adminUser)
 
     await expect(
       invokeRoute(router, 'patch', '/users/:id/extend', {
@@ -177,6 +225,7 @@ describe('adminController', () => {
         body: { message: 'Accès prolongé avec succès', nouvelle_date_fin: '2026-08-31' },
       },
     })
+    expect(adminService.extendTemporaryUserAccess).toHaveBeenCalledWith(4, '2026-08-31', adminUser)
     expect(logger.logAction).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'user.extend', cible_id: 4 }),
     )

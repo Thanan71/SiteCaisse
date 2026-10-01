@@ -5,6 +5,32 @@ import { describe, expect, it } from 'vitest'
 import UserTable from '../../../../src/components/UserTable.vue'
 
 describe('UserTable', () => {
+  it.each([false, true])('protege le compte dev selon les droits (%s)', async (canManageDev) => {
+    const wrapper = mount(UserTable, {
+      props: {
+        canManageDev,
+        getStatusClass: () => 'active',
+        getStatusLabel: () => 'Actif',
+        users: [
+          {
+            id: 5,
+            nom: 'Developpeur',
+            role: 'dev',
+            est_actif: true,
+            generated_password: 'dev-secret',
+          },
+        ],
+      },
+    })
+    expect(wrapper.find('.role-dev').text()).toBe('Dev')
+    expect(wrapper.text().includes('dev-secret')).toBe(canManageDev)
+    expect(wrapper.findAll('button')).toHaveLength(canManageDev ? 1 : 0)
+    if (canManageDev) {
+      await wrapper.find('button').trigger('click')
+      expect(wrapper.emitted('reset-password')[0][0]).toMatchObject({ id: 5 })
+    }
+  })
+
   it('rend les utilisateurs et emet leurs actions', async () => {
     const wrapper = mount(UserTable, {
       props: {

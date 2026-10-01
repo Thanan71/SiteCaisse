@@ -29,9 +29,11 @@ export const useAuthStore = defineStore('auth', {
 
     /**
      * Vérifie si l'utilisateur connecté est un administrateur.
-     * @returns {boolean} true si le rôle est 'admin', false sinon.
+     * @returns {boolean} true si le rôle est 'admin' ou 'dev', false sinon.
      */
-    isAdmin: (state) => state.user?.role === 'admin',
+    isAdmin: (state) => ['admin', 'dev'].includes(state.user?.role),
+
+    isDev: (state) => state.user?.role === 'dev',
 
     /**
      * Retourne le nom de l'utilisateur connecté.

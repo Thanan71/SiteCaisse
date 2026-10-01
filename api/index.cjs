@@ -12,6 +12,7 @@ const { router: authRouter } = require('./authController.cjs')
 const ventesRouter = require('./ventesController.cjs')
 const rapportsRouter = require('./rapportsController.cjs')
 const adminRouter = require('./adminController.cjs')
+const suggestionsRouter = require('./suggestionsController.cjs')
 const { seedAdminIfMissing } = require('./models.cjs')
 
 // Garantir qu'un compte administrateur existe (créé si absent)
@@ -30,6 +31,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/ventes', ventesRouter)
 app.use('/api/rapports', rapportsRouter)
 app.use('/api/admin', adminRouter)
+app.use('/api/suggestions', suggestionsRouter)
 
 /**
  * Exporte l'application Express pour Vercel (Serverless Functions).

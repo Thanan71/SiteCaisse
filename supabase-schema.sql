@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
       OR commission_cb_personnalisee BETWEEN 0 AND 100
     ),
   role TEXT NOT NULL DEFAULT 'permanent'
-    CHECK (role IN ('admin', 'permanent', 'temporaire')),
+    CHECK (role IN ('dev', 'admin', 'permanent', 'temporaire')),
   est_actif BOOLEAN NOT NULL DEFAULT true,
   password_change_required BOOLEAN NOT NULL DEFAULT false,
   date_fin DATE,
@@ -71,6 +71,19 @@ CREATE TABLE IF NOT EXISTS action_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS suggestions (
+  id SERIAL PRIMARY KEY,
+  titre TEXT NOT NULL CHECK (length(btrim(titre)) BETWEEN 1 AND 120),
+  description TEXT NOT NULL CHECK (length(btrim(description)) BETWEEN 1 AND 2000),
+  statut TEXT NOT NULL DEFAULT 'nouvelle'
+    CHECK (statut IN ('nouvelle', 'en_cours', 'acceptee', 'refusee')),
+  auteur_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  auteur_nom TEXT NOT NULL,
+  auteur_nom_boutique TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 INSERT INTO parametres (cle, valeur, description) VALUES
   ('commission_cb_permanent', '1.70', 'Commission CB en % pour les artisans permanents'),
   ('commission_cb_temporaire', '1.70', 'Commission CB en % pour les artisans temporaires')
@@ -90,6 +103,11 @@ BEFORE UPDATE ON parametres
 FOR EACH ROW
 EXECUTE FUNCTION set_updated_at();
 
+DROP TRIGGER IF EXISTS trg_suggestions_updated_at ON suggestions;
+CREATE TRIGGER trg_suggestions_updated_at
+BEFORE UPDATE ON suggestions
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 CREATE INDEX IF NOT EXISTS idx_users_role_actif ON users(role, est_actif);
 CREATE INDEX IF NOT EXISTS idx_ventes_date_vente ON ventes(date_vente DESC);
 CREATE INDEX IF NOT EXISTS idx_ventes_created_at ON ventes(created_at DESC);
@@ -101,10 +119,18 @@ CREATE INDEX IF NOT EXISTS idx_action_logs_created_at ON action_logs(created_at 
 CREATE INDEX IF NOT EXISTS idx_action_logs_action ON action_logs(action);
 CREATE INDEX IF NOT EXISTS idx_action_logs_cible_type ON action_logs(cible_type);
 CREATE INDEX IF NOT EXISTS idx_action_logs_user_id ON action_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_suggestions_created_id ON suggestions(created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_suggestions_statut_created_id ON suggestions(statut, created_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_suggestions_auteur_id ON suggestions(auteur_id);
 
 -- L'API backend gère l'authentification et doit utiliser SUPABASE_SERVICE_ROLE_KEY.
--- Pour une exposition directe côté client, préférer activer RLS avec des policies explicites.
-ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+-- users et suggestions ne sont accessibles qu'au serveur ; ses routes contrôlent les rôles.
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE suggestions ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE users, suggestions FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON SEQUENCE users_id_seq, suggestions_id_seq FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE users, suggestions TO service_role;
+GRANT USAGE, SELECT ON SEQUENCE users_id_seq, suggestions_id_seq TO service_role;
 ALTER TABLE ventes DISABLE ROW LEVEL SECURITY;
 ALTER TABLE vente_articles DISABLE ROW LEVEL SECURITY;
 ALTER TABLE parametres DISABLE ROW LEVEL SECURITY;

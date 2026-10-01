@@ -11,6 +11,43 @@ afterEach(() => {
 })
 
 describe('rapportsController', () => {
+  it('accorde au dev les rapports globaux et ceux de tous les artisans', async () => {
+    const developer = { id: 10, nom: 'Dev', role: 'dev' }
+    const rapport = {
+      groupes: [{ artisan_id: 2 }, { artisan_id: 3 }],
+      total: { total_montant: 100 },
+    }
+    const { router, models, rapportService, restore } = loadRapportsController({
+      getRapportGlobal: vi.fn(async () => rapport),
+      getRapportMensuel: vi.fn(async () => ({ mois: [rapport] })),
+      getRapportParMois: vi.fn(async () => rapport),
+    })
+
+    await expect(invokeRoute(router, 'get', '/', { user: developer })).resolves.toMatchObject({
+      res: { statusCode: 200, body: rapport },
+    })
+    await expect(
+      invokeRoute(router, 'get', '/mensuel', { user: developer }),
+    ).resolves.toMatchObject({
+      res: { statusCode: 200, body: { mois: [rapport] } },
+    })
+    await expect(
+      invokeRoute(router, 'get', '/mensuel/:mois', {
+        user: developer,
+        params: { mois: '2026-10' },
+      }),
+    ).resolves.toMatchObject({ res: { statusCode: 200, body: rapport } })
+    await expect(
+      invokeRoute(router, 'get', '/artisans', { user: developer }),
+    ).resolves.toMatchObject({ res: { statusCode: 200, body: [artisanUser] } })
+    expect(models.getAllArtisans).toHaveBeenCalledWith({ includeInactive: false })
+    await expect(
+      invokeRoute(router, 'get', '/:artisan_id', { user: developer, params: { artisan_id: '2' } }),
+    ).resolves.toMatchObject({ res: { statusCode: 200 } })
+    expect(rapportService.getRapportArtisan).toHaveBeenCalledWith(2)
+    restore()
+  })
+
   it('retourne les rapports globaux, mensuels, artisans et par artisan', async () => {
     const { router, models, rapportService, restore } = loadRapportsController({
       getRapportArtisan: vi.fn(async () => ({ artisan: 2 })),

@@ -26,6 +26,12 @@
       >
         Admin
       </router-link>
+      <router-link to="/suggestions" class="navbar-link" :class="{ active: $route.path === '/suggestions' }">
+        Suggestions
+      </router-link>
+      <router-link v-if="authStore.isDev" to="/dev/suggestions" class="navbar-link" :class="{ active: $route.path === '/dev/suggestions' }">
+        Dev
+      </router-link>
     </div>
 
     <div v-if="authStore.isAuthenticated" class="navbar-user">
@@ -41,7 +47,7 @@
                 : 'badge-temporaire'
           "
         >
-          {{ authStore.isAdmin ? 'Admin' : authStore.isPermanent ? 'Permanent' : 'Invité' }}
+          {{ authStore.isDev ? 'Dev' : authStore.isAdmin ? 'Admin' : authStore.isPermanent ? 'Permanent' : 'Invité' }}
         </span>
       </span>
       <button type="button" class="btn-logout" @click="handleLogout">Déconnexion</button>
@@ -93,6 +99,12 @@
         >
           Admin
         </router-link>
+        <router-link to="/suggestions" class="navbar-mobile-link" :class="{ active: $route.path === '/suggestions' }" @click="closeMobileMenu">
+          Suggestions
+        </router-link>
+        <router-link v-if="authStore.isDev" to="/dev/suggestions" class="navbar-mobile-link" :class="{ active: $route.path === '/dev/suggestions' }" @click="closeMobileMenu">
+          Dev
+        </router-link>
       </div>
 
       <div class="mobile-user-section">
@@ -108,7 +120,7 @@
                   : 'badge-temporaire'
             "
           >
-            {{ authStore.isAdmin ? 'Admin' : authStore.isPermanent ? 'Permanent' : 'Invité' }}
+            {{ authStore.isDev ? 'Dev' : authStore.isAdmin ? 'Admin' : authStore.isPermanent ? 'Permanent' : 'Invité' }}
           </span>
         </div>
         <button type="button" class="btn-logout mobile-logout" @click="handleLogout">
@@ -310,7 +322,7 @@ function handleLogout() {
   display: none;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .navbar {
     padding: 0 16px;
   }

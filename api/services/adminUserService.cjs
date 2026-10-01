@@ -8,6 +8,7 @@ const bcrypt = require('bcryptjs')
 const crypto = require('node:crypto')
 const { getSupabase } = require('../db.cjs')
 const { extendUserDateFin, resetUserPassword } = require('../models.cjs')
+const { isAdminRole } = require('./permissionService.cjs')
 
 const USER_LIST_SELECT =
   'id, nom, nom_boutique, generated_password, commission_cb_personnalisee, role, est_actif, date_fin, created_at'
@@ -18,6 +19,22 @@ class AdminUserError extends Error {
     this.name = 'AdminUserError'
     this.statusCode = statusCode
     this.code = code
+  }
+}
+
+function assertAdminActor(actor) {
+  if (!isAdminRole(actor?.role)) {
+    throw new AdminUserError('Accès réservé aux administrateurs', 403, 'ADMIN_REQUIRED')
+  }
+}
+
+function assertCanManageUser(user, actor) {
+  if (user.role === 'dev' && actor.role !== 'dev') {
+    throw new AdminUserError(
+      'Seuls les développeurs peuvent gérer les comptes dev',
+      403,
+      'DEV_ACCOUNT_FORBIDDEN',
+    )
   }
 }
 
@@ -63,7 +80,8 @@ async function findUserById(userId, select) {
   return data || null
 }
 
-async function listUsers() {
+async function listUsers(actor) {
+  assertAdminActor(actor)
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('users')
@@ -71,10 +89,25 @@ async function listUsers() {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data || []
+  return (data || []).map((user) => {
+    if (user.role !== 'dev' || actor.role === 'dev') return user
+    const { generated_password: _generatedPassword, ...visibleUser } = user
+    return visibleUser
+  })
 }
 
-async function createUser({ nom, nom_boutique, role, date_fin }) {
+async function createUser({ nom, nom_boutique, role, date_fin }, actor) {
+  assertAdminActor(actor)
+  if (!['permanent', 'temporaire', 'admin', 'dev'].includes(role)) {
+    throw new AdminUserError('Rôle invalide', 400, 'INVALID_ROLE')
+  }
+  if (isAdminRole(role) && actor.role !== 'dev') {
+    throw new AdminUserError(
+      'Seuls les développeurs peuvent créer des comptes admin ou dev',
+      403,
+      'PRIVILEGED_ROLE_FORBIDDEN',
+    )
+  }
   const supabase = getSupabase()
 
   const { data: existing, error: existingError } = await supabase
@@ -118,8 +151,9 @@ async function createUser({ nom, nom_boutique, role, date_fin }) {
   return { user: data, newPassword: generatedPassword }
 }
 
-async function deactivateUser(userId, currentUserId) {
-  if (Number(userId) === Number(currentUserId)) {
+async function deactivateUser(userId, actor) {
+  assertAdminActor(actor)
+  if (Number(userId) === Number(actor.id)) {
     throw new AdminUserError(
       'Vous ne pouvez pas désactiver votre propre compte',
       400,
@@ -134,9 +168,10 @@ async function deactivateUser(userId, currentUserId) {
     throw new AdminUserError('Utilisateur non trouvé', 404, 'USER_NOT_FOUND')
   }
 
-  if (userToDeactivate.role === 'admin') {
+  assertCanManageUser(userToDeactivate, actor)
+  if (isAdminRole(userToDeactivate.role)) {
     throw new AdminUserError(
-      'Les comptes administrateurs ne peuvent pas être désactivés',
+      'Les comptes admin et dev ne peuvent pas être désactivés',
       400,
       'ADMIN_DEACTIVATE',
     )
@@ -157,7 +192,8 @@ async function deactivateUser(userId, currentUserId) {
   return data
 }
 
-async function reactivateUser(userId) {
+async function reactivateUser(userId, actor) {
+  assertAdminActor(actor)
   const supabase = getSupabase()
   const userToReactivate = await findUserById(userId, 'id, nom, nom_boutique, role, est_actif')
 
@@ -165,6 +201,7 @@ async function reactivateUser(userId) {
     throw new AdminUserError('Utilisateur non trouvé', 404, 'USER_NOT_FOUND')
   }
 
+  assertCanManageUser(userToReactivate, actor)
   if (userToReactivate.est_actif) {
     return userToReactivate
   }
@@ -180,7 +217,8 @@ async function reactivateUser(userId) {
   return data
 }
 
-async function updateUserCommission(userId, value) {
+async function updateUserCommission(userId, value, actor) {
+  assertAdminActor(actor)
   const commissionCbPersonnalisee = parseOptionalPositiveNumber(value)
   const supabase = getSupabase()
   const user = await findUserById(
@@ -192,7 +230,8 @@ async function updateUserCommission(userId, value) {
     throw new AdminUserError('Utilisateur non trouvé', 404, 'USER_NOT_FOUND')
   }
 
-  if (user.role === 'admin') {
+  assertCanManageUser(user, actor)
+  if (isAdminRole(user.role)) {
     throw new AdminUserError(
       'Les commissions personnalisées ne concernent que les artisans',
       400,
@@ -212,18 +251,21 @@ async function updateUserCommission(userId, value) {
   return { previousUser: user, user: data }
 }
 
-async function resetPasswordForUser(userId) {
-  const user = await findUserById(userId, 'id, nom, nom_boutique')
+async function resetPasswordForUser(userId, actor) {
+  assertAdminActor(actor)
+  const user = await findUserById(userId, 'id, nom, nom_boutique, role')
 
   if (!user) {
     throw new AdminUserError('Utilisateur non trouvé', 404, 'USER_NOT_FOUND')
   }
 
+  assertCanManageUser(user, actor)
   const newPassword = await resetUserPassword(userId, generateUserPassword(user.nom_boutique))
   return { user, newPassword }
 }
 
-async function extendTemporaryUserAccess(userId, dateFin) {
+async function extendTemporaryUserAccess(userId, dateFin, actor) {
+  assertAdminActor(actor)
   if (!dateFin) {
     throw new AdminUserError('La nouvelle date de fin est requise', 400, 'MISSING_END_DATE')
   }
@@ -234,6 +276,7 @@ async function extendTemporaryUserAccess(userId, dateFin) {
     throw new AdminUserError('Utilisateur non trouvé', 404, 'USER_NOT_FOUND')
   }
 
+  assertCanManageUser(user, actor)
   if (user.role !== 'temporaire') {
     throw new AdminUserError(
       'Seuls les utilisateurs temporaires peuvent être prolongés',

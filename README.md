@@ -22,11 +22,12 @@ SiteCaisse est une application de caisse et gestion des ventes pour artisans, co
 ## ✨ Fonctionnalités principales
 
 - Authentification utilisateur via JWT
-- Gestion des rôles : `admin`, `permanent`, `temporaire`
+- Gestion des rôles : `dev`, `admin`, `permanent`, `temporaire`
 - Enregistrement des ventes avec ligne d’articles
 - Filtrage par date et type de paiement
 - Vue synthétique des ventes mensuelles et rapports
-- Interface d’administration réservée aux admins
+- Interface d’administration accessible aux admins et aux Dev
+- Boîte à idées pour tous les utilisateurs connectés, consultation et traitement réservés aux Dev
 - Gestion des mots de passe et changement obligatoire
 - Seed initial d’utilisateurs de démonstration
 - Journalisation des actions et des erreurs
@@ -84,13 +85,35 @@ JWT_SECRET=<secret-jwt-personnel>
 PORT=3001
 ```
 
-> Note : `SUPABASE_SERVICE_ROLE_KEY` est fortement recommandé pour que seul le backend accède aux tables Supabase. Ne partagez jamais cette clé publiquement.
+> Note : `SUPABASE_SERVICE_ROLE_KEY` est obligatoire côté backend. Les comptes et les suggestions
+> sont protégés par RLS et ne sont pas accessibles avec la clé publique. Ne partagez jamais la clé serveur.
 
 4. Créer les tables Supabase
 
 - Pour une nouvelle base, exécuter `supabase-schema.sql` depuis l’éditeur SQL du dashboard Supabase.
-- Pour une base existante, appliquer les fichiers `supabase-migrations/*.sql` dans l’ordre, puis `011_harden_schema_constraints_indexes.sql`.
-- Vérifier que les tables `users`, `ventes`, `vente_articles`, `parametres` et `action_logs` sont présentes.
+- Pour une base existante, appliquer les migrations 001 à 011 dans l'ordre, puis
+  `supabase-migrations/20261001172633_add_dev_role_and_suggestions.sql`.
+- Vérifier que les tables `users`, `ventes`, `vente_articles`, `parametres`, `action_logs` et `suggestions` sont présentes.
+
+### Premier compte Dev
+
+Pour l'activation sur le site existant, suivre le
+[guide de mise en service](docs/activation-dev-suggestions.md) : configurer la clé
+serveur et publier le nouveau code, appliquer la migration, puis promouvoir le compte.
+
+La migration n'accorde le rôle Dev à aucun compte automatiquement. Dans le SQL Editor Supabase,
+identifier un compte administrateur existant, puis le promouvoir en remplaçant `123` par son ID :
+
+```sql
+SELECT id, nom, nom_boutique, role FROM public.users WHERE role = 'admin' AND est_actif = true;
+UPDATE public.users SET role = 'dev'
+WHERE id = 123 AND role = 'admin' AND est_actif = true
+RETURNING id, nom_boutique, role;
+```
+
+Le mot de passe reste celui du compte. Se reconnecter pour afficher la navigation Dev.
+Les Dev peuvent ensuite créer d'autres comptes Dev ou admin depuis l'administration.
+Les admins peuvent créer uniquement des artisans et ne peuvent modifier les comptes Dev.
 
 5. Lancer l’application
 
@@ -170,6 +193,21 @@ npm run dev
 - `PUT /api/admin/users/:id` : mise à jour d’un utilisateur
 - `POST /api/admin/users` : création d’un utilisateur
 
+### Suggestions
+
+- `POST /api/suggestions` : envoyer `{ titre, description }`, pour tout utilisateur connecté.
+  Titre obligatoire de 1 à 120 caractères, description obligatoire de 1 à 2000 caractères.
+  L'auteur et le statut initial `nouvelle` sont déterminés par le serveur.
+- `GET /api/suggestions` : liste privée Dev, avec `page`, `limit` (20 par défaut, 100 maximum),
+  `statut`, `date_debut`, `date_fin` (jours inclusifs en heure de Paris) et `ordre` (`asc` ou `desc`).
+- `PATCH /api/suggestions/:id/statut` : traitement Dev avec `{ statut }` ; valeurs acceptées :
+  `nouvelle`, `en_cours`, `acceptee`, `refusee`.
+
+Le formulaire est accessible sur `/suggestions`. La liste et les filtres se trouvent sur
+`/dev/suggestions`, réservé aux Dev. Le détail s'ouvre dans la liste ; un changement de statut
+n'est enregistré qu'après clic sur « Appliquer ». Le contenu d'une suggestion n'est pas copié
+dans les logs accessibles aux administrateurs.
+
 ## 🧾 Schéma de base de données
 
 Le fichier `supabase-schema.sql` déclare :
@@ -179,12 +217,19 @@ Le fichier `supabase-schema.sql` déclare :
 - `vente_articles` : lignes d’articles vendus, avec quantité, prix et artisan attribué par ligne
 - `parametres` : paramètres système, notamment les taux de commission
 - `action_logs` : journalisation des actions utilisateur et erreurs
+- `suggestions` : titre, description, auteur, dates et statut de traitement
 
 ## 🔐 Rôles et autorisations
 
-- `admin` : accès à la page Admin et gestion des utilisateurs
+- `dev` : tous les droits admin, création de comptes privilégiés et traitement privé des suggestions
+- `admin` : accès à la page Admin et gestion des artisans, sans accès à la liste des suggestions
 - `permanent` : accès complet à la caisse et aux rapports
 - `temporaire` : accès limité avec date d’expiration possible
+
+La hiérarchie est `dev > admin > permanent/temporaire`. Le backend relit le rôle et l'état
+actuels du compte à chaque requête ; un ancien token ne conserve pas des privilèges retirés.
+Tous ces rôles peuvent envoyer une suggestion. Les comptes admin/dev ne sont pas des artisans
+commissionnés et restent protégés de l'archivage depuis l'interface.
 
 Les commissions des invités (`temporaire`) s'appliquent à tous les moyens de paiement :
 carte bancaire, espèces et chèques. Celles des permanents s'appliquent uniquement aux

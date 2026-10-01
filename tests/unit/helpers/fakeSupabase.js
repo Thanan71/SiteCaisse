@@ -92,6 +92,12 @@ class FakeQueryBuilder {
     return this
   }
 
+  lt(column, value) {
+    this.calls.push({ method: 'lt', tableName: this.tableName, column, value })
+    this.filters.push((row) => row[column] < value)
+    return this
+  }
+
   order(column, options = {}) {
     this.calls.push({ method: 'order', tableName: this.tableName, column, options })
     this.orders.push({ column, ascending: options.ascending !== false })

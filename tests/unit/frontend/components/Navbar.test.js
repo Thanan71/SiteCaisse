@@ -6,6 +6,7 @@ import Navbar from '../../../../src/components/Navbar.vue'
 
 const authStoreMock = vi.hoisted(() => ({
   isAdmin: true,
+  isDev: false,
   isAuthenticated: true,
   isPermanent: false,
   logout: vi.fn(),
@@ -26,6 +27,7 @@ vi.mock('vue-router', () => ({
 
 beforeEach(() => {
   authStoreMock.isAdmin = true
+  authStoreMock.isDev = false
   authStoreMock.isAuthenticated = true
   authStoreMock.isPermanent = false
   authStoreMock.logout.mockClear()
@@ -49,6 +51,27 @@ function mountNavbar() {
 }
 
 describe('Navbar', () => {
+  it.each([
+    false,
+    true,
+  ])('reserve le lien Dev au role dev (%s), sur ordinateur et mobile', async (isDev) => {
+    authStoreMock.isDev = isDev
+    const wrapper = mountNavbar()
+    expect(wrapper.find('a[href="/dev/suggestions"]').exists()).toBe(isDev)
+    expect(wrapper.find('a[href="/suggestions"]').exists()).toBe(true)
+    await wrapper.find('.navbar-toggle').trigger('click')
+    expect(wrapper.findAll('a[href="/dev/suggestions"]')).toHaveLength(isDev ? 2 : 0)
+    expect(wrapper.findAll('a[href="/suggestions"]')).toHaveLength(2)
+  })
+
+  it('ne montre ni administration ni Dev aux artisans', () => {
+    authStoreMock.isAdmin = false
+    const wrapper = mountNavbar()
+    expect(wrapper.find('a[href="/admin"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/dev/suggestions"]').exists()).toBe(false)
+    expect(wrapper.find('a[href="/suggestions"]').exists()).toBe(true)
+  })
+
   it('affiche la navigation connectee et deconnecte utilisateur', async () => {
     const wrapper = mountNavbar()
 
@@ -58,6 +81,7 @@ describe('Navbar', () => {
       'Ventes',
       'Rapports',
       'Admin',
+      'Suggestions',
     ])
 
     await wrapper.find('.navbar-user .btn-logout').trigger('click')
@@ -82,6 +106,7 @@ describe('Navbar', () => {
       'Ventes',
       'Rapports',
       'Admin',
+      'Suggestions',
     ])
 
     await wrapper.find('.navbar-mobile-link').trigger('click')

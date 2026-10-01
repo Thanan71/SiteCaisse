@@ -13,6 +13,13 @@ const { logAction, logError } = require('./services/loggerService.cjs')
 const router = express.Router()
 const JWT_SECRET = process.env.JWT_SECRET || 'sitecaisse-secret-key-2024'
 
+function isTemporaryAccessExpired(user) {
+  if (user.role !== 'temporaire' || !user.date_fin) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  return new Date(`${user.date_fin}T00:00:00`) < today
+}
+
 /**
  * Middleware de vérification du token JWT.
  * Extrait et vérifie le token depuis l'en-tête Authorization (Bearer).
@@ -60,6 +67,18 @@ async function authMiddleware(req, res, next) {
         req,
       })
       return res.status(403).json({ error: 'Compte désactivé' })
+    }
+
+    if (isTemporaryAccessExpired(user)) {
+      await logAction({
+        user,
+        action: 'auth.token_refused',
+        cible_type: 'auth',
+        cible_id: user.id,
+        details: { reason: 'expired_access', date_fin: user.date_fin },
+        req,
+      })
+      return res.status(403).json({ error: 'Votre accès a expiré. Contactez un administrateur.' })
     }
 
     req.user = {
@@ -124,21 +143,16 @@ router.post('/login', async (req, res) => {
     }
 
     // Vérifier si l'utilisateur temporaire a une date de fin dépassée
-    if (user.role === 'temporaire' && user.date_fin) {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      const dateFin = new Date(`${user.date_fin}T00:00:00`)
-      if (dateFin < today) {
-        await logAction({
-          user,
-          action: 'auth.login_failed',
-          cible_type: 'auth',
-          cible_id: user.id,
-          details: { reason: 'expired_access', date_fin: user.date_fin },
-          req,
-        })
-        return res.status(403).json({ error: 'Votre accès a expiré. Contactez un administrateur.' })
-      }
+    if (isTemporaryAccessExpired(user)) {
+      await logAction({
+        user,
+        action: 'auth.login_failed',
+        cible_type: 'auth',
+        cible_id: user.id,
+        details: { reason: 'expired_access', date_fin: user.date_fin },
+        req,
+      })
+      return res.status(403).json({ error: 'Votre accès a expiré. Contactez un administrateur.' })
     }
 
     const validPassword = bcrypt.compareSync(password, user.password_hash)

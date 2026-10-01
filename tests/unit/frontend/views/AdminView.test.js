@@ -3,6 +3,7 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
+import { useAuthStore } from '../../../../src/store/auth'
 import AdminView from '../../../../src/views/AdminView.vue'
 import { commonViewStubs, installViewTest } from './viewTestUtils'
 
@@ -238,6 +239,26 @@ function findButtonByText(wrapper, text) {
 }
 
 describe('AdminView', () => {
+  it.each(['admin', 'dev'])('reserve la creation des comptes privilegies au dev (%s)', (role) => {
+    useAuthStore().user = { role }
+    const wrapper = mountAdminView()
+    expect(wrapper.find('#role option[value="admin"]').exists()).toBe(role === 'dev')
+    expect(wrapper.find('#role option[value="dev"]').exists()).toBe(role === 'dev')
+    expect(wrapper.find('#role option[value="permanent"]').exists()).toBe(true)
+    expect(wrapper.find('#role option[value="temporaire"]').exists()).toBe(true)
+  })
+
+  it('exclut les comptes admin et dev des commissions personnalisees', async () => {
+    usersMock.users.value.push(
+      { id: 40, nom: 'Compte Dev', role: 'dev', commission_cb_personnalisee: 10 },
+      { id: 41, nom: 'Compte Admin', role: 'admin', commission_cb_personnalisee: 10 },
+    )
+    const wrapper = mountAdminView()
+    await wrapper.find('[data-testid="tab-commissions"]').trigger('click')
+    expect(wrapper.text()).not.toContain('Compte Dev')
+    expect(wrapper.text()).not.toContain('Compte Admin')
+  })
+
   it('charge les donnees admin et connecte le panneau utilisateurs', async () => {
     const wrapper = mountAdminView()
     await flushPromises()

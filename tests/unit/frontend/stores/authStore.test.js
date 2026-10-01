@@ -19,6 +19,18 @@ beforeEach(() => {
 import { useAuthStore } from '../../../../src/store/auth'
 
 describe('auth store', () => {
+  it.each([
+    'admin',
+    'dev',
+    'permanent',
+    'temporaire',
+  ])('distingue les droits du role %s', (role) => {
+    const store = useAuthStore()
+    store.user = { role }
+    expect(store.isAdmin).toBe(['admin', 'dev'].includes(role))
+    expect(store.isDev).toBe(role === 'dev')
+  })
+
   it('connecte, persiste puis deconnecte un utilisateur', async () => {
     api.post.mockResolvedValueOnce({
       data: {

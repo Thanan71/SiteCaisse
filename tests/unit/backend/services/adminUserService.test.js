@@ -3,6 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFakeSupabase } from '../../helpers/fakeSupabase'
 import { loadCjsWithMocks } from '../../helpers/loadCjsWithMocks'
 
+const adminActor = { id: 99, role: 'admin' }
+const devActor = { id: 100, role: 'dev' }
+
 afterEach(() => {
   vi.restoreAllMocks()
 })
@@ -23,16 +26,124 @@ describe('adminUserService', () => {
     })
   }
 
+  it('masque les mots de passe dev pour les admins sans modifier les donnees stockees', async () => {
+    const users = [
+      { id: 1, role: 'dev', generated_password: 'secret-dev' },
+      { id: 2, role: 'permanent', generated_password: 'artisan-password' },
+    ]
+    const fake = createFakeSupabase({ users })
+    const { loaded, restore } = loadAdminService(fake)
+
+    const adminList = await loaded.listUsers(adminActor)
+    expect(adminList.find((user) => user.role === 'dev')).not.toHaveProperty('generated_password')
+    expect(adminList.find((user) => user.role === 'permanent').generated_password).toBe(
+      'artisan-password',
+    )
+    expect(await loaded.listUsers(devActor)).toEqual(users)
+    expect(fake.tables.users).toEqual(users)
+    restore()
+  })
+
+  it.each(['admin', 'dev'])('reserve la creation du role %s aux dev', async (role) => {
+    const fake = createFakeSupabase({ users: [] })
+    const { loaded, restore } = loadAdminService(fake)
+    const payload = { nom: 'Equipe', nom_boutique: `Compte ${role}`, role }
+
+    await expect(loaded.createUser(payload, adminActor)).rejects.toMatchObject({
+      statusCode: 403,
+      code: 'PRIVILEGED_ROLE_FORBIDDEN',
+    })
+    expect(fake.tables.users).toEqual([])
+
+    const result = await loaded.createUser(payload, devActor)
+    expect(result.user).toMatchObject({ role, password_change_required: true })
+    expect(result.newPassword).toBe(`compte${role}0042`)
+    restore()
+  })
+
+  it.each([
+    ['archivage', (service, actor) => service.deactivateUser(1, actor)],
+    ['reactivation', (service, actor) => service.reactivateUser(1, actor)],
+    ['commission', (service, actor) => service.updateUserCommission(1, 2.5, actor)],
+    ['mot de passe', (service, actor) => service.resetPasswordForUser(1, actor)],
+    ['prolongation', (service, actor) => service.extendTemporaryUserAccess(1, '2099-12-31', actor)],
+  ])('interdit aux admins la gestion des dev: %s', async (_name, action) => {
+    const users = [{ id: 1, role: 'dev', est_actif: false, nom_boutique: 'Developpeur' }]
+    const fake = createFakeSupabase({ users })
+    const resetUserPassword = vi.fn()
+    const extendUserDateFin = vi.fn()
+    const { loaded, restore } = loadAdminService(fake, { resetUserPassword, extendUserDateFin })
+
+    await expect(action(loaded, adminActor)).rejects.toMatchObject({
+      statusCode: 403,
+      code: 'DEV_ACCOUNT_FORBIDDEN',
+    })
+    expect(fake.tables.users).toEqual(users)
+    expect(resetUserPassword).not.toHaveBeenCalled()
+    expect(extendUserDateFin).not.toHaveBeenCalled()
+    restore()
+  })
+
+  it('autorise un dev a reactiver et reinitialiser un dev, et conserve les protections admin', async () => {
+    const fake = createFakeSupabase({
+      users: [{ id: 1, role: 'dev', est_actif: false, nom_boutique: 'Developpeur' }],
+    })
+    const resetUserPassword = vi.fn(async (_id, password) => password)
+    const { loaded, restore } = loadAdminService(fake, { resetUserPassword })
+
+    await expect(loaded.reactivateUser(1, devActor)).resolves.toMatchObject({ est_actif: true })
+    await expect(loaded.resetPasswordForUser(1, devActor)).resolves.toMatchObject({
+      newPassword: 'developpeur0042',
+    })
+    await expect(loaded.deactivateUser(1, devActor)).rejects.toMatchObject({
+      code: 'ADMIN_DEACTIVATE',
+    })
+    await expect(loaded.deactivateUser(100, devActor)).rejects.toMatchObject({
+      code: 'SELF_DELETE',
+    })
+    await expect(loaded.updateUserCommission(1, 2.5, devActor)).rejects.toMatchObject({
+      code: 'ADMIN_COMMISSION',
+    })
+    restore()
+  })
+
+  it.each([
+    undefined,
+    'permanent',
+    'temporaire',
+  ])('refuse les services sans privilege admin: %s', async (role) => {
+    const fake = createFakeSupabase({ users: [] })
+    const { loaded, restore } = loadAdminService(fake)
+    const actor = role ? { id: 1, role } : undefined
+    const actions = [
+      () => loaded.listUsers(actor),
+      () => loaded.createUser({ nom: 'Test', nom_boutique: 'Test', role: 'permanent' }, actor),
+      () => loaded.deactivateUser(2, actor),
+      () => loaded.reactivateUser(2, actor),
+      () => loaded.updateUserCommission(2, 3, actor),
+      () => loaded.resetPasswordForUser(2, actor),
+      () => loaded.extendTemporaryUserAccess(2, '2099-12-31', actor),
+    ]
+    for (const action of actions) {
+      await expect(action()).rejects.toMatchObject({ statusCode: 403, code: 'ADMIN_REQUIRED' })
+    }
+    expect(fake.tables.users).toEqual([])
+    restore()
+  })
+
   it('cree un utilisateur avec mot de passe normalise et changement obligatoire', async () => {
     const fake = createFakeSupabase({ users: [] })
     const { loaded, restore } = loadAdminService(fake)
 
-    const result = await loaded.createUser({
-      nom: 'Zoe',
-      nom_boutique: 'Atelier Zoé !',
-      role: 'temporaire',
-      date_fin: '2026-08-01',
-    })
+    const result = await loaded.createUser(
+      {
+        nom: 'Zoe',
+        nom_boutique: 'Atelier Zoé !',
+        role: 'temporaire',
+        date_fin: '2026-08-01',
+      },
+      adminActor,
+    )
 
     expect(result.newPassword).toBe('atelierzoe0042')
     expect(result.user).toMatchObject({
@@ -56,11 +167,10 @@ describe('adminUserService', () => {
     const { loaded, restore } = loadAdminService(fake)
 
     await expect(
-      loaded.createUser({
-        nom: 'Alice',
-        nom_boutique: 'Atelier Alice',
-        role: 'permanent',
-      }),
+      loaded.createUser(
+        { nom: 'Alice', nom_boutique: 'Atelier Alice', role: 'permanent' },
+        adminActor,
+      ),
     ).rejects.toMatchObject({
       name: 'AdminUserError',
       statusCode: 409,
@@ -86,20 +196,24 @@ describe('adminUserService', () => {
     })
     const { loaded, restore } = loadAdminService(fake)
 
-    await expect(loaded.deactivateUser(2, 2)).rejects.toMatchObject({ code: 'SELF_DELETE' })
-    await expect(loaded.deactivateUser(1, 99)).rejects.toMatchObject({
+    await expect(loaded.deactivateUser(2, { ...adminActor, id: 2 })).rejects.toMatchObject({
+      code: 'SELF_DELETE',
+    })
+    await expect(loaded.deactivateUser(1, adminActor)).rejects.toMatchObject({
       code: 'ADMIN_DEACTIVATE',
     })
 
-    await expect(loaded.deactivateUser(2, 99)).resolves.toMatchObject({
+    await expect(loaded.deactivateUser(2, adminActor)).resolves.toMatchObject({
       id: 2,
       est_actif: false,
     })
-    await expect(loaded.reactivateUser(3)).resolves.toMatchObject({
+    await expect(loaded.reactivateUser(3, adminActor)).resolves.toMatchObject({
       id: 3,
       est_actif: true,
     })
-    await expect(loaded.reactivateUser(999)).rejects.toMatchObject({ code: 'USER_NOT_FOUND' })
+    await expect(loaded.reactivateUser(999, adminActor)).rejects.toMatchObject({
+      code: 'USER_NOT_FOUND',
+    })
 
     restore()
   })
@@ -125,17 +239,17 @@ describe('adminUserService', () => {
     })
     const { loaded, restore } = loadAdminService(fake)
 
-    await expect(loaded.updateUserCommission(2, '2,50')).resolves.toMatchObject({
+    await expect(loaded.updateUserCommission(2, '2,50', adminActor)).resolves.toMatchObject({
       previousUser: expect.objectContaining({ commission_cb_personnalisee: null }),
       user: expect.objectContaining({ commission_cb_personnalisee: 2.5 }),
     })
-    await expect(loaded.updateUserCommission(2, '')).resolves.toMatchObject({
+    await expect(loaded.updateUserCommission(2, '', adminActor)).resolves.toMatchObject({
       user: expect.objectContaining({ commission_cb_personnalisee: null }),
     })
-    await expect(loaded.updateUserCommission(2, '-1')).rejects.toMatchObject({
+    await expect(loaded.updateUserCommission(2, '-1', adminActor)).rejects.toMatchObject({
       code: 'INVALID_COMMISSION',
     })
-    await expect(loaded.updateUserCommission(1, '1')).rejects.toMatchObject({
+    await expect(loaded.updateUserCommission(1, '1', adminActor)).rejects.toMatchObject({
       code: 'ADMIN_COMMISSION',
     })
 
@@ -149,7 +263,7 @@ describe('adminUserService', () => {
     })
     const { loaded, restore } = loadAdminService(fake, { resetUserPassword })
 
-    const result = await loaded.resetPasswordForUser(2)
+    const result = await loaded.resetPasswordForUser(2, adminActor)
 
     expect(resetUserPassword).toHaveBeenCalledWith(2, 'atelieralice0042')
     expect(result).toEqual({
@@ -170,16 +284,22 @@ describe('adminUserService', () => {
     })
     const { loaded, restore } = loadAdminService(fake, { extendUserDateFin })
 
-    await expect(loaded.extendTemporaryUserAccess(3, '')).rejects.toMatchObject({
+    await expect(loaded.extendTemporaryUserAccess(3, '', adminActor)).rejects.toMatchObject({
       code: 'MISSING_END_DATE',
     })
-    await expect(loaded.extendTemporaryUserAccess(2, '2026-08-31')).rejects.toMatchObject({
+    await expect(
+      loaded.extendTemporaryUserAccess(2, '2026-08-31', adminActor),
+    ).rejects.toMatchObject({
       code: 'NOT_TEMPORARY',
     })
-    await expect(loaded.extendTemporaryUserAccess(3, '2026-07-15')).rejects.toMatchObject({
+    await expect(
+      loaded.extendTemporaryUserAccess(3, '2026-07-15', adminActor),
+    ).rejects.toMatchObject({
       code: 'END_DATE_NOT_AFTER_CURRENT',
     })
-    await expect(loaded.extendTemporaryUserAccess(3, '2026-08-31')).resolves.toMatchObject({
+    await expect(
+      loaded.extendTemporaryUserAccess(3, '2026-08-31', adminActor),
+    ).resolves.toMatchObject({
       user: expect.objectContaining({ id: 3 }),
       nouvelleDateFin: '2026-08-31',
     })

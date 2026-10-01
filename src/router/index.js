@@ -44,6 +44,18 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
+    path: '/suggestions',
+    name: 'Suggestions',
+    component: () => import('../views/SuggestionsView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/dev/suggestions',
+    name: 'DevSuggestions',
+    component: () => import('../views/DevSuggestionsView.vue'),
+    meta: { requiresAuth: true, requiresDev: true },
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/',
   },
@@ -70,11 +82,14 @@ router.beforeEach((to, _from, next) => {
     next({ name: 'Login' })
   } else if (to.name === 'Login' && token) {
     next({ name: 'Ventes' })
-  } else if (to.meta.requiresAdmin) {
-    // Vérifier le rôle admin depuis le localStorage
+  } else if (to.meta.requiresAdmin || to.meta.requiresDev) {
+    // Le serveur contrôle également les autorisations sur chaque requête.
     try {
       const user = JSON.parse(localStorage.getItem('user') || 'null')
-      if (user?.role !== 'admin') {
+      const allowed = to.meta.requiresDev
+        ? user?.role === 'dev'
+        : ['admin', 'dev'].includes(user?.role)
+      if (!allowed) {
         next({ name: 'Ventes' })
       } else {
         next()

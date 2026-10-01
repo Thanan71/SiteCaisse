@@ -12,22 +12,19 @@ let supabase
  * Initialise et retourne le client Supabase (singleton).
  * Utilise la clé service_role pour contourner les RLS (Row-Level Security).
  * @returns {import('@supabase/supabase-js').SupabaseClient} L'instance du client Supabase.
- * @throws {Error} Si les variables d'environnement VITE_PUBLIC_SUPABASE_URL ou VITE_PUBLIC_SUPABASE_ANON_KEY sont manquantes.
+ * @throws {Error} Si l'URL Supabase ou la clé serveur service_role est manquante.
  */
 function getSupabase() {
   if (!supabase) {
     const supabaseUrl = process.env.VITE_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.VITE_PUBLIC_SUPABASE_ANON_KEY
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error(
-        'Variables VITE_PUBLIC_SUPABASE_URL et VITE_PUBLIC_SUPABASE_ANON_KEY requises',
-      )
+    if (!supabaseUrl || !serviceRoleKey) {
+      throw new Error('Variables VITE_PUBLIC_SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY requises')
     }
 
     // Utiliser la clé service_role pour les opérations backend (bypass RLS)
-    supabase = createClient(supabaseUrl, serviceRoleKey || supabaseAnonKey, {
+    supabase = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
