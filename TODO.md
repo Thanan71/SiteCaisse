@@ -125,6 +125,29 @@ User Action → Vue Component → Pinia Store → API Express → Supabase/Postg
 - [ ] Empêcher les admins et les artisans de consulter la liste complète des suggestions
 - [ ] Permettre au rôle `dev` de marquer une suggestion comme nouvelle, en cours, acceptée ou refusée
 - [ ] Ajouter les tests backend, frontend et E2E associés
+- [ ] Contraintes UI/UX du formulaire de suggestion :
+  - [ ] Intégrer l'accès à la boîte à idées de manière visible mais non intrusive dans la navigation
+  - [ ] Conserver le design system existant du site (boutons, champs, espacements, typographie, modales/cartes)
+  - [ ] Limiter le formulaire aux champs réellement utiles afin de garder une soumission rapide
+  - [ ] Afficher clairement les champs obligatoires et les limites de caractères
+  - [ ] Ajouter un compteur de caractères lorsque pertinent
+  - [ ] Désactiver le bouton d'envoi pendant la soumission pour éviter les doublons
+  - [ ] Afficher un retour immédiat et explicite après succès ou erreur
+  - [ ] Ne pas perdre le contenu saisi en cas d'erreur réseau ou de validation
+  - [ ] Prévoir des états loading, vide et erreur cohérents avec le reste de l'application
+  - [ ] Rendre le formulaire entièrement utilisable au clavier avec labels explicites et focus visible
+  - [ ] Assurer un contraste suffisant et ne pas transmettre une information uniquement par la couleur
+  - [ ] Garantir une utilisation confortable sur mobile, tablette et desktop
+  - [ ] Éviter les modales trop hautes : contenu scrollable et actions principales toujours facilement accessibles
+- [ ] Contraintes UI/UX de l'espace Dev :
+  - [ ] Afficher les suggestions dans une liste lisible avec titre, auteur, date et statut immédiatement identifiables
+  - [ ] Utiliser des badges de statut cohérents pour nouvelle, en cours, acceptée et refusée
+  - [ ] Prévoir un tri et des filtres au minimum par statut et date
+  - [ ] Permettre d'ouvrir le détail d'une suggestion sans perdre la position dans la liste
+  - [ ] Rendre le changement de statut rapide tout en évitant les modifications accidentelles
+  - [ ] Afficher clairement lorsqu'aucune suggestion ne correspond aux filtres
+  - [ ] Ne jamais afficher dans l'interface des non-dev un lien ou un compteur révélant la liste privée des suggestions
+  - [ ] Prévoir une pagination ou un chargement progressif si le volume de suggestions augmente
 
 ## Améliorations futures possibles
 - [ ] Mode hors-ligne (PWA)
