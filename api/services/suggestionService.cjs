@@ -4,7 +4,7 @@ const { getSupabase } = require('../db.cjs')
 
 const SUGGESTION_COLUMNS =
   'id, titre, description, statut, auteur_id, auteur_nom, auteur_nom_boutique, created_at, updated_at'
-const STATUTS = new Set(['nouvelle', 'en_cours', 'acceptee', 'refusee'])
+const STATUTS = new Set(['nouvelle', 'en_cours', 'acceptee', 'refusee', 'terminee'])
 const parisOffsetFormatter = new Intl.DateTimeFormat('en', {
   timeZone: 'Europe/Paris',
   timeZoneName: 'longOffset',
@@ -94,7 +94,7 @@ async function createSuggestion(body, auteur) {
   return data
 }
 
-async function listSuggestions(options = {}) {
+async function querySuggestions(options, auteurId) {
   const page = positiveInteger(options.page, 'Page', 1)
   const limit = positiveInteger(options.limit, 'Limite', 20, 100)
   const offset = (page - 1) * limit
@@ -112,6 +112,7 @@ async function listSuggestions(options = {}) {
   const ascending = ordre === 'asc'
 
   let query = getSupabase().from('suggestions').select(SUGGESTION_COLUMNS, { count: 'exact' })
+  if (auteurId !== undefined) query = query.eq('auteur_id', auteurId)
   if (statut !== undefined) query = query.eq('statut', statut)
   if (dateDebut) query = query.gte('created_at', startOfParisDay(dateDebut).toISOString())
   if (dateFin) {
@@ -125,6 +126,15 @@ async function listSuggestions(options = {}) {
     .range(offset, offset + limit - 1)
   if (error) throw error
   return { suggestions: data || [], total: count || 0, page, limit }
+}
+
+function listSuggestions(options = {}) {
+  return querySuggestions(options)
+}
+
+async function listOwnSuggestions(rawAuteurId, options = {}) {
+  const auteurId = positiveInteger(rawAuteurId, 'ID auteur', undefined, 2147483647)
+  return querySuggestions(options, auteurId)
 }
 
 async function updateSuggestionStatus(rawId, statut) {
@@ -141,4 +151,10 @@ async function updateSuggestionStatus(rawId, statut) {
   return data
 }
 
-module.exports = { SuggestionError, createSuggestion, listSuggestions, updateSuggestionStatus }
+module.exports = {
+  SuggestionError,
+  createSuggestion,
+  listSuggestions,
+  listOwnSuggestions,
+  updateSuggestionStatus,
+}

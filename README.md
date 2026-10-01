@@ -92,7 +92,8 @@ PORT=3001
 
 - Pour une nouvelle base, exécuter `supabase-schema.sql` depuis l’éditeur SQL du dashboard Supabase.
 - Pour une base existante, appliquer les migrations 001 à 011 dans l'ordre, puis
-  `supabase-migrations/20261001172633_add_dev_role_and_suggestions.sql`.
+  `supabase-migrations/20261001172633_add_dev_role_and_suggestions.sql`, puis
+  `supabase-migrations/20261001180800_add_suggestions_completed_status_and_author_listing.sql`.
 - Vérifier que les tables `users`, `ventes`, `vente_articles`, `parametres`, `action_logs` et `suggestions` sont présentes.
 
 ### Premier compte Dev
@@ -202,10 +203,14 @@ npm run dev
   L'auteur et le statut initial `nouvelle` sont déterminés par le serveur.
 - `GET /api/suggestions` : liste privée Dev, avec `page`, `limit` (20 par défaut, 100 maximum),
   `statut`, `date_debut`, `date_fin` (jours inclusifs en heure de Paris) et `ordre` (`asc` ou `desc`).
+- `GET /api/suggestions/mes` : mêmes filtres et pagination, pour les suggestions de l'utilisateur
+  connecté uniquement. L'auteur provient de la session ; un auteur fourni dans la requête est ignoré.
 - `PATCH /api/suggestions/:id/statut` : traitement Dev avec `{ statut }` ; valeurs acceptées :
-  `nouvelle`, `en_cours`, `acceptee`, `refusee`.
+  `nouvelle`, `en_cours`, `acceptee`, `refusee`, `terminee`.
 
-Le formulaire est accessible sur `/suggestions`. La liste et les filtres se trouvent sur
+Le formulaire et la section « Mes suggestions » sont accessibles sur `/suggestions`. Chaque auteur
+peut consulter l'état de ses propositions et actualiser sa liste, en lecture seule.
+La liste complète et les filtres se trouvent sur
 `/dev/suggestions`, réservé aux Dev. Le détail s'ouvre dans la liste ; un changement de statut
 n'est enregistré qu'après clic sur « Appliquer ». Le contenu d'une suggestion n'est pas copié
 dans les logs accessibles aux administrateurs.

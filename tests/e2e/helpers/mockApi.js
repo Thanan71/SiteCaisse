@@ -150,16 +150,18 @@ export async function installApiMock(page, options = {}) {
     }
 
     if (path === '/api/suggestions' || path.startsWith('/api/suggestions/')) {
-      if (state.user.role !== 'dev') {
+      const isOwnList = method === 'GET' && path === '/api/suggestions/mes'
+      if (!isOwnList && state.user.role !== 'dev') {
         return json({ error: 'Accès réservé au rôle Dev' }, 403)
       }
-      if (method === 'GET' && path === '/api/suggestions') {
+      if (method === 'GET' && (path === '/api/suggestions' || isOwnList)) {
         const params = url.searchParams
         const pageNumber = Number(params.get('page') || 1)
         const limit = Number(params.get('limit') || 20)
         const direction = params.get('ordre') === 'asc' ? 1 : -1
         const suggestions = state.suggestions
           .filter((item) => {
+            if (isOwnList && item.auteur_id !== state.user.id) return false
             if (params.get('statut') && item.statut !== params.get('statut')) return false
             const parts = Object.fromEntries(
               parisDateFormatter

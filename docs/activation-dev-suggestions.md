@@ -50,3 +50,15 @@ Le mot de passe reste inchangé. Le script peut être relancé sans créer de co
    vérifier que la modification est conservée.
 5. Avec un compte artisan ou admin ordinaire, vérifier que **Suggestions** est
    accessible et que `/dev/suggestions` redirige vers les ventes.
+
+## Évolution : statut Terminé et suivi par l'auteur
+
+Avant de déployer cette évolution, exécuter dans le même SQL Editor
+[`20261001180800_add_suggestions_completed_status_and_author_listing.sql`](../supabase-migrations/20261001180800_add_suggestions_completed_status_and_author_listing.sql).
+Elle ajoute le statut `terminee` et un index pour les listes personnelles, en conservant
+les suggestions existantes. Les droits d'accès à la base restent identiques.
+
+Après déploiement, **Suggestions** comporte une section **Mes suggestions** où chaque
+utilisateur retrouve uniquement ses propositions et leurs états. Le Dev peut choisir
+**Terminé** dans l'espace de traitement. Vérifier qu'après actualisation, l'auteur
+voit ce nouvel état et ne voit aucune suggestion appartenant à un autre utilisateur.

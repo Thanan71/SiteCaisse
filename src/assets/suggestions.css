@@ -8,6 +8,23 @@
 .submission-page {
   max-width: 760px;
 }
+.personal-suggestions {
+  margin-top: 40px;
+}
+.personal-suggestions-header h2 {
+  margin: 0 0 8px;
+  font-size: 1.4rem;
+}
+.personal-suggestions-header p {
+  margin: 0;
+}
+.personal-suggestion-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
 .suggestions-header {
   margin-bottom: 24px;
 }
@@ -116,6 +133,9 @@
   color: #4338ca;
   font-size: 0.85rem;
 }
+.personal-suggestion-metadata .suggestion-status {
+  margin-left: 0;
+}
 .status-en_cours {
   background: #fef3c7;
   color: #92400e;
@@ -127,6 +147,10 @@
 .status-refusee {
   background: #fee2e2;
   color: #991b1b;
+}
+.status-terminee {
+  background: #cffafe;
+  color: #155e75;
 }
 .suggestion-detail {
   padding: 0 20px 20px;
