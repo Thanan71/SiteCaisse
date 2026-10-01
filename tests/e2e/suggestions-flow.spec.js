@@ -41,10 +41,15 @@ for (const role of ['permanent', 'temporaire', 'admin', 'dev']) {
     await page.getByLabel('Description', { exact: true }).fill('Filtrer les rapports par boutique.')
     await page.getByRole('button', { name: 'Envoyer la suggestion' }).click()
     await expect(page.getByRole('button', { name: 'Envoi en cours...' })).toBeDisabled()
-    await expect(page.getByRole('status')).toContainText('Votre suggestion a bien été envoyée')
+    await expect(page.locator('.suggestion-form').getByRole('status')).toContainText(
+      'Votre suggestion a bien été envoyée',
+    )
     expect(state.suggestions).toHaveLength(1)
     expect(state.suggestions[0]).toMatchObject({ auteur_id: user.id, statut: 'nouvelle' })
     await expect(page.getByLabel('Titre', { exact: true })).toHaveValue('')
+    await expect(page.getByRole('heading', { name: 'Mes suggestions' })).toBeVisible()
+    await expect(page.locator('[data-suggestion-id]')).toHaveCount(1)
+    await expect(page.locator('[data-suggestion-id] .suggestion-status')).toHaveText('Nouvelle')
 
     if (role !== 'dev') {
       await page.goto('/dev/suggestions')
@@ -78,7 +83,9 @@ test('conserve la saisie apres erreur et permet une nouvelle soumission au clavi
   )
   await page.getByRole('button', { name: 'Envoyer la suggestion' }).focus()
   await page.keyboard.press('Enter')
-  await expect(page.getByRole('status')).toContainText('Votre suggestion a bien été envoyée')
+  await expect(page.locator('.suggestion-form').getByRole('status')).toContainText(
+    'Votre suggestion a bien été envoyée',
+  )
   expect(state.suggestions).toHaveLength(1)
 })
 
@@ -100,24 +107,70 @@ test('Dev consulte, filtre, pagine et change un statut explicitement', async ({ 
   await detail.locator('summary').focus()
   await page.keyboard.press('Enter')
   await expect(detail.locator('.suggestion-description')).toHaveText('Description privée 3')
-  await detail.getByLabel('Nouveau statut').selectOption('en_cours')
+  await detail.getByLabel('Nouveau statut').selectOption('terminee')
   expect(state.suggestions.find((item) => item.id === 3).statut).toBe('nouvelle')
   await detail.getByRole('button', { name: 'Appliquer', exact: true }).click()
   await expect(detail.getByRole('status')).toHaveText('Statut mis à jour.')
   await expect(detail).toHaveAttribute('open', '')
   await expect(page.getByText('Page 2 / 2')).toBeVisible()
 
-  await page.locator('#suggestion-status-filter').selectOption('en_cours')
+  await page.locator('#suggestion-status-filter').selectOption('terminee')
   await page.getByLabel('Du', { exact: true }).fill('2026-09-20')
   await page.getByLabel('Au', { exact: true }).fill('2026-09-20')
   await page.getByLabel('Ordre des dates').selectOption('asc')
   await page.getByRole('button', { name: 'Appliquer les filtres' }).click()
   await expect(page.locator('details[data-suggestion-id]')).toHaveCount(1)
   await expect(page.locator('details[data-suggestion-id="3"]')).toBeVisible()
+  await expect(detail.locator('.suggestion-status')).toHaveText('Terminé')
   await page.locator('#suggestion-status-filter').selectOption('refusee')
   await page.getByRole('button', { name: 'Appliquer les filtres' }).click()
   await expect(page.getByText('Aucune suggestion ne correspond aux filtres.')).toBeVisible()
 })
+
+for (const role of ['permanent', 'dev']) {
+  test(`${role} consulte uniquement ses propres suggestions avec leurs états et pagination`, async ({
+    page,
+  }) => {
+    const user = userForRole(role)
+    const state = await installApiMock(page, {
+      user,
+      suggestions: [
+        ...Array.from({ length: 23 }, (_, index) =>
+          suggestion(index + 1, {
+            auteur_id: user.id,
+            titre: `Ma proposition ${index + 1}`,
+            statut: index === 22 ? 'terminee' : 'nouvelle',
+          }),
+        ),
+        suggestion(50, { auteur_id: 99, titre: 'Idée privée autre auteur' }),
+        suggestion(51, { auteur_id: null, titre: 'Idée auteur supprimé' }),
+      ],
+    })
+    await authenticate(page, user)
+    await page.goto('/suggestions')
+    await expect(page.getByRole('heading', { name: 'Mes suggestions' })).toBeVisible()
+    await expect(page.locator('[data-suggestion-id]')).toHaveCount(20)
+    await expect(page.locator('[data-suggestion-id="23"] .suggestion-status')).toHaveText('Terminé')
+    await expect(page.getByText('Page 1 / 2')).toBeVisible()
+    await expect(page.getByText('Idée privée autre auteur')).toHaveCount(0)
+    await expect(page.getByText('Idée auteur supprimé')).toHaveCount(0)
+    await expect(page.getByLabel('Nouveau statut')).toHaveCount(0)
+    const response = await page.evaluate(async () => {
+      const result = await fetch('/api/suggestions/mes?auteur_id=99', {
+        headers: { Authorization: 'Bearer e2e-token' },
+      })
+      return result.json()
+    })
+    expect(response.total).toBe(23)
+    expect(response.suggestions.every((item) => item.auteur_id === user.id)).toBe(true)
+    await page.getByRole('button', { name: 'Suivant', exact: true }).click()
+    await expect(page.getByText('Page 2 / 2')).toBeVisible()
+    await expect(page.locator('[data-suggestion-id]')).toHaveCount(3)
+    state.suggestions.find((item) => item.id === 1).statut = 'terminee'
+    await page.getByRole('button', { name: 'Actualiser', exact: true }).click()
+    await expect(page.locator('[data-suggestion-id="1"] .suggestion-status')).toHaveText('Terminé')
+  })
+}
 
 test('Dev accede a l administration et peut creer un compte administrateur', async ({ page }) => {
   const user = userForRole('dev')
@@ -228,7 +281,9 @@ test('la boîte à idées reste utilisable sur mobile', async ({ page }) => {
   await page.getByLabel('Titre', { exact: true }).fill('Idée mobile')
   await page.getByLabel('Description', { exact: true }).fill('Formulaire accessible sur téléphone.')
   await page.getByRole('button', { name: 'Envoyer la suggestion' }).click()
-  await expect(page.getByRole('status')).toContainText('Votre suggestion a bien été envoyée')
+  await expect(page.locator('.suggestion-form').getByRole('status')).toContainText(
+    'Votre suggestion a bien été envoyée',
+  )
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   )

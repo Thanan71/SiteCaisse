@@ -108,7 +108,7 @@ User Action → Vue Component → Pinia Store → API Express → Supabase/Postg
 
 ## Rôle Dev et boîte à idées
 
-Implémenté et validé localement le 01/10/2026 : 336 tests unitaires, 18 E2E, Biome, build et vérification visuelle mobile/tablette/desktop. Schéma et migration SQL testés sur PostgreSQL isolé (PGlite), y compris les refus d’accès direct aux comptes et suggestions. La procédure d'activation est décrite dans [le guide de mise en service](docs/activation-dev-suggestions.md) : publier le code avec la clé serveur, appliquer la migration puis promouvoir le premier compte Dev.
+Implémenté et validé localement le 01/10/2026 : 363 tests unitaires, 20 E2E, Biome, build et vérification visuelle mobile/tablette/desktop. Schéma et migration SQL testés sur PostgreSQL isolé (PGlite), y compris les refus d’accès direct aux comptes et suggestions. La procédure d'activation est décrite dans [le guide de mise en service](docs/activation-dev-suggestions.md) : publier le code avec la clé serveur, appliquer la migration puis promouvoir le premier compte Dev.
 
 ### 6. Rôle Dev
 - [x] Ajouter un rôle `dev` au-dessus du rôle `admin`
@@ -126,8 +126,13 @@ Implémenté et validé localement le 01/10/2026 : 336 tests unitaires, 18 E2E, 
 - [x] Enregistrer les suggestions en base de données avec l'auteur et la date de création
 - [x] Ajouter un espace de consultation des suggestions réservé au rôle `dev`
 - [x] Empêcher les admins et les artisans de consulter la liste complète des suggestions
-- [x] Permettre au rôle `dev` de marquer une suggestion comme nouvelle, en cours, acceptée ou refusée
+- [x] Permettre au rôle `dev` de marquer une suggestion comme nouvelle, en cours, acceptée, refusée ou terminée
+- [x] Permettre à chaque auteur de consulter uniquement ses propres suggestions et leur état, avec actualisation et pagination
 - [x] Ajouter les tests backend, frontend et E2E associés
+
+L'évolution « Terminé » / « Mes suggestions » nécessite la migration
+`supabase-migrations/20261001180800_add_suggestions_completed_status_and_author_listing.sql`
+avant sa mise en ligne. La migration reste à appliquer en production.
 - [x] Contraintes UI/UX du formulaire de suggestion :
   - [x] Intégrer l'accès à la boîte à idées de manière visible mais non intrusive dans la navigation
   - [x] Conserver le design system existant du site (boutons, champs, espacements, typographie, modales/cartes)

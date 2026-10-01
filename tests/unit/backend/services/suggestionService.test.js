@@ -164,6 +164,67 @@ describe('suggestionService', () => {
     ).resolves.toMatchObject({ suggestions: [] })
   })
 
+  it('limite la pagination et le total aux suggestions de l auteur authentifie', async () => {
+    const { service, fake } = loadService([
+      { id: 1, auteur_id: 2, statut: 'terminee', created_at: '2026-10-01T09:00:00.000Z' },
+      { id: 2, auteur_id: 99, statut: 'terminee', created_at: '2026-10-01T10:00:00.000Z' },
+      { id: 3, auteur_id: 2, statut: 'terminee', created_at: '2026-10-01T11:00:00.000Z' },
+      { id: 4, auteur_id: null, statut: 'terminee', created_at: '2026-10-01T12:00:00.000Z' },
+      { id: 5, auteur_id: 2, statut: 'nouvelle', created_at: '2026-10-01T13:00:00.000Z' },
+      { id: 6, auteur_id: 2, statut: 'terminee', created_at: '2026-10-02T09:00:00.000Z' },
+    ])
+    const options = {
+      auteur_id: '99',
+      statut: 'terminee',
+      date_debut: '2026-10-01',
+      date_fin: '2026-10-01',
+      limit: '1',
+      ordre: 'asc',
+    }
+
+    const firstPage = await service.listOwnSuggestions(2, options)
+    const secondPage = await service.listOwnSuggestions(2, { ...options, page: '2' })
+
+    expect(firstPage).toMatchObject({ total: 2, page: 1, limit: 1, suggestions: [{ id: 1 }] })
+    expect(secondPage).toMatchObject({ total: 2, page: 2, limit: 1, suggestions: [{ id: 3 }] })
+    const authorFilterIndex = fake.calls.findIndex(
+      (call) => call.method === 'eq' && call.column === 'auteur_id',
+    )
+    expect(fake.calls[authorFilterIndex]).toMatchObject({ value: 2 })
+    expect(authorFilterIndex).toBeLessThan(fake.calls.findIndex((call) => call.method === 'range'))
+    expect(fake.calls).not.toContainEqual(
+      expect.objectContaining({ column: 'auteur_id', value: 99 }),
+    )
+  })
+
+  it('conserve la liste globale sans appliquer un auteur fourni dans les filtres', async () => {
+    const { service } = loadService([
+      { id: 1, auteur_id: 2, statut: 'terminee', created_at: '2026-10-01T09:00:00.000Z' },
+      { id: 2, auteur_id: 99, statut: 'terminee', created_at: '2026-10-01T10:00:00.000Z' },
+    ])
+
+    await expect(
+      service.listSuggestions({ auteur_id: '2', statut: 'terminee' }),
+    ).resolves.toMatchObject({
+      total: 2,
+      suggestions: [{ id: 2 }, { id: 1 }],
+    })
+  })
+
+  it.each([
+    undefined,
+    null,
+    0,
+    -1,
+    '2abc',
+    ['2'],
+    '2147483648',
+  ])('refuse une liste personnelle sans identifiant auteur fiable: %j', async (auteurId) => {
+    const { service, fake } = loadService()
+    await expect(service.listOwnSuggestions(auteurId)).rejects.toMatchObject({ statusCode: 400 })
+    expect(fake.calls).toEqual([])
+  })
+
   it.each([
     { statut: 'publiee' },
     { statut: ['nouvelle'] },
@@ -197,6 +258,7 @@ describe('suggestionService', () => {
     'en_cours',
     'acceptee',
     'refusee',
+    'terminee',
   ])('modifie seulement le statut vers %s et sa date', async (statut) => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-10-01T15:00:00.000Z'))

@@ -81,22 +81,13 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import api from '../services/api'
 import { useAuthStore } from '../store/auth'
+import {
+  formatSuggestionDate,
+  suggestionStatuses as statuses,
+  suggestionStatusLabel as statusLabel,
+} from '../utils/suggestions'
 
 const authStore = useAuthStore()
-const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
-  timeZone: 'Europe/Paris',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-})
-const statuses = [
-  { value: 'nouvelle', label: 'Nouvelle' },
-  { value: 'en_cours', label: 'En cours' },
-  { value: 'acceptee', label: 'Acceptée' },
-  { value: 'refusee', label: 'Refusée' },
-]
 const defaultFilters = { statut: '', date_debut: '', date_fin: '', ordre: 'desc' }
 const filters = reactive({ ...defaultFilters })
 const appliedFilters = ref({ ...defaultFilters })
@@ -113,16 +104,6 @@ const statusSuccesses = reactive({})
 const busy = computed(() => loading.value || savingId.value !== null)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / limit.value)))
 let requestId = 0
-
-function statusLabel(value) {
-  return statuses.find((status) => status.value === value)?.label || value
-}
-
-function formatSuggestionDate(value) {
-  if (!value) return '—'
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? '—' : dateFormatter.format(date)
-}
 
 async function fetchSuggestions(nextPage = 1) {
   if (!authStore.isDev) return

@@ -76,7 +76,7 @@ CREATE TABLE IF NOT EXISTS suggestions (
   titre TEXT NOT NULL CHECK (length(btrim(titre)) BETWEEN 1 AND 120),
   description TEXT NOT NULL CHECK (length(btrim(description)) BETWEEN 1 AND 2000),
   statut TEXT NOT NULL DEFAULT 'nouvelle'
-    CHECK (statut IN ('nouvelle', 'en_cours', 'acceptee', 'refusee')),
+    CHECK (statut IN ('nouvelle', 'en_cours', 'acceptee', 'refusee', 'terminee')),
   auteur_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
   auteur_nom TEXT NOT NULL,
   auteur_nom_boutique TEXT,
@@ -122,6 +122,7 @@ CREATE INDEX IF NOT EXISTS idx_action_logs_user_id ON action_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_suggestions_created_id ON suggestions(created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_suggestions_statut_created_id ON suggestions(statut, created_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS idx_suggestions_auteur_id ON suggestions(auteur_id);
+CREATE INDEX IF NOT EXISTS idx_suggestions_auteur_created_id ON suggestions(auteur_id, created_at DESC, id DESC);
 
 -- L'API backend gère l'authentification et doit utiliser SUPABASE_SERVICE_ROLE_KEY.
 -- users et suggestions ne sont accessibles qu'au serveur ; ses routes contrôlent les rôles.

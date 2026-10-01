@@ -109,6 +109,30 @@ describe('DevSuggestionsView', () => {
     expect(api.get).toHaveBeenCalledTimes(1)
   })
 
+  it('filtre et applique le statut termine en conservant le detail ouvert', async () => {
+    const wrapper = mount(DevSuggestionsView)
+    await flushPromises()
+    expect(wrapper.find('#suggestion-status-filter option[value="terminee"]').text()).toBe(
+      'Terminé',
+    )
+    await wrapper.find('#suggestion-status-filter').setValue('terminee')
+    await wrapper.find('.suggestions-filters').trigger('submit')
+    await flushPromises()
+    expect(api.get).toHaveBeenLastCalledWith('/api/suggestions', {
+      params: { ordre: 'desc', statut: 'terminee', page: 1, limit: 20 },
+    })
+    const detail = wrapper.find('details')
+    detail.element.open = true
+    await wrapper.find('#suggestion-status-1').setValue('terminee')
+    api.patch.mockResolvedValueOnce({ data: { suggestion: { ...suggestion, statut: 'terminee' } } })
+    await wrapper.find('.suggestion-status-form').trigger('submit')
+    await flushPromises()
+    expect(api.patch).toHaveBeenCalledWith('/api/suggestions/1/statut', { statut: 'terminee' })
+    expect(wrapper.find('.suggestion-status').text()).toBe('Terminé')
+    expect(wrapper.find('.suggestion-status').classes()).toContain('status-terminee')
+    expect(detail.element.open).toBe(true)
+  })
+
   it('conserve le statut precedent et la selection si la mise a jour echoue', async () => {
     api.patch.mockRejectedValue({ response: { data: { error: 'Modification refusée' } } })
     const wrapper = mount(DevSuggestionsView)

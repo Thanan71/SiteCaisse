@@ -18,8 +18,8 @@ const existingSuggestion = {
   updated_at: '2026-10-01T12:00:00.000Z',
 }
 
-function loadController() {
-  const fake = createFakeSupabase({ suggestions: [existingSuggestion] })
+function loadController(suggestions = [existingSuggestion]) {
+  const fake = createFakeSupabase({ suggestions })
   const { loaded: service, restore: restoreService } = loadCjsWithMocks(
     'api/services/suggestionService.cjs',
     { 'api/db.cjs': { getSupabase: () => fake.client } },
@@ -85,14 +85,14 @@ describe('suggestionsController', () => {
     'admin',
     'permanent',
     'temporaire',
-  ])('refuse au %s la lecture et la modification meme de sa propre idee', async (role) => {
+  ])('refuse au %s la lecture globale et la modification meme de sa propre idee', async (role) => {
     const { router, fake } = loadController()
     const user = { id: existingSuggestion.auteur_id, role }
     const list = await invokeRoute(router, 'get', '/', { user })
     const update = await invokeRoute(router, 'patch', '/:id/statut', {
       user,
       params: { id: '10' },
-      body: { statut: 'acceptee' },
+      body: { statut: 'terminee' },
     })
     expect(list.res).toMatchObject({ statusCode: 403 })
     expect(update.res).toMatchObject({ statusCode: 403 })
@@ -101,8 +101,58 @@ describe('suggestionsController', () => {
   })
 
   it.each([
+    'dev',
+    'admin',
+    'permanent',
+    'temporaire',
+  ])('permet au %s de voir uniquement ses suggestions meme avec un auteur usurpe en query', async (role) => {
+    const ownSuggestion = { ...existingSuggestion, statut: 'terminee' }
+    const { router, fake } = loadController([
+      { ...existingSuggestion, id: 9, auteur_id: 99, titre: 'Idee autre auteur' },
+      ownSuggestion,
+      { ...existingSuggestion, id: 11, auteur_id: null, titre: 'Idee auteur supprime' },
+    ])
+    const { res } = await invokeRoute(router, 'get', '/mes', {
+      user: { id: 2, role },
+      query: { auteur_id: '99', auteur: '99', page: '1', limit: '1' },
+    })
+
+    expect(res).toMatchObject({
+      statusCode: 200,
+      body: { suggestions: [ownSuggestion], total: 1, page: 1, limit: 1 },
+    })
+    expect(JSON.stringify(res.body)).not.toMatch(/Idee autre auteur|Idee auteur supprime/)
+    expect(fake.calls).toContainEqual({
+      method: 'eq',
+      tableName: 'suggestions',
+      column: 'auteur_id',
+      value: 2,
+    })
+  })
+
+  it('applique les filtres de statut et date a la liste personnelle avant pagination', async () => {
+    const completed = { ...existingSuggestion, id: 12, statut: 'terminee' }
+    const { router } = loadController([
+      existingSuggestion,
+      completed,
+      { ...completed, id: 13, auteur_id: dev.id },
+      { ...completed, id: 14, created_at: '2026-10-02T12:00:00.000Z' },
+    ])
+    const { res } = await invokeRoute(router, 'get', '/mes', {
+      user: { id: 2, role: 'permanent' },
+      query: { statut: 'terminee', date_debut: '2026-10-01', date_fin: '2026-10-01' },
+    })
+
+    expect(res).toMatchObject({
+      statusCode: 200,
+      body: { suggestions: [completed], total: 1, page: 1, limit: 20 },
+    })
+  })
+
+  it.each([
     ['post', '/'],
     ['get', '/'],
+    ['get', '/mes'],
     ['patch', '/:id/statut'],
   ])('refuse une requete %s %s non authentifiee', async (method, path) => {
     const { router, fake } = loadController()
@@ -149,11 +199,37 @@ describe('suggestionsController', () => {
     })
   })
 
+  it('laisse le dev terminer une suggestion et filtrer les suggestions terminees', async () => {
+    const { router, logger } = loadController()
+    const updated = await invokeRoute(router, 'patch', '/:id/statut', {
+      user: dev,
+      params: { id: '10' },
+      body: { statut: 'terminee' },
+    })
+    expect(updated.res).toMatchObject({
+      statusCode: 200,
+      body: { suggestion: { statut: 'terminee', titre: existingSuggestion.titre } },
+    })
+    const listed = await invokeRoute(router, 'get', '/', {
+      user: dev,
+      query: { statut: 'terminee' },
+    })
+    expect(listed.res).toMatchObject({
+      statusCode: 200,
+      body: { suggestions: [{ id: 10, statut: 'terminee' }], total: 1 },
+    })
+    expect(logger.logAction).toHaveBeenCalledWith(
+      expect.objectContaining({ details: { statut: 'terminee' } }),
+    )
+  })
+
   it.each([
     { method: 'post', path: '/', body: { titre: ' ', description: 'Texte' } },
     { method: 'post', path: '/', body: { titre: 'Titre', description: [] } },
     { method: 'get', path: '/', query: { date_fin: '2026-02-30' } },
     { method: 'get', path: '/', query: { page: '1abc' } },
+    { method: 'get', path: '/mes', query: { statut: 'invalide' } },
+    { method: 'get', path: '/mes', query: { page: '0' } },
     { method: 'patch', path: '/:id/statut', params: { id: '10' }, body: { statut: 'invalide' } },
     { method: 'patch', path: '/:id/statut', params: { id: 'abc' }, body: { statut: 'acceptee' } },
   ])('retourne 400 pour une requete invalide: %j', async ({ method, path, ...request }) => {
@@ -177,6 +253,7 @@ describe('suggestionsController', () => {
   it.each([
     { method: 'post', path: '/', body: { titre: 'Titre prive', description: 'Secret prive' } },
     { method: 'get', path: '/' },
+    { method: 'get', path: '/mes' },
     { method: 'patch', path: '/:id/statut', params: { id: '10' }, body: { statut: 'refusee' } },
   ])('ne divulgue ni contenu ni erreur DB pour $method', async ({ method, path, ...request }) => {
     const { router, fake, logger } = loadController()

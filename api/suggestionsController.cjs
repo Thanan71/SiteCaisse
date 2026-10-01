@@ -5,6 +5,7 @@ const {
   SuggestionError,
   createSuggestion,
   listSuggestions,
+  listOwnSuggestions,
   updateSuggestionStatus,
 } = require('./services/suggestionService.cjs')
 const { logAction, logError } = require('./services/loggerService.cjs')
@@ -44,6 +45,14 @@ router.post('/', async (req, res) => {
     return res.status(201).json({ suggestion })
   } catch (err) {
     return handleError(err, req, res, 'suggestions.create')
+  }
+})
+
+router.get('/mes', async (req, res) => {
+  try {
+    return res.json(await listOwnSuggestions(req.user.id, req.query))
+  } catch (err) {
+    return handleError(err, req, res, 'suggestions.list_own')
   }
 })
 
