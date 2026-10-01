@@ -15,19 +15,19 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="user in users" :key="user.id">
+        <tr v-for="user in visibleUsers" :key="user.id">
           <td class="col-id">{{ user.id }}</td>
           <td class="col-nom">{{ user.nom }}</td>
           <td class="col-boutique" :title="user.nom_boutique">{{ user.nom_boutique }}</td>
           <td class="col-password">
-            <span v-if="user.generated_password && (user.role !== 'dev' || canManageDev)" class="password-chip">
+            <span v-if="user.generated_password" class="password-chip">
               {{ user.generated_password }}
             </span>
             <span v-else class="password-empty">—</span>
           </td>
           <td class="col-role">
             <span class="role-badge" :class="'role-' + user.role">
-              {{ user.role === 'dev' ? 'Dev' : user.role === 'admin' ? 'Admin' : user.role === 'permanent' ? 'Permanent' : 'Invité' }}
+              {{ user.role === 'admin' ? 'Admin' : user.role === 'permanent' ? 'Permanent' : 'Invité' }}
             </span>
           </td>
           <td class="col-actif">
@@ -65,7 +65,6 @@
                 {{ reactivatingId === user.id ? '...' : 'Désarchiver' }}
               </button>
               <button
-                v-if="user.role !== 'dev' || canManageDev"
                 @click="$emit('reset-password', user)"
                 class="btn btn-warning btn-sm"
                 :disabled="resettingId === user.id"
@@ -82,11 +81,11 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { formatDateTime as formatDate, formatDateSimple } from '../utils/formatters'
 
 const props = defineProps({
   users: { type: Array, required: true },
-  canManageDev: { type: Boolean, default: false },
   deletingId: { type: Number, default: null },
   reactivatingId: { type: Number, default: null },
   extendingId: { type: Number, default: null },
@@ -94,6 +93,8 @@ const props = defineProps({
   getStatusClass: { type: Function, required: true },
   getStatusLabel: { type: Function, required: true },
 })
+
+const visibleUsers = computed(() => props.users.filter((user) => user.role !== 'dev'))
 
 defineEmits(['delete', 'extend', 'reactivate', 'reset-password'])
 </script>
@@ -174,8 +175,7 @@ defineEmits(['delete', 'extend', 'reactivate', 'reset-password'])
   font-weight: 500;
 }
 
-.role-admin,
-.role-dev {
+.role-admin {
   background: #f3e8ff;
   color: #9333ea;
 }

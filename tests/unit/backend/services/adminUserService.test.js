@@ -26,20 +26,21 @@ describe('adminUserService', () => {
     })
   }
 
-  it('masque les mots de passe dev pour les admins sans modifier les donnees stockees', async () => {
+  it.each([
+    adminActor,
+    devActor,
+  ])('exclut tous les comptes dev de la liste pour $role sans modifier les comptes stockes', async (actor) => {
     const users = [
-      { id: 1, role: 'dev', generated_password: 'secret-dev' },
+      { id: 1, role: 'dev', est_actif: true, generated_password: 'secret-dev' },
       { id: 2, role: 'permanent', generated_password: 'artisan-password' },
+      { id: 3, role: 'admin', generated_password: 'admin-password' },
+      { id: 4, role: 'temporaire', generated_password: 'invite-password' },
+      { id: 5, role: 'dev', est_actif: false, generated_password: 'secret-dev-inactif' },
     ]
     const fake = createFakeSupabase({ users })
     const { loaded, restore } = loadAdminService(fake)
 
-    const adminList = await loaded.listUsers(adminActor)
-    expect(adminList.find((user) => user.role === 'dev')).not.toHaveProperty('generated_password')
-    expect(adminList.find((user) => user.role === 'permanent').generated_password).toBe(
-      'artisan-password',
-    )
-    expect(await loaded.listUsers(devActor)).toEqual(users)
+    expect(await loaded.listUsers(actor)).toEqual(users.slice(1, 4))
     expect(fake.tables.users).toEqual(users)
     restore()
   })

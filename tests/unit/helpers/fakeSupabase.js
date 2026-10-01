@@ -73,6 +73,12 @@ class FakeQueryBuilder {
     return this
   }
 
+  neq(column, value) {
+    this.calls.push({ method: 'neq', tableName: this.tableName, column, value })
+    this.filters.push((row) => row[column] != null && String(row[column]) !== String(value))
+    return this
+  }
+
   in(column, values) {
     this.calls.push({ method: 'in', tableName: this.tableName, column, values })
     const normalizedValues = values.map((value) => String(value))

@@ -108,7 +108,7 @@ User Action → Vue Component → Pinia Store → API Express → Supabase/Postg
 
 ## Rôle Dev et boîte à idées
 
-Implémenté et validé localement le 01/10/2026 : 336 tests unitaires, 16 E2E, Biome, build et vérification visuelle mobile/tablette/desktop. Schéma et migration SQL testés sur PostgreSQL isolé (PGlite), y compris les refus d’accès direct aux comptes et suggestions. La procédure d'activation est décrite dans [le guide de mise en service](docs/activation-dev-suggestions.md) : publier le code avec la clé serveur, appliquer la migration puis promouvoir le premier compte Dev.
+Implémenté et validé localement le 01/10/2026 : 336 tests unitaires, 18 E2E, Biome, build et vérification visuelle mobile/tablette/desktop. Schéma et migration SQL testés sur PostgreSQL isolé (PGlite), y compris les refus d’accès direct aux comptes et suggestions. La procédure d'activation est décrite dans [le guide de mise en service](docs/activation-dev-suggestions.md) : publier le code avec la clé serveur, appliquer la migration puis promouvoir le premier compte Dev.
 
 ### 6. Rôle Dev
 - [x] Ajouter un rôle `dev` au-dessus du rôle `admin`
@@ -117,6 +117,7 @@ Implémenté et validé localement le 01/10/2026 : 336 tests unitaires, 16 E2E, 
 - [x] Ajouter des fonctionnalités réservées au rôle `dev`
 - [x] Adapter les middlewares backend pour reconnaître et sécuriser le rôle `dev`
 - [x] Adapter le frontend (router, navbar, stores et composants) pour gérer le rôle `dev`
+- [x] Masquer les comptes Dev et leurs mots de passe dans la liste des utilisateurs et son API
 - [x] Ajouter des tests unitaires et E2E sur les permissions du rôle `dev`
 
 ### 7. Suggestions / boîte à idées

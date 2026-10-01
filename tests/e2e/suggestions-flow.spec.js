@@ -135,6 +135,60 @@ test('Dev accede a l administration et peut creer un compte administrateur', asy
   expect(state.artisans.some((item) => item.nom_boutique === 'Gestion boutique')).toBe(false)
 })
 
+for (const role of ['admin', 'dev']) {
+  test(`la liste utilisateurs cache les comptes Dev et leurs mots de passe pour ${role}`, async ({
+    page,
+  }) => {
+    const user = userForRole(role)
+    await installApiMock(page, {
+      user,
+      users: [
+        {
+          id: 71,
+          nom: 'Developpeur cache',
+          nom_boutique: 'Boutique confidentielle',
+          role: 'dev',
+          generated_password: 'dev-secret-invisible',
+          est_actif: true,
+        },
+        {
+          id: 72,
+          nom: 'Developpeur archive',
+          nom_boutique: 'Boutique archivee confidentielle',
+          role: 'dev',
+          generated_password: 'dev-archive-secret',
+          est_actif: false,
+        },
+        {
+          id: 73,
+          nom: 'Artisan visible',
+          nom_boutique: 'Atelier visible',
+          role: 'permanent',
+          generated_password: 'artisan-visible-password',
+          est_actif: true,
+        },
+      ],
+    })
+    await authenticate(page, user)
+    const usersResponse = page.waitForResponse(
+      (response) => new URL(response.url()).pathname === '/api/admin/users',
+    )
+    await page.goto('/admin')
+    expect(await (await usersResponse).json()).toMatchObject([{ id: 73, role: 'permanent' }])
+
+    const userList = page.locator('.users-list-card')
+    await expect(userList.getByRole('heading', { name: 'Utilisateurs (1)' })).toBeVisible()
+    await expect(userList.locator('tbody tr')).toHaveCount(1)
+    await expect(userList.getByText('Artisan visible', { exact: true })).toBeVisible()
+    await expect(userList.getByText('artisan-visible-password', { exact: true })).toBeVisible()
+    await expect(userList).not.toContainText('Developpeur')
+    await expect(userList).not.toContainText('confidentielle')
+    await expect(userList).not.toContainText('dev-secret-invisible')
+    await expect(userList).not.toContainText('dev-archive-secret')
+    await expect(userList.locator('.role-dev')).toHaveCount(0)
+  })
+}
+
 test('le filtre de dates inclut le jour affiche a Paris autour de minuit', async ({ page }) => {
   const user = userForRole('dev')
   await installApiMock(page, {
