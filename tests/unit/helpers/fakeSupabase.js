@@ -1,4 +1,4 @@
-export function createFakeSupabase(initialTables = {}) {
+export function createFakeSupabase(initialTables = {}, options = {}) {
   const tables = Object.fromEntries(
     Object.entries(initialTables).map(([tableName, rows]) => [
       tableName,
@@ -18,17 +18,18 @@ export function createFakeSupabase(initialTables = {}) {
     client: {
       from(tableName) {
         calls.push({ method: 'from', tableName })
-        return new FakeQueryBuilder(tableName, getTable(tableName), calls)
+        return new FakeQueryBuilder(tableName, getTable(tableName), calls, options)
       },
     },
   }
 }
 
 class FakeQueryBuilder {
-  constructor(tableName, table, calls) {
+  constructor(tableName, table, calls, options) {
     this.tableName = tableName
     this.table = table
     this.calls = calls
+    this.options = options
     this.filters = []
     this.orders = []
     this.rangeBounds = null
@@ -138,6 +139,9 @@ class FakeQueryBuilder {
   }
 
   execute() {
+    const error = this.options.getQueryError?.(this)
+    if (error) return { data: null, count: null, error }
+
     if (this.operation === 'insert') return this.executeInsert()
     if (this.operation === 'update') return this.executeUpdate()
     if (this.operation === 'delete') return this.executeDelete()
@@ -183,6 +187,8 @@ class FakeQueryBuilder {
 
     if (this.limitCount !== null) rows = rows.slice(0, this.limitCount)
     if (this.rangeBounds) rows = rows.slice(this.rangeBounds.from, this.rangeBounds.to + 1)
+    // Le plafond API s'applique aux lignes retournées, jamais au count exact.
+    if (this.options.maxRows !== undefined) rows = rows.slice(0, this.options.maxRows)
 
     return this.formatResult(rows, count)
   }
