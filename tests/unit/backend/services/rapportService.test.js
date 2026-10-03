@@ -95,6 +95,24 @@ describe('rapportService', () => {
     restore()
   })
 
+  it('accepte les taux avec une virgule autorisés par le schéma SQL', async () => {
+    const { loaded, restore } = loadRapportService(
+      { getAllVentesGroupedByArtisan: vi.fn(async () => groupedData) },
+      { commission_cb_permanent: '1,70', commission_cb_temporaire: '2,50' },
+    )
+
+    try {
+      const result = await loaded.getRapportGlobal()
+      expect(result.parametres).toEqual({
+        commission_cb_permanent: 1.7,
+        commission_cb_temporaire: 2.5,
+      })
+      expect(result.total.total_commission).toBe(6.7)
+    } finally {
+      restore()
+    }
+  })
+
   it('applique la commission personnalisee sur un rapport artisan', async () => {
     const { loaded, restore } = loadRapportService({
       getVentesByArtisan: vi.fn(async () => ({

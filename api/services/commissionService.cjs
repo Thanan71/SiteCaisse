@@ -5,6 +5,14 @@
  */
 'use strict'
 
+const {
+  addCents,
+  articleAmountInCents,
+  fromCents,
+  percentageOfCents,
+  toCents,
+} = require('./moneyService.cjs')
+
 /**
  * Calcule la commission et conserve séparément le total des paiements CB.
  * @param {Array} ventes - Les ventes à analyser (doivent contenir `type_paiement` et `articles[]` avec `prix` et `quantite`).
@@ -22,17 +30,17 @@ function calculerCommissions(ventes, tauxCommission, role = 'permanent') {
     const paiementCB = v.type_paiement === 'CB'
     const articles = v.articles || [{ prix: v.prix, quantite: v.quantite }]
     for (const art of articles) {
-      const montant = (art.prix || 0) * (art.quantite || 0)
-      if (paiementCB) totalCB += montant
-      if (tousPaiements || paiementCB) baseCommission += montant
+      const montant = articleAmountInCents(art)
+      if (paiementCB) totalCB = addCents(totalCB, montant)
+      if (tousPaiements || paiementCB) baseCommission = addCents(baseCommission, montant)
     }
   }
 
-  const commission = baseCommission * (tauxCommission / 100)
+  const commission = percentageOfCents(baseCommission, tauxCommission)
 
   return {
-    total_cb: totalCB,
-    commission_cb: Math.round(commission * 100) / 100,
+    total_cb: fromCents(totalCB),
+    commission_cb: fromCents(commission),
     assiette_commission: tousPaiements ? 'tous_paiements' : 'cb',
   }
 }
@@ -77,8 +85,8 @@ function ajouterCommissionsAuxGroupes(groupes, tauxPermanent, tauxTemporaire) {
     )
 
     const commission = calculerCommissions(g.ventes, taux, role)
-    totalGlobalCB += commission.total_cb
-    totalGlobalCommission += commission.commission_cb
+    totalGlobalCB = addCents(totalGlobalCB, toCents(commission.total_cb))
+    totalGlobalCommission = addCents(totalGlobalCommission, toCents(commission.commission_cb))
 
     return {
       ...g,
@@ -93,8 +101,8 @@ function ajouterCommissionsAuxGroupes(groupes, tauxPermanent, tauxTemporaire) {
 
   return {
     groupesAvecCommissions,
-    totalGlobalCB,
-    totalGlobalCommission: Math.round(totalGlobalCommission * 100) / 100,
+    totalGlobalCB: fromCents(totalGlobalCB),
+    totalGlobalCommission: fromCents(totalGlobalCommission),
   }
 }
 

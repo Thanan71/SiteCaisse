@@ -10,6 +10,33 @@ const {
 } = commissionService
 
 describe('commissionService', () => {
+  it('arrondit exactement une commission au demi-centime', () => {
+    expect(
+      calculerCommissions([{ type_paiement: 'CB', prix: 67, quantite: 1 }], 1.5),
+    ).toMatchObject({ total_cb: 67, commission_cb: 1.01 })
+  })
+
+  it('additionne les paiements et commissions des artisans sans erreur décimale', () => {
+    const result = ajouterCommissionsAuxGroupes(
+      [0.1, 0.2, 0.3].map((prix) => ({
+        artisan_role: 'permanent',
+        ventes: [{ type_paiement: 'CB', articles: [{ prix, quantite: 1 }] }],
+      })),
+      10,
+      2.5,
+    )
+    expect(result.totalGlobalCB).toBe(0.6)
+    expect(result.totalGlobalCommission).toBe(0.06)
+  })
+
+  it('conserve l arrondi par période et non la somme des commissions mensuelles', () => {
+    const january = [{ type_paiement: 'CB', prix: 0.34, quantite: 1 }]
+    const february = [{ type_paiement: 'CB', prix: 0.34, quantite: 1 }]
+    expect(calculerCommissions(january, 1.5).commission_cb).toBe(0.01)
+    expect(calculerCommissions(february, 1.5).commission_cb).toBe(0.01)
+    expect(calculerCommissions([...january, ...february], 1.5).commission_cb).toBe(0.01)
+  })
+
   describe.each(['permanent', 'temporaire'])('%s', (role) => {
     describe.each([
       { tauxPersonnalise: null, personnalise: false },

@@ -5,11 +5,13 @@
  */
 const bcrypt = require('bcryptjs')
 const { getSupabase } = require('./db.cjs')
+const { fetchAllRows } = require('./services/supabasePagination.cjs')
 const {
   filterVentesByArtisan,
   groupVentesByArtisan,
   groupVentesByMonth,
   groupVentesForMonth,
+  summarizeArticles,
 } = require('./services/venteAggregationService.cjs')
 
 /**
@@ -168,19 +170,17 @@ async function updatePassword(id, newPassword) {
  */
 async function getAllArtisans({ includeInactive = false } = {}) {
   const supabase = getSupabase()
-  let query = supabase
-    .from('users')
-    .select('id, nom, nom_boutique, role, est_actif, commission_cb_personnalisee')
-    .in('role', ['permanent', 'temporaire'])
-    .order('nom', { ascending: true })
+  return fetchAllRows((selectOptions) => {
+    let query = supabase
+      .from('users')
+      .select('id, nom, nom_boutique, role, est_actif, commission_cb_personnalisee', selectOptions)
+      .in('role', ['permanent', 'temporaire'])
+      .order('nom', { ascending: true })
+      .order('id', { ascending: true })
 
-  if (!includeInactive) {
-    query = query.eq('est_actif', true)
-  }
-
-  const { data, error } = await query
-  if (error) throw error
-  return data || []
+    if (!includeInactive) query = query.eq('est_actif', true)
+    return query
+  })
 }
 
 function parsePositiveInt(value, fallback) {
@@ -212,16 +212,21 @@ function applyVenteFilters(query, { date_debut, date_fin, type_paiement } = {}) 
 }
 
 async function fetchArticlesByVenteIds(supabase, venteIds) {
-  if (!venteIds.length) return []
-
-  const { data, error } = await supabase
-    .from('vente_articles')
-    .select('*')
-    .in('vente_id', venteIds)
-    .order('id', { ascending: true })
-
-  if (error) throw error
-  return data || []
+  // Borne aussi la longueur de l'URL PostgREST ; chaque lot peut contenir plus de 1 000 articles.
+  const venteIdBatchSize = 200
+  const articles = []
+  for (let offset = 0; offset < venteIds.length; offset += venteIdBatchSize) {
+    const batchIds = venteIds.slice(offset, offset + venteIdBatchSize)
+    const batchArticles = await fetchAllRows((selectOptions) =>
+      supabase
+        .from('vente_articles')
+        .select('*', selectOptions)
+        .in('vente_id', batchIds)
+        .order('id', { ascending: true }),
+    )
+    for (const article of batchArticles) articles.push(article)
+  }
+  return articles
 }
 
 function groupArticlesByVenteId(articles) {
@@ -236,11 +241,7 @@ function groupArticlesByVenteId(articles) {
 
 function formatVente(vente, articlesByVente) {
   const venteArticles = articlesByVente[vente.id] || []
-  const total_articles = venteArticles.reduce((sum, article) => sum + (article.quantite || 0), 0)
-  const total_montant = venteArticles.reduce(
-    (sum, article) => sum + article.prix * article.quantite,
-    0,
-  )
+  const { total_articles, total_montant } = summarizeArticles(venteArticles)
   const articleArtisanIds = [
     ...new Set(
       venteArticles
@@ -333,19 +334,18 @@ async function getAllVentes(options = {}) {
   const { count: total, error: countError } = await countQuery
   if (countError) throw countError
 
-  const query = applyVenteFilters(
-    supabase
-      .from('ventes')
-      .select(`
-        *,
-        vendeur:vendeur_id (nom)
-      `)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1),
-    filters,
+  const ventes = await fetchAllRows(
+    (selectOptions) =>
+      applyVenteFilters(
+        supabase
+          .from('ventes')
+          .select(`*, vendeur:vendeur_id (nom)`, selectOptions)
+          .order('created_at', { ascending: false })
+          .order('id', { ascending: false }),
+        filters,
+      ),
+    { offset, limit, total: total ?? null },
   )
-  const { data: ventes, error: ventesError } = await query
-  if (ventesError) throw ventesError
 
   if (!ventes || ventes.length === 0) {
     return {
@@ -378,16 +378,13 @@ async function getVentesByArtisan(artisan_id) {
  */
 async function getAllVentesUnpaginated() {
   const supabase = getSupabase()
-
-  const { data: ventes, error: ventesError } = await supabase
-    .from('ventes')
-    .select(`
-      *,
-        vendeur:vendeur_id (nom)
-    `)
-    .order('created_at', { ascending: false })
-
-  if (ventesError) throw ventesError
+  const ventes = await fetchAllRows((selectOptions) =>
+    supabase
+      .from('ventes')
+      .select(`*, vendeur:vendeur_id (nom)`, selectOptions)
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false }),
+  )
 
   if (!ventes || ventes.length === 0) return []
 

@@ -18,7 +18,7 @@ const {
 const { getAllParametres } = require('./parametresService.cjs')
 
 function parseCommissionRate(value) {
-  return parseFloat(value) || 0
+  return parseFloat(String(value ?? '').replace(',', '.')) || 0
 }
 
 async function getCommissionRates() {
