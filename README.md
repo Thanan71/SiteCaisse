@@ -162,6 +162,13 @@ npm run dev
 - Le workflow GitHub met en cache `node_modules` et les navigateurs Playwright pour accélérer les runs suivants.
 - Vercel utilise `npm run vercel-build`, qui lance Biome, les tests unitaires et le build. Les E2E navigateur restent dans GitHub Actions, puis Vercel Deployment Checks peut bloquer la promotion production tant que l'action GitHub n'est pas verte.
 
+## Sauvegarde quotidienne
+
+GitHub Actions sauvegarde la base PostgreSQL complète chaque jour à **22 h, heure de Paris**.
+Chaque archive est chiffrée et conservée comme artefact pendant **7 jours**.
+Configurer `SUPABASE_DB_URL` et `SUPABASE_BACKUP_PASSPHRASE` dans les secrets Actions,
+puis suivre le [guide de sauvegarde et restauration](docs/sauvegarde-base.md).
+
 ## 🔌 API disponibles
 
 ### Authentification

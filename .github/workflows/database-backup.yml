@@ -1,0 +1,49 @@
+name: Daily database backup
+
+on:
+  schedule:
+    - cron: '0 22 * * *'
+      timezone: Europe/Paris
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: Back up the complete Supabase database
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    container: postgres:17-bookworm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install encryption and URL validation tools
+        run: |
+          apt-get update
+          apt-get install --yes --no-install-recommends gnupg python3
+
+      - name: Export, verify and encrypt the database
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_BACKUP_PASSPHRASE: ${{ secrets.SUPABASE_BACKUP_PASSPHRASE }}
+          EXPECTED_SUPABASE_PROJECT_REF: uylpcvhdlwkfmuwstljt
+        run: bash scripts/backup-database.sh "$RUNNER_TEMP/database-backup"
+
+      - name: Keep the encrypted backup for seven days
+        uses: actions/upload-artifact@v4
+        with:
+          name: sitecaisse-database-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/database-backup/*.tar.gz.gpg
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
