@@ -73,7 +73,7 @@ describe('authController', () => {
     restore()
   })
 
-  it('connecte un utilisateur actif et journalise la connexion', async () => {
+  it('connecte un utilisateur avec l’ancien indicateur et journalise la connexion', async () => {
     const user = {
       id: 2,
       nom: 'Alice',
@@ -92,15 +92,13 @@ describe('authController', () => {
     })
 
     expect(res.statusCode).toBe(200)
-    expect(res.body).toMatchObject({
+    expect(res.body).toEqual({
       token: expect.any(String),
-      password_change_required: true,
       user: {
         id: 2,
         nom: 'Alice',
         nom_boutique: 'Atelier Alice',
         role: 'permanent',
-        password_change_required: true,
       },
     })
     expect(models.findUserByNomBoutique).toHaveBeenCalledWith('Atelier Alice')
@@ -312,7 +310,7 @@ describe('authController', () => {
     restore()
   })
 
-  it('valide les contraintes de changement de mot de passe', async () => {
+  it('vérifie le mot de passe actuel même avec l’ancien indicateur', async () => {
     const user = {
       id: 2,
       nom: 'Alice',
@@ -320,7 +318,7 @@ describe('authController', () => {
       role: 'permanent',
       est_actif: true,
       password_hash: bcrypt.hashSync('ancien', 10),
-      password_change_required: false,
+      password_change_required: true,
     }
     const token = jwt.sign({ id: 2 }, JWT_SECRET)
     const { router, models, restore } = loadAuthController({
@@ -382,36 +380,25 @@ describe('authController', () => {
     restore()
   })
 
-  it('change un mot de passe obligatoire sans verifier l ancien et remonte les erreurs', async () => {
-    const forcedUser = {
+  it('rapporte une erreur de mise à jour du mot de passe', async () => {
+    const user = {
       id: 2,
       nom: 'Alice',
       nom_boutique: 'Atelier Alice',
       role: 'permanent',
       est_actif: true,
       password_hash: bcrypt.hashSync('ancien', 10),
-      password_change_required: true,
     }
     const token = jwt.sign({ id: 2 }, JWT_SECRET)
     const updateError = new Error('update failed')
-    const { router, models, logger, restore } = loadAuthController({
-      findUserById: vi.fn(async () => forcedUser),
+    const { router, logger, restore } = loadAuthController({
+      findUserById: vi.fn(async () => user),
+      updatePassword: vi.fn().mockRejectedValueOnce(updateError),
     })
 
     await expect(
       invokeRoute(router, 'post', '/change-password', {
-        body: { newPassword: 'nouveau' },
-        headers: { authorization: `Bearer ${token}` },
-      }),
-    ).resolves.toMatchObject({
-      res: { statusCode: 200, body: { message: 'Mot de passe modifié avec succès' } },
-    })
-    expect(models.updatePassword).toHaveBeenCalledWith(2, 'nouveau')
-
-    models.updatePassword.mockRejectedValueOnce(updateError)
-    await expect(
-      invokeRoute(router, 'post', '/change-password', {
-        body: { newPassword: 'encore-nouveau' },
+        body: { currentPassword: 'ancien', newPassword: 'nouveau' },
         headers: { authorization: `Bearer ${token}` },
       }),
     ).resolves.toMatchObject({

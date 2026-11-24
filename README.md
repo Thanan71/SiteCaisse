@@ -28,7 +28,7 @@ SiteCaisse est une application de caisse et gestion des ventes pour artisans, co
 - Vue synthétique des ventes mensuelles et rapports
 - Interface d’administration accessible aux admins et aux Dev
 - Boîte à idées pour tous les utilisateurs connectés, consultation et traitement réservés aux Dev
-- Gestion des mots de passe et changement obligatoire
+- Création et réinitialisation des mots de passe depuis l’administration
 - Seed initial d’utilisateurs de démonstration
 - Journalisation des actions et des erreurs
 
@@ -39,7 +39,7 @@ SiteCaisse est une application de caisse et gestion des ventes pour artisans, co
   - `router/` : définition des routes et guard d’authentification
   - `store/` : stores Pinia, notamment `auth.js`
   - `services/api.js` : configuration Axios centralisée
-  - `views/` : pages principales (`Login`, `Ventes`, `Rapports`, `Admin`, `ChangePassword`)
+  - `views/` : pages principales (`Login`, `Ventes`, `Rapports`, `Admin`)
   - `components/` : composants réutilisables
 - `api/` : backend Express
   - `index.cjs` : point d’entrée serveur
@@ -175,12 +175,12 @@ puis suivre le [guide de sauvegarde et restauration](docs/sauvegarde-base.md).
 
 - `POST /api/auth/login`
   - Body : `{ nom_boutique, password }`
-  - Retourne : `{ token, user, password_change_required }`
+  - Retourne : `{ token, user }`
 - `GET /api/auth/me`
   - Header : `Authorization: Bearer <token>`
   - Retourne : profil de l’utilisateur
 - `POST /api/auth/change-password`
-  - Body : `{ newPassword, currentPassword? }`
+  - Body : `{ newPassword, currentPassword }`
   - Permet de changer le mot de passe
 
 ### Ventes

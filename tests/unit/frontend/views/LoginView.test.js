@@ -49,7 +49,7 @@ describe('LoginView', () => {
     expect(window.localStorage.getItem('token')).toBe('token-123')
   })
 
-  it('redirige vers le changement de mot de passe si le backend le demande', async () => {
+  it('redirige vers les ventes avec une ancienne réponse de changement obligatoire', async () => {
     api.post.mockResolvedValueOnce({
       data: {
         password_change_required: true,
@@ -64,7 +64,8 @@ describe('LoginView', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(routerPush).toHaveBeenCalledWith({ name: 'ChangePassword' })
+    expect(routerPush).toHaveBeenCalledWith('/')
+    expect(window.localStorage.getItem('token')).toBe('token-456')
   })
 
   it("affiche l'erreur API sans redirection", async () => {

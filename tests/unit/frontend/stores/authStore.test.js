@@ -47,7 +47,7 @@ describe('auth store', () => {
       nom_boutique: 'Administration',
       password: 'password123',
     })
-    expect(result.password_change_required).toBe(true)
+    expect(result).toEqual({ id: 1, nom: 'Admin', role: 'admin' })
     expect(store.isAuthenticated).toBe(true)
     expect(store.isAdmin).toBe(true)
     expect(localStorage.setItem).toHaveBeenCalledWith('token', 'token-123')
@@ -73,18 +73,5 @@ describe('auth store', () => {
     api.get.mockRejectedValueOnce({ response: { status: 401 } })
     await expect(store.fetchUser()).rejects.toEqual({ response: { status: 401 } })
     expect(store.isAuthenticated).toBe(false)
-  })
-
-  it('change le mot de passe et nettoie le flag local', async () => {
-    const store = useAuthStore()
-    store.user = { id: 1, password_change_required: true }
-    api.post.mockResolvedValueOnce({ data: { message: 'ok' } })
-
-    await expect(store.changePassword('nouveau')).resolves.toEqual({ message: 'ok' })
-
-    expect(api.post).toHaveBeenCalledWith('/api/auth/change-password', {
-      newPassword: 'nouveau',
-    })
-    expect(store.user.password_change_required).toBe(false)
   })
 })

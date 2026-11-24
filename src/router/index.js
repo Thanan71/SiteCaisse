@@ -15,13 +15,6 @@ const routes = [
     meta: { requiresAuth: false },
   },
   {
-    path: '/change-password',
-    name: 'ChangePassword',
-    component: () => import('../views/ChangePasswordView.vue'),
-    /** @property {boolean} meta.requiresAuth - true = page protégée. */
-    meta: { requiresAuth: true },
-  },
-  {
     path: '/',
     name: 'Ventes',
     component: () => import('../views/VentesView.vue'),

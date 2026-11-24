@@ -60,22 +60,7 @@ export const useAuthStore = defineStore('auth', {
       localStorage.setItem('token', token)
       localStorage.setItem('user', JSON.stringify(user))
 
-      return { user, password_change_required: !!response.data.password_change_required }
-    },
-
-    /**
-     * Change le mot de passe de l'utilisateur connecté.
-     * @param {string} newPassword - Nouveau mot de passe.
-     * @returns {Promise<void>}
-     */
-    async changePassword(newPassword) {
-      const response = await api.post('/api/auth/change-password', { newPassword })
-      // Mettre à jour le flag dans le user local
-      if (this.user) {
-        this.user.password_change_required = false
-        localStorage.setItem('user', JSON.stringify(this.user))
-      }
-      return response.data
+      return user
     },
 
     /**

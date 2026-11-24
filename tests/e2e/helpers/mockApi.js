@@ -112,8 +112,8 @@ export async function installApiMock(page, options = {}) {
 
       return json({
         token: 'e2e-token',
-        password_change_required: false,
         user: state.user,
+        ...(options.legacyPasswordChangeRequired ? { password_change_required: true } : {}),
       })
     }
 
@@ -341,10 +341,7 @@ export async function installApiMock(page, options = {}) {
       const id = Number(path.split('/').at(-2))
       const user = state.users.find((item) => item.id === id)
       const newPassword = `${normalizePassword(user?.nom_boutique || 'boutique')}0099`
-      if (user) {
-        user.generated_password = newPassword
-        user.password_change_required = true
-      }
+      if (user) user.generated_password = newPassword
       return json({ message: 'Mot de passe réinitialisé avec succès.', newPassword })
     }
 

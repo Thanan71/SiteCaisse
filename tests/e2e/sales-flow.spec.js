@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test'
 import { installApiMock, loginThroughUi } from './helpers/mockApi'
 
-test('redirige vers la connexion puis permet de creer une vente', async ({ page }) => {
-  await installApiMock(page)
+test('accède à la caisse et crée une vente avec une réponse de connexion héritée', async ({
+  page,
+}) => {
+  await installApiMock(page, { legacyPasswordChangeRequired: true })
 
   await page.goto('/')
   await expect(page).toHaveURL(/\/login$/)

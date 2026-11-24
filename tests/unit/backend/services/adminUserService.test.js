@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import bcrypt from 'bcryptjs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFakeSupabase } from '../../helpers/fakeSupabase'
 import { loadCjsWithMocks } from '../../helpers/loadCjsWithMocks'
@@ -57,7 +58,7 @@ describe('adminUserService', () => {
     expect(fake.tables.users).toEqual([])
 
     const result = await loaded.createUser(payload, devActor)
-    expect(result.user).toMatchObject({ role, password_change_required: true })
+    expect(result.user).toMatchObject({ role })
     expect(result.newPassword).toBe(`compte${role}0042`)
     restore()
   })
@@ -132,7 +133,7 @@ describe('adminUserService', () => {
     restore()
   })
 
-  it('cree un utilisateur avec mot de passe normalise et changement obligatoire', async () => {
+  it('crée un utilisateur avec un mot de passe utilisable dès la première connexion', async () => {
     const fake = createFakeSupabase({ users: [] })
     const { loaded, restore } = loadAdminService(fake)
 
@@ -153,10 +154,10 @@ describe('adminUserService', () => {
       nom_boutique: 'Atelier Zoé !',
       generated_password: 'atelierzoe0042',
       role: 'temporaire',
-      password_change_required: true,
       date_fin: '2026-08-01',
     })
-    expect(fake.tables.users[0].password_hash).not.toBe('atelierzoe0042')
+    expect(fake.tables.users[0].password_change_required).toBe(false)
+    expect(bcrypt.compareSync(result.newPassword, fake.tables.users[0].password_hash)).toBe(true)
 
     restore()
   })

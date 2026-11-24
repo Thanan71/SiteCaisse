@@ -64,7 +64,7 @@ describe('router', () => {
     const routes = router.getRoutes()
 
     expect(routes.map((route) => route.name)).toEqual(
-      expect.arrayContaining(['Login', 'ChangePassword', 'Ventes', 'Rapports', 'Admin']),
+      expect.arrayContaining(['Login', 'Ventes', 'Rapports', 'Admin']),
     )
     expect(routes.find((route) => route.name === 'Login').meta.requiresAuth).toBe(false)
     expect(routes.find((route) => route.name === 'Admin').meta.requiresAdmin).toBe(true)
@@ -80,6 +80,11 @@ describe('router', () => {
     const route = await navigate('/login', { token: 'token-123' })
 
     expect(route.name).toBe('Ventes')
+  })
+
+  it("redirige l'ancienne page de changement de mot de passe", async () => {
+    expect((await navigate('/change-password')).name).toBe('Login')
+    expect((await navigate('/change-password', { token: 'token-123' })).name).toBe('Ventes')
   })
 
   it('reserve admin aux utilisateurs admin', async () => {

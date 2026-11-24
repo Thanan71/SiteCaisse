@@ -129,7 +129,7 @@ async function createUser({ nom, nom_boutique, role, date_fin }, actor) {
     password_hash: bcrypt.hashSync(generatedPassword, 10),
     generated_password: generatedPassword,
     role,
-    password_change_required: true,
+    password_change_required: false,
   }
 
   if (date_fin) {
@@ -139,9 +139,7 @@ async function createUser({ nom, nom_boutique, role, date_fin }, actor) {
   const { data, error } = await supabase
     .from('users')
     .insert(userData)
-    .select(
-      'id, nom, nom_boutique, generated_password, role, est_actif, date_fin, created_at, password_change_required',
-    )
+    .select('id, nom, nom_boutique, generated_password, role, est_actif, date_fin, created_at')
     .single()
 
   if (error) throw error

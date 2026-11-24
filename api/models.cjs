@@ -134,9 +134,7 @@ async function findUserById(id) {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('users')
-    .select(
-      'id, nom, nom_boutique, role, est_actif, date_fin, password_hash, password_change_required',
-    )
+    .select('id, nom, nom_boutique, role, est_actif, date_fin, password_hash')
     .eq('id', id)
     .single()
   if (error && error.code !== 'PGRST116') throw error
@@ -514,19 +512,11 @@ async function extendUserDateFin(id, newDateFin) {
 }
 
 async function resetUserPassword(id, newPassword) {
-  const supabase = getSupabase()
-
   if (!newPassword) {
     throw new Error('Nouveau mot de passe requis')
   }
 
-  const password_hash = bcrypt.hashSync(newPassword, 10)
-  const { error } = await supabase
-    .from('users')
-    .update({ password_hash, generated_password: newPassword, password_change_required: true })
-    .eq('id', id)
-
-  if (error) throw error
+  await updatePassword(id, newPassword)
   return newPassword
 }
 

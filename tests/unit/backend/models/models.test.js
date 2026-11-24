@@ -272,6 +272,7 @@ describe('models', () => {
           nom: 'Bruno',
           nom_boutique: 'Boutique Bruno',
           password_hash: bcrypt.hashSync('ancien', 10),
+          password_change_required: true,
           date_fin: '2026-07-31',
         },
       ],
@@ -283,7 +284,7 @@ describe('models', () => {
 
     await expect(loaded.resetUserPassword(2, 'boutique1234')).resolves.toBe('boutique1234')
     expect(fake.tables.users[0].generated_password).toBe('boutique1234')
-    expect(fake.tables.users[0].password_change_required).toBe(true)
+    expect(fake.tables.users[0].password_change_required).toBe(false)
     expect(bcrypt.compareSync('boutique1234', fake.tables.users[0].password_hash)).toBe(true)
     await expect(loaded.resetUserPassword(2, '')).rejects.toThrow('Nouveau mot de passe requis')
 
